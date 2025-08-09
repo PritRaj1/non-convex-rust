@@ -53,12 +53,30 @@ pub enum DEStrategy {
     Rand2Bin,
 }
 
-fn default_archive_size() -> usize { 10 }
-fn default_f() -> f64 { 0.8 }
-fn default_cr() -> f64 { 0.9 }
-fn default_strategy() -> DEStrategy { DEStrategy::Rand1Bin }
-fn default_f_min() -> f64 { 0.1 }
-fn default_f_max() -> f64 { 0.9 }
-fn default_cr_min() -> f64 { 0.1 }
-fn default_cr_max() -> f64 { 0.9 }
-fn default_success_history_size() -> usize { 50 } 
+fn default_archive_size() -> usize {
+    10
+}
+fn default_f() -> f64 {
+    0.8
+}
+fn default_cr() -> f64 {
+    0.9
+}
+fn default_strategy() -> DEStrategy {
+    DEStrategy::Rand1Bin
+}
+fn default_f_min() -> f64 {
+    0.1
+}
+fn default_f_max() -> f64 {
+    0.9
+}
+fn default_cr_min() -> f64 {
+    0.1
+}
+fn default_cr_max() -> f64 {
+    0.9
+}
+fn default_success_history_size() -> usize {
+    50
+}

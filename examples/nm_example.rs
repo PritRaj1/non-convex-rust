@@ -1,15 +1,17 @@
 mod common;
 
-use nalgebra::{SMatrix};
-use plotters::prelude::*;
 use gif::Frame;
 use image::ImageReader;
+use nalgebra::SMatrix;
+use plotters::prelude::*;
 
-use common::fcns::{KBF, KBFConstraints};
-use common::img::{create_contour_data, setup_gif, find_closest_color, setup_chart, get_color_palette};
+use common::fcns::{KBFConstraints, KBF};
+use common::img::{
+    create_contour_data, find_closest_color, get_color_palette, setup_chart, setup_gif,
+};
 
+use non_convex_opt::utils::config::{AlgConf, Config, NelderMeadConf, OptConf};
 use non_convex_opt::NonConvexOpt;
-use non_convex_opt::utils::config::{Config, OptConf, AlgConf, NelderMeadConf};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = Config {
@@ -37,7 +39,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         SMatrix::<f64, 1, 2>::from_row_slice(&[3.0, 3.0]),
     ]);
 
-    let mut opt = NonConvexOpt::new(config, init_simplex, obj_f.clone(), Some(constraints.clone()));
+    let mut opt = NonConvexOpt::new(
+        config,
+        init_simplex,
+        obj_f.clone(),
+        Some(constraints.clone()),
+    );
 
     let resolution = 100;
     let (z_values, min_val, max_val) = create_contour_data(&obj_f, resolution);
@@ -57,7 +64,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         )?;
 
         // Get current simplex vertices and best point
-        let vertices = opt.alg.get_simplex().expect("Expected NelderMead algorithm");
+        let vertices = opt
+            .alg
+            .get_simplex()
+            .expect("Expected NelderMead algorithm");
 
         // Draw simplex vertices
         for vertex in vertices {
@@ -88,18 +98,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         )))?;
 
         chart.plotting_area().present()?;
-        
+
         // Convert PNG to GIF frame
         let img = ImageReader::open("examples/nm_frame.png")?
             .decode()?
             .into_rgba8();
-        
+
         let mut indexed_pixels = Vec::with_capacity((img.width() * img.height()) as usize);
         for pixel in img.pixels() {
             let idx = find_closest_color(pixel[0], pixel[1], pixel[2], &color_palette);
             indexed_pixels.push(idx as u8);
         }
-        
+
         let mut frame = Frame::default();
         frame.width = 800;
         frame.height = 800;
@@ -113,4 +123,4 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     std::fs::remove_file("examples/nm_frame.png")?;
 
     Ok(())
-} 
+}

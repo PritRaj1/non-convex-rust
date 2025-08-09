@@ -1,13 +1,6 @@
-use rayon::prelude::*;
-use nalgebra::{
-    allocator::Allocator, 
-    DefaultAllocator, 
-    Dim, 
-    OMatrix, 
-    OVector,
-    U1
-};
 use crate::utils::opt_prob::{FloatNumber as FloatNum, OptProb};
+use nalgebra::{allocator::Allocator, DefaultAllocator, Dim, OMatrix, OVector, U1};
+use rayon::prelude::*;
 
 pub fn evaluate_samples<T, D>(
     samples: &[OVector<T, D>], // use slice
@@ -43,13 +36,9 @@ pub fn update_arrays<T: FloatNum, N: Dim, D: Dim>(
     population: &mut OMatrix<T, N, D>,
     fitness: &mut OVector<T, N>,
     constraints: &mut OVector<bool, N>,
-    results: &[(OVector<T, D>, T, bool)]
-) 
-where 
-    DefaultAllocator: Allocator<N, D> 
-                     + Allocator<N>
-                     + Allocator<D>
-                     + Allocator<U1, D>
+    results: &[(OVector<T, D>, T, bool)],
+) where
+    DefaultAllocator: Allocator<N, D> + Allocator<N> + Allocator<D> + Allocator<U1, D>,
 {
     for (i, (x, f, c)) in results.iter().enumerate() {
         population.row_mut(i).copy_from(&x.transpose());
@@ -61,13 +50,13 @@ where
 pub fn sort<T, N>(
     fitness: &OVector<T, N>,
     constraints: &OVector<bool, N>,
-    lambda: usize
-) -> Vec<usize> 
-where 
+    lambda: usize,
+) -> Vec<usize>
+where
     T: FloatNum,
     N: Dim,
     OVector<T, N>: Send + Sync,
-    DefaultAllocator: Allocator<N> 
+    DefaultAllocator: Allocator<N>,
 {
     let mut indices: Vec<usize> = (0..lambda).collect();
     indices.sort_by(|&i, &j| {
@@ -81,4 +70,4 @@ where
         }
     });
     indices
-} 
+}

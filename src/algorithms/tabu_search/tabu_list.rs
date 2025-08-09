@@ -1,15 +1,9 @@
+use nalgebra::{allocator::Allocator, DefaultAllocator, Dim, OVector};
 use rayon::prelude::*;
 use std::collections::VecDeque;
-use nalgebra::{
-    allocator::Allocator, 
-    DefaultAllocator, 
-    Dim,
-    OVector,
-};
 
+use crate::utils::config::{ListType, TabuConf};
 use crate::utils::opt_prob::FloatNumber as FloatNum;
-use crate::utils::config::{TabuConf, ListType};
-
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum TabuType {
@@ -36,24 +30,24 @@ impl From<&TabuConf> for TabuType {
     }
 }
 
-pub struct TabuList<T, D> 
-where 
+pub struct TabuList<T, D>
+where
     T: FloatNum,
     D: Dim,
     OVector<T, D>: Send + Sync,
-    DefaultAllocator: Allocator<D> 
+    DefaultAllocator: Allocator<D>,
 {
     items: VecDeque<OVector<T, D>>,
     max_size: usize,
     tabu_type: TabuType,
 }
 
-impl<T, D> TabuList<T, D> 
-where 
+impl<T, D> TabuList<T, D>
+where
     T: FloatNum,
     D: Dim,
     OVector<T, D>: Send + Sync,
-    DefaultAllocator: Allocator<D> 
+    DefaultAllocator: Allocator<D>,
 {
     pub fn new(max_size: usize, tabu_type: TabuType) -> Self {
         Self {
@@ -72,14 +66,19 @@ where
 
     pub fn update(&mut self, x: OVector<T, D>, iterations_since_improvement: usize) {
         match self.tabu_type {
-            TabuType::Reactive { min_size, max_size, increase_factor, decrease_factor } => {
+            TabuType::Reactive {
+                min_size,
+                max_size,
+                increase_factor,
+                decrease_factor,
+            } => {
                 let new_size = if iterations_since_improvement > 10 {
                     ((self.items.len() as f64) * decrease_factor) as usize
                 } else {
                     ((self.items.len() as f64) * increase_factor) as usize
                 };
                 self.max_size = new_size.clamp(min_size, max_size);
-            },
+            }
             TabuType::Standard => {}
         }
 

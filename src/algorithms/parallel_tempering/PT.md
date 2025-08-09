@@ -1,6 +1,13 @@
 # Parallel Tempering
 
-Parallel Tempering with either a Metropolis-Hastings update mechanism or Metropolis-Adjusted Langevin Algorithm (MALA) when gradients are available.
+<div align="center">
+
+<figure>
+  <img src="../../../examples/gifs/pt_kbf.gif" width="200" alt="PT Example">
+  <figcaption><b>Figure:</b> Parallel Tempering with either a Metropolis-Hastings update mechanism or Metropolis-Adjusted Langevin Algorithm (MALA) when gradients are available. </figcaption>
+</figure>
+
+</div>
 
 Temperatures are scheduled with a dynamic power law relationship:
 

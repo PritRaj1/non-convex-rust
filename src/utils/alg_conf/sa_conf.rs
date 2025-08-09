@@ -18,10 +18,24 @@ pub struct SAConf {
     pub x_max: f64,
 }
 
-fn default_initial_temp() -> f64 { 1000.0 }
-fn default_cooling_rate() -> f64 { 0.998 }
-fn default_step_size() -> f64 { 0.5 }
-fn default_num_neighbors() -> usize { 20 }
-fn default_reheat_after() -> usize { 50 }
-fn default_x_min() -> f64 { -10.0 }
-fn default_x_max() -> f64 { 10.0 } 
+fn default_initial_temp() -> f64 {
+    1000.0
+}
+fn default_cooling_rate() -> f64 {
+    0.998
+}
+fn default_step_size() -> f64 {
+    0.5
+}
+fn default_num_neighbors() -> usize {
+    20
+}
+fn default_reheat_after() -> usize {
+    50
+}
+fn default_x_min() -> f64 {
+    -10.0
+}
+fn default_x_max() -> f64 {
+    10.0
+}

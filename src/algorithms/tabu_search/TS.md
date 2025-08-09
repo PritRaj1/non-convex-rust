@@ -1,6 +1,13 @@
 # Tabu Search
 
-Tabu search is a local search algorithm that uses a tabu list to prevent the search from revisiting the same solution, thereby escaping local optima.
+<div align="center">
+
+<figure>
+  <img src="../../../examples/gifs/tabu_kbf.gif" width="200" alt="Tabu Example">
+  <figcaption><b>Figure:</b> Tabu search is a local search algorithm that uses a tabu list to prevent the search from revisiting the same solution, thereby escaping local optima. </figcaption>
+</figure>
+
+</div>
 
 Two variants of tabu search are implemented:
 

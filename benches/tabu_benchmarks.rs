@@ -1,14 +1,14 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use rand::random;
-use std::sync::LazyLock;
-use serde_json;
 use nalgebra::SMatrix;
+use rand::random;
+use serde_json;
+use std::sync::LazyLock;
 
+use non_convex_opt::utils::config::Config;
 use non_convex_opt::NonConvexOpt;
-use non_convex_opt::utils::config::{Config};
 
 mod common;
-use common::fcns::{KBF, KBFConstraints};
+use common::fcns::{KBFConstraints, KBF};
 
 static CONFIG_JSON: &str = r#"
 {
@@ -64,16 +64,12 @@ static REACTIVE_CONFIG_JSON: &str = r#"
 }
 "#;
 
-static CONFIG: LazyLock<Config> = LazyLock::new(|| {
-    serde_json::from_str(CONFIG_JSON).unwrap()
-});
+static CONFIG: LazyLock<Config> = LazyLock::new(|| serde_json::from_str(CONFIG_JSON).unwrap());
 
-static REACTIVE_CONFIG: LazyLock<Config> = LazyLock::new(|| {
-    serde_json::from_str(REACTIVE_CONFIG_JSON).unwrap()
-});
+static REACTIVE_CONFIG: LazyLock<Config> =
+    LazyLock::new(|| serde_json::from_str(REACTIVE_CONFIG_JSON).unwrap());
 
 fn bench_tabu_unconstrained(c: &mut Criterion) {
-
     c.bench_function("tabu_unconstrained", |b| {
         b.iter(|| {
             let init_pop = SMatrix::<f64, 1, 2>::from_fn(|_, _| random::<f64>() * 10.0);
@@ -81,7 +77,7 @@ fn bench_tabu_unconstrained(c: &mut Criterion) {
                 CONFIG.clone(),
                 black_box(init_pop),
                 KBF,
-                None::<KBFConstraints>
+                None::<KBFConstraints>,
             );
             let _st = opt.run();
         })
@@ -89,7 +85,6 @@ fn bench_tabu_unconstrained(c: &mut Criterion) {
 }
 
 fn bench_tabu_constrained(c: &mut Criterion) {
-
     c.bench_function("tabu_constrained", |b| {
         b.iter(|| {
             let init_pop = SMatrix::<f64, 1, 2>::from_fn(|_, _| random::<f64>() * 10.0);
@@ -97,7 +92,7 @@ fn bench_tabu_constrained(c: &mut Criterion) {
                 CONFIG.clone(),
                 black_box(init_pop),
                 KBF,
-                Some(KBFConstraints)
+                Some(KBFConstraints),
             );
             let _st = opt.run();
         })
@@ -105,7 +100,6 @@ fn bench_tabu_constrained(c: &mut Criterion) {
 }
 
 fn bench_reactive_tabu_unconstrained(c: &mut Criterion) {
-
     c.bench_function("reactive_tabu_unconstrained", |b| {
         b.iter(|| {
             let init_pop = SMatrix::<f64, 1, 2>::from_fn(|_, _| random::<f64>() * 10.0);
@@ -113,7 +107,7 @@ fn bench_reactive_tabu_unconstrained(c: &mut Criterion) {
                 REACTIVE_CONFIG.clone(),
                 black_box(init_pop),
                 KBF,
-                None::<KBFConstraints>
+                None::<KBFConstraints>,
             );
             let _st = opt.run();
         })
@@ -121,7 +115,6 @@ fn bench_reactive_tabu_unconstrained(c: &mut Criterion) {
 }
 
 fn bench_reactive_tabu_constrained(c: &mut Criterion) {
-
     c.bench_function("reactive_tabu_constrained", |b| {
         b.iter(|| {
             let init_pop = SMatrix::<f64, 1, 2>::from_fn(|_, _| random::<f64>() * 10.0);
@@ -129,7 +122,7 @@ fn bench_reactive_tabu_constrained(c: &mut Criterion) {
                 REACTIVE_CONFIG.clone(),
                 black_box(init_pop),
                 KBF,
-                Some(KBFConstraints)
+                Some(KBFConstraints),
             );
             let _st = opt.run();
         })
@@ -137,10 +130,10 @@ fn bench_reactive_tabu_constrained(c: &mut Criterion) {
 }
 
 criterion_group!(
-    benches, 
-    bench_tabu_unconstrained, 
-    bench_tabu_constrained, 
-    bench_reactive_tabu_unconstrained, 
+    benches,
+    bench_tabu_unconstrained,
+    bench_tabu_constrained,
+    bench_reactive_tabu_unconstrained,
     bench_reactive_tabu_constrained
 );
-criterion_main!(benches); 
+criterion_main!(benches);

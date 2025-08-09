@@ -41,12 +41,30 @@ pub struct ReactiveConf {
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct StandardConf {}
 
-fn default_tabu_list_size() -> usize { 20 }
-fn default_num_neighbors() -> usize { 50 }
-fn default_step_size() -> f64 { 0.1 }
-fn default_perturbation_prob() -> f64 { 0.3 }
-fn default_tabu_threshold() -> f64 { 1e-6 }
-fn default_min_tabu_size() -> usize { 10 }
-fn default_max_tabu_size() -> usize { 30 }
-fn default_increase_factor() -> f64 { 1.1 }
-fn default_decrease_factor() -> f64 { 0.9 }
+fn default_tabu_list_size() -> usize {
+    20
+}
+fn default_num_neighbors() -> usize {
+    50
+}
+fn default_step_size() -> f64 {
+    0.1
+}
+fn default_perturbation_prob() -> f64 {
+    0.3
+}
+fn default_tabu_threshold() -> f64 {
+    1e-6
+}
+fn default_min_tabu_size() -> usize {
+    10
+}
+fn default_max_tabu_size() -> usize {
+    30
+}
+fn default_increase_factor() -> f64 {
+    1.1
+}
+fn default_decrease_factor() -> f64 {
+    0.9
+}

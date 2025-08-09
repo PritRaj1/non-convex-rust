@@ -4,11 +4,11 @@ use rand::random;
 use serde_json;
 use std::sync::LazyLock;
 
-use non_convex_opt::NonConvexOpt;
 use non_convex_opt::utils::config::Config;
+use non_convex_opt::NonConvexOpt;
 
 mod common;
-use common::fcns::{KBF, KBFConstraints};
+use common::fcns::{KBFConstraints, KBF};
 
 static CONFIG_JSON: &str = r#"
 {
@@ -43,12 +43,9 @@ static CONFIG_JSON: &str = r#"
     }
 }"#;
 
-static CONFIG: LazyLock<Config> = LazyLock::new(|| {
-    serde_json::from_str(CONFIG_JSON).unwrap()
-});
+static CONFIG: LazyLock<Config> = LazyLock::new(|| serde_json::from_str(CONFIG_JSON).unwrap());
 
 fn bench_cga_unconstrained(c: &mut Criterion) {
-
     c.bench_function("cga_unconstrained", |b| {
         b.iter(|| {
             let init_pop = SMatrix::<f64, 100, 2>::from_fn(|_, _| random::<f64>() * 10.0);
@@ -64,7 +61,6 @@ fn bench_cga_unconstrained(c: &mut Criterion) {
 }
 
 fn bench_cga_constrained(c: &mut Criterion) {
-
     c.bench_function("cga_constrained", |b| {
         b.iter(|| {
             let init_pop = SMatrix::<f64, 100, 2>::from_fn(|_, _| random::<f64>() * 10.0);
@@ -72,7 +68,7 @@ fn bench_cga_constrained(c: &mut Criterion) {
                 CONFIG.clone(),
                 black_box(init_pop),
                 KBF,
-                Some(KBFConstraints)
+                Some(KBFConstraints),
             );
             let _st = opt.run();
         })
@@ -80,4 +76,4 @@ fn bench_cga_constrained(c: &mut Criterion) {
 }
 
 criterion_group!(benches, bench_cga_unconstrained, bench_cga_constrained);
-criterion_main!(benches); 
+criterion_main!(benches);

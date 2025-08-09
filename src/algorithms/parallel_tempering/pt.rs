@@ -1,40 +1,24 @@
+use nalgebra::{allocator::Allocator, DMatrix, DefaultAllocator, Dim, OMatrix, OVector, U1};
 use rand::Rng;
 use rayon::prelude::*;
-use nalgebra::{
-    allocator::Allocator, 
-    DefaultAllocator, 
-    Dim, 
-    OMatrix, 
-    OVector,
-    U1,
-    DMatrix,
-};
 
 use crate::utils::config::{PTConf, SwapConf};
-use crate::utils::opt_prob::{
-    FloatNumber as FloatNum, 
-    OptProb, 
-    OptimizationAlgorithm,
-    State
-};
+use crate::utils::opt_prob::{FloatNumber as FloatNum, OptProb, OptimizationAlgorithm, State};
 
 use crate::algorithms::parallel_tempering::{
-    replica_exchange::{SwapCheck, Periodic, Stochastic, Always},
     metropolis_hastings::MetropolisHastings,
+    replica_exchange::{Always, Periodic, Stochastic, SwapCheck},
 };
 
-pub struct PT<T, N, D> 
-where 
+pub struct PT<T, N, D>
+where
     T: FloatNum,
     N: Dim,
     D: Dim,
     OVector<T, D>: Send + Sync,
     OMatrix<T, N, D>: Send + Sync,
     OMatrix<T, D, D>: Send + Sync,
-    DefaultAllocator: Allocator<D> 
-                    + Allocator<N, D>
-                    + Allocator<N>
-                    + Allocator<D, D>
+    DefaultAllocator: Allocator<D> + Allocator<N, D> + Allocator<N> + Allocator<D, D>,
 {
     pub conf: PTConf,
     pub metropolis_hastings: MetropolisHastings<T, D>,
@@ -50,8 +34,8 @@ where
     pub st: State<T, N, D>, // Store a copy of final replica's population and fitness values
 }
 
-impl<T, N, D> PT<T, N, D> 
-where 
+impl<T, N, D> PT<T, N, D>
+where
     T: FloatNum,
     N: Dim,
     D: Dim,
@@ -60,13 +44,14 @@ where
     OVector<bool, N>: Send + Sync,
     OMatrix<T, N, D>: Send + Sync,
     OMatrix<T, D, D>: Send + Sync,
-    DefaultAllocator: Allocator<D> 
-                    + Allocator<N, D>
-                    + Allocator<N>
-                    + Allocator<D, D>
+    DefaultAllocator: Allocator<D> + Allocator<N, D> + Allocator<N> + Allocator<D, D>,
 {
-    pub fn new(conf: PTConf, init_pop: OMatrix<T, N, D>, opt_prob: OptProb<T, D>, max_iter: usize) -> Self {
-
+    pub fn new(
+        conf: PTConf,
+        init_pop: OMatrix<T, N, D>,
+        opt_prob: OptProb<T, D>,
+        max_iter: usize,
+    ) -> Self {
         let swap_check = match &conf.swap_conf {
             SwapConf::Periodic(p) => SwapCheck::Periodic(Periodic::new(p.swap_frequency, max_iter)),
             SwapConf::Stochastic(s) => SwapCheck::Stochastic(Stochastic::new(s.swap_probability)),
@@ -74,9 +59,9 @@ where
         };
 
         let metropolis_hastings = MetropolisHastings::<T, D>::new(
-            opt_prob.clone(), 
+            opt_prob.clone(),
             T::from_f64(conf.common.mala_step_size).unwrap(),
-            T::from_f64(conf.common.alpha).unwrap(), 
+            T::from_f64(conf.common.alpha).unwrap(),
             T::from_f64(conf.common.omega).unwrap(),
             init_pop.row(0).transpose(),
         );
@@ -88,45 +73,56 @@ where
         let num_iters = max_iter;
 
         let x: Vec<f64> = (0..=num_iters)
-            .map(|i| 2.0 * std::f64::consts::PI * (p_cycles as f64 + 0.5) * (i as f64 / num_iters as f64))
+            .map(|i| {
+                2.0 * std::f64::consts::PI * (p_cycles as f64 + 0.5) * (i as f64 / num_iters as f64)
+            })
             .collect();
 
-        let p_schedule: Vec<T> = x.iter()
+        let p_schedule: Vec<T> = x
+            .iter()
             .map(|&xi| T::from_f64(p_init + (p_final - p_init) * 0.5 * (1.0 - xi.cos())).unwrap())
             .collect();
 
         // Initialize populations in parallel
-        let init_results: Vec<(OMatrix<T, N, D>, OVector<T, N>, OVector<bool, N>)> = (0..conf.common.num_replicas)
-            .into_par_iter()
-            .map(|_| {
-                let mut pop = OMatrix::<T, N, D>::zeros_generic(N::from_usize(init_pop.nrows()), D::from_usize(init_pop.ncols()));
-                for i in 0..init_pop.nrows() {
-                    pop.set_row(i, &init_pop.row(i));
-                }
+        let init_results: Vec<(OMatrix<T, N, D>, OVector<T, N>, OVector<bool, N>)> =
+            (0..conf.common.num_replicas)
+                .into_par_iter()
+                .map(|_| {
+                    let mut pop = OMatrix::<T, N, D>::zeros_generic(
+                        N::from_usize(init_pop.nrows()),
+                        D::from_usize(init_pop.ncols()),
+                    );
+                    for i in 0..init_pop.nrows() {
+                        pop.set_row(i, &init_pop.row(i));
+                    }
 
-                let fit: Vec<T> = (0..init_pop.nrows())
-                    .into_par_iter()
-                    .map(|i| {
-                        let individual = init_pop.row(i).transpose();
-                        opt_prob.evaluate(&individual)
-                    })
-                    .collect();
+                    let fit: Vec<T> = (0..init_pop.nrows())
+                        .into_par_iter()
+                        .map(|i| {
+                            let individual = init_pop.row(i).transpose();
+                            opt_prob.evaluate(&individual)
+                        })
+                        .collect();
 
-                let constr: Vec<bool> = (0..init_pop.nrows())
-                    .into_par_iter()
-                    .map(|i| {
-                        let individual = init_pop.row(i).transpose();
-                        opt_prob.is_feasible(&individual)
-                    })
-                    .collect();
+                    let constr: Vec<bool> = (0..init_pop.nrows())
+                        .into_par_iter()
+                        .map(|i| {
+                            let individual = init_pop.row(i).transpose();
+                            opt_prob.is_feasible(&individual)
+                        })
+                        .collect();
 
-                (
-                    pop,
-                    OVector::<T, N>::from_vec_generic(N::from_usize(init_pop.nrows()), U1, fit),
-                    OVector::<bool, N>::from_vec_generic(N::from_usize(init_pop.nrows()), U1, constr)
-                )
-            })
-            .collect();
+                    (
+                        pop,
+                        OVector::<T, N>::from_vec_generic(N::from_usize(init_pop.nrows()), U1, fit),
+                        OVector::<bool, N>::from_vec_generic(
+                            N::from_usize(init_pop.nrows()),
+                            U1,
+                            constr,
+                        ),
+                    )
+                })
+                .collect();
 
         // Unzip the results
         let mut population = Vec::with_capacity(conf.common.num_replicas);
@@ -155,12 +151,17 @@ where
         let step_sizes: Vec<Vec<OMatrix<T, D, D>>> = (0..conf.common.num_replicas)
             .map(|_| {
                 (0..population[0].nrows())
-                    .map(|_| OMatrix::<T, D, D>::identity_generic(D::from_usize(population[0].ncols()), D::from_usize(population[0].ncols())))
+                    .map(|_| {
+                        OMatrix::<T, D, D>::identity_generic(
+                            D::from_usize(population[0].ncols()),
+                            D::from_usize(population[0].ncols()),
+                        )
+                    })
                     .collect()
             })
             .collect();
 
-        Self { 
+        Self {
             conf,
             metropolis_hastings,
             swap_check,
@@ -172,14 +173,14 @@ where
             best_individual: best_individual.clone(),
             best_fitness: best_fitness.clone(),
             step_sizes,
-            st: State{
+            st: State {
                 best_x: best_individual,
                 best_f: best_fitness,
                 pop: population[0].clone(),
                 fitness: fitness[0].clone(),
                 constraints: constraints[0].clone(),
-                iter: 1
-            }
+                iter: 1,
+            },
         }
     }
 
@@ -196,27 +197,39 @@ where
         let num_attempts = n / 2;
         let swap_pairs: Vec<(usize, usize)> = (0..num_attempts)
             .map(|_| {
-                let i = rng.random_range(0..n-1);
-                let j = rng.random_range(i+1..n);
+                let i = rng.random_range(0..n - 1);
+                let j = rng.random_range(i + 1..n);
                 (i, j)
             })
             .collect();
 
         // Determine which pairs to swap with mh criterion
-        let swap_results: Vec<Vec<(usize, usize, usize, bool)>> = swap_pairs.par_iter()
+        let swap_results: Vec<Vec<(usize, usize, usize, bool)>> = swap_pairs
+            .par_iter()
             .map(|&(i, j)| {
                 let power = self.p_schedule[self.st.iter].to_f64().unwrap();
-                let t_i = T::from_f64((i as f64 / self.conf.common.num_replicas as f64).powf(power)).unwrap();
-                let t_j = T::from_f64((j as f64 / self.conf.common.num_replicas as f64).powf(power)).unwrap();
+                let t_i =
+                    T::from_f64((i as f64 / self.conf.common.num_replicas as f64).powf(power))
+                        .unwrap();
+                let t_j =
+                    T::from_f64((j as f64 / self.conf.common.num_replicas as f64).powf(power))
+                        .unwrap();
 
-                (0..m).into_par_iter()
+                (0..m)
+                    .into_par_iter()
                     .map(|k| {
                         let x_old = self.population[i].row(k).transpose();
                         let x_new = self.population[j].row(k).transpose();
                         let constraints_new = self.constraints[j][k];
-                        
-                        let accept = self.metropolis_hastings.accept_reject(&x_old, &x_new, constraints_new, t_i, t_j);
-                        
+
+                        let accept = self.metropolis_hastings.accept_reject(
+                            &x_old,
+                            &x_new,
+                            constraints_new,
+                            t_i,
+                            t_j,
+                        );
+
                         (i, j, k, accept)
                     })
                     .collect()
@@ -230,7 +243,7 @@ where
                     // Add distance penalty to acceptance probability
                     let dist_factor = 0.9 + 0.1 * (1.0 - (*j - *i) as f64 / n as f64);
                     let accept_with_penalty = rng.random::<f64>() < dist_factor;
-                    
+
                     swap_bool[(*i, *j)] = swap_bool[(*i, *j)] || accept_with_penalty;
                     swap_bool[(*j, *i)] = swap_bool[(*i, *j)];
                 }
@@ -244,7 +257,7 @@ where
 
         // Process accepted swaps
         for i in 0..n {
-            for j in (i+1)..n {
+            for j in (i + 1)..n {
                 if swap_bool[(i, j)] {
                     for k in 0..m {
                         // Swap population rows
@@ -273,7 +286,7 @@ where
 }
 
 impl<T, N, D> OptimizationAlgorithm<T, N, D> for PT<T, N, D>
-where 
+where
     T: FloatNum,
     N: Dim,
     D: Dim,
@@ -282,12 +295,9 @@ where
     OVector<bool, N>: Send + Sync,
     OMatrix<T, N, D>: Send + Sync,
     OMatrix<T, D, D>: Send + Sync,
-    DefaultAllocator: Allocator<D> 
-                    + Allocator<N, D>
-                    + Allocator<N>
-                    + Allocator<D, D>
-                    + Allocator<U1, D>
-{         
+    DefaultAllocator:
+        Allocator<D> + Allocator<N, D> + Allocator<N> + Allocator<D, D> + Allocator<U1, D>,
+{
     fn step(&mut self) {
         let temperatures: Vec<T> = (0..self.conf.common.num_replicas)
             .map(|k| {
@@ -295,50 +305,51 @@ where
                 T::from_f64((k as f64 / self.conf.common.num_replicas as f64).powf(power)).unwrap()
             })
             .collect();
-        
+
         // Local move
-        let updates: Vec<Vec<Option<(OVector<T, D>, T, bool, OMatrix<T, D, D>)>>> = (0..self.conf.common.num_replicas)
-            .into_par_iter()
-            .map(|i| {
-                (0..self.population[i].nrows())
-                    .into_par_iter()
-                    .map(|j| {
-                        let x_old = self.population[i].row(j).transpose();
-                        let x_new = self.metropolis_hastings.local_move(&x_old, &self.step_sizes[i][j], temperatures[i]);
-                        let constr_new = self.opt_prob.is_feasible(&x_new);
-                        
-                        if self.metropolis_hastings.accept_reject(
-                            &x_old,
-                            &x_new,
-                            constr_new,
-                            temperatures[i],
-                            -T::from_f64(1.0).unwrap() // Send in negative to signal local move 
-                        ) {
-                            let new_step_size = if self.opt_prob.objective.gradient(&x_old).is_none() {
-                                self.metropolis_hastings.update_step_size(
-                                    &self.step_sizes[i][j],
-                                    &x_old,
-                                    &x_new
-                                )
-                            } else {
-                                self.step_sizes[i][j].clone()
-                            };
-                            
-                            let fitness_new = self.opt_prob.evaluate(&x_new);
-                            
-                            Some((
-                                x_new.clone(),
-                                fitness_new,
+        let updates: Vec<Vec<Option<(OVector<T, D>, T, bool, OMatrix<T, D, D>)>>> =
+            (0..self.conf.common.num_replicas)
+                .into_par_iter()
+                .map(|i| {
+                    (0..self.population[i].nrows())
+                        .into_par_iter()
+                        .map(|j| {
+                            let x_old = self.population[i].row(j).transpose();
+                            let x_new = self.metropolis_hastings.local_move(
+                                &x_old,
+                                &self.step_sizes[i][j],
+                                temperatures[i],
+                            );
+                            let constr_new = self.opt_prob.is_feasible(&x_new);
+
+                            if self.metropolis_hastings.accept_reject(
+                                &x_old,
+                                &x_new,
                                 constr_new,
-                                new_step_size
-                            ))
-                        } else {
-                            None
-                        }
-                    })
-                    .collect()
-            })
-            .collect();
+                                temperatures[i],
+                                -T::from_f64(1.0).unwrap(), // Send in negative to signal local move
+                            ) {
+                                let new_step_size =
+                                    if self.opt_prob.objective.gradient(&x_old).is_none() {
+                                        self.metropolis_hastings.update_step_size(
+                                            &self.step_sizes[i][j],
+                                            &x_old,
+                                            &x_new,
+                                        )
+                                    } else {
+                                        self.step_sizes[i][j].clone()
+                                    };
+
+                                let fitness_new = self.opt_prob.evaluate(&x_new);
+
+                                Some((x_new.clone(), fitness_new, constr_new, new_step_size))
+                            } else {
+                                None
+                            }
+                        })
+                        .collect()
+                })
+                .collect();
 
         // Apply updates
         for (i, replica) in updates.iter().enumerate() {
@@ -374,7 +385,10 @@ where
                 }
             }
         }
-        let best_individual = self.population[best_idx].row(best_row).transpose().into_owned();
+        let best_individual = self.population[best_idx]
+            .row(best_row)
+            .transpose()
+            .into_owned();
         self.best_individual = best_individual.clone();
         self.best_fitness = best_fitness.clone();
 
@@ -385,7 +399,6 @@ where
         self.st.constraints = self.constraints[0].clone();
 
         self.st.iter += 1;
-
     }
 
     fn state(&self) -> &State<T, N, D> {

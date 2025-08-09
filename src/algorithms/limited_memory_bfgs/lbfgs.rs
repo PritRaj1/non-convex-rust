@@ -1,39 +1,21 @@
-use nalgebra::{
-    allocator::Allocator, 
-    DefaultAllocator, 
-    Dim, 
-    OMatrix, 
-    OVector,
-    U1,
-};
+use nalgebra::{allocator::Allocator, DefaultAllocator, Dim, OMatrix, OVector, U1};
 
 use crate::utils::config::{LBFGSConf, LineSearchConf};
-use crate::utils::opt_prob::{
-    FloatNumber as FloatNum, 
-    OptProb, 
-    OptimizationAlgorithm,
-    State
-};
+use crate::utils::opt_prob::{FloatNumber as FloatNum, OptProb, OptimizationAlgorithm, State};
 
 use crate::algorithms::limited_memory_bfgs::linesearch::{
-    LineSearch, 
-    BacktrackingLineSearch, 
-    StrongWolfeLineSearch, 
-    HagerZhangLineSearch, 
-    MoreThuenteLineSearch, 
-    GoldenSectionLineSearch
+    BacktrackingLineSearch, GoldenSectionLineSearch, HagerZhangLineSearch, LineSearch,
+    MoreThuenteLineSearch, StrongWolfeLineSearch,
 };
 
-pub struct LBFGS<T, N, D> 
-where 
+pub struct LBFGS<T, N, D>
+where
     T: FloatNum,
     N: Dim,
     D: Dim,
     OVector<T, D>: Send + Sync,
     OMatrix<T, N, D>: Send + Sync,
-    DefaultAllocator: Allocator<D> 
-                     + Allocator<N, D>
-                     + Allocator<N>
+    DefaultAllocator: Allocator<D> + Allocator<N, D> + Allocator<N>,
 {
     pub conf: LBFGSConf,
     pub opt_prob: OptProb<T, D>,
@@ -47,17 +29,14 @@ where
     upper_bounds: Option<OVector<T, D>>,
 }
 
-impl<T, N, D> LBFGS<T, N, D> 
-where 
+impl<T, N, D> LBFGS<T, N, D>
+where
     T: FloatNum,
     N: Dim,
     D: Dim,
     OVector<T, D>: Send + Sync,
     OMatrix<T, N, D>: Send + Sync,
-    DefaultAllocator: Allocator<D> 
-                     + Allocator<N, D>
-                     + Allocator<U1, D>
-                     + Allocator<N>
+    DefaultAllocator: Allocator<D> + Allocator<N, D> + Allocator<U1, D> + Allocator<N>,
 {
     pub fn new(conf: LBFGSConf, init_pop: OMatrix<T, U1, D>, opt_prob: OptProb<T, D>) -> Self {
         let init_x = init_pop.row(0).transpose();
@@ -65,29 +44,47 @@ where
         let n = init_x.len();
 
         let linesearch: Box<dyn LineSearch<T, D> + Send + Sync> = match &conf.line_search {
-            LineSearchConf::Backtracking(backtracking_conf) => Box::new(BacktrackingLineSearch::new(backtracking_conf)),
-            LineSearchConf::StrongWolfe(strong_wolfe_conf) => Box::new(StrongWolfeLineSearch::new(strong_wolfe_conf)),
-            LineSearchConf::HagerZhang(hager_zhang_conf) => Box::new(HagerZhangLineSearch::new(hager_zhang_conf)),
-            LineSearchConf::MoreThuente(more_thuente_conf) => Box::new(MoreThuenteLineSearch::new(more_thuente_conf)),
-            LineSearchConf::GoldenSection(golden_section_conf) => Box::new(GoldenSectionLineSearch::new(golden_section_conf)),
+            LineSearchConf::Backtracking(backtracking_conf) => {
+                Box::new(BacktrackingLineSearch::new(backtracking_conf))
+            }
+            LineSearchConf::StrongWolfe(strong_wolfe_conf) => {
+                Box::new(StrongWolfeLineSearch::new(strong_wolfe_conf))
+            }
+            LineSearchConf::HagerZhang(hager_zhang_conf) => {
+                Box::new(HagerZhangLineSearch::new(hager_zhang_conf))
+            }
+            LineSearchConf::MoreThuente(more_thuente_conf) => {
+                Box::new(MoreThuenteLineSearch::new(more_thuente_conf))
+            }
+            LineSearchConf::GoldenSection(golden_section_conf) => {
+                Box::new(GoldenSectionLineSearch::new(golden_section_conf))
+            }
         };
-        
+
         // Check if problem has bounds
         let lower_bounds = opt_prob.objective.x_lower_bound(&init_x);
         let upper_bounds = opt_prob.objective.x_upper_bound(&init_x);
         let has_bounds = lower_bounds.is_some() || upper_bounds.is_some();
 
-        Self { 
-            conf, 
-            opt_prob: opt_prob.clone(),   
+        Self {
+            conf,
+            opt_prob: opt_prob.clone(),
             x: init_x.clone(),
             st: State {
                 best_x: init_x.clone(),
-                best_f: best_f,
-                pop: OMatrix::<T, N, D>::from_fn_generic(N::from_usize(1), D::from_usize(n), |_, j| init_x.clone()[j]),
+                best_f,
+                pop: OMatrix::<T, N, D>::from_fn_generic(
+                    N::from_usize(1),
+                    D::from_usize(n),
+                    |_, j| init_x.clone()[j],
+                ),
                 fitness: OVector::<T, N>::from_element_generic(N::from_usize(1), U1, best_f),
-                constraints: OVector::<bool, N>::from_element_generic(N::from_usize(1), U1, opt_prob.is_feasible(&init_x.clone())),
-                iter: 1
+                constraints: OVector::<bool, N>::from_element_generic(
+                    N::from_usize(1),
+                    U1,
+                    opt_prob.is_feasible(&init_x.clone()),
+                ),
+                iter: 1,
             },
             linesearch,
             s: Vec::new(),
@@ -114,7 +111,7 @@ where
     fn compute_cauchy_point(&self, g: &OVector<T, D>) -> OVector<T, D> {
         let mut t = T::one();
         let mut x_cp = self.x.clone();
-        
+
         for i in 0..g.len() {
             if g[i] != T::zero() {
                 if let (Some(ref lb), Some(ref ub)) = (&self.lower_bounds, &self.upper_bounds) {
@@ -126,7 +123,7 @@ where
                 }
             }
         }
-        
+
         x_cp -= g * t;
         self.project_onto_bounds(&mut x_cp);
         x_cp
@@ -135,13 +132,15 @@ where
     fn step_with_bounds(&mut self, g: &OVector<T, D>) {
         let x_cp = self.compute_cauchy_point(g);
         let mut p = x_cp - &self.st.best_x;
-        
+
         let r = self.compute_reduced_gradient(g);
         let z = self.two_loop_recursion(&r);
 
         self.update_search_direction(&mut p, &z);
 
-        let alpha = self.linesearch.search(&self.st.best_x, &p, self.st.best_f, g, &self.opt_prob);
+        let alpha = self
+            .linesearch
+            .search(&self.st.best_x, &p, self.st.best_f, g, &self.opt_prob);
         let mut x_new = &self.x + &p * alpha;
         self.project_onto_bounds(&mut x_new);
 
@@ -152,11 +151,13 @@ where
 
     fn step_without_bounds(&mut self, g: &OVector<T, D>) {
         let p = self.compute_search_direction(g);
-        
-        let alpha = self.linesearch.search(&self.st.best_x, &p, self.st.best_f, g, &self.opt_prob);
-        
+
+        let alpha = self
+            .linesearch
+            .search(&self.st.best_x, &p, self.st.best_f, g, &self.opt_prob);
+
         let x_new = &self.x + &p * alpha;
-        
+
         self.update_s_y_vectors(&x_new, g);
         self.update_best_solution(&x_new);
         self.x = x_new;
@@ -178,13 +179,13 @@ where
         let mut q = r.clone();
         let mut alpha = vec![T::zero(); m];
         let mut rho = vec![T::zero(); m];
-        
+
         for i in (0..self.s.len()).rev() {
             rho[i] = T::one() / self.s[i].dot(&self.y[i]);
             alpha[i] = rho[i] * self.s[i].dot(&q);
             q -= &self.y[i] * alpha[i];
         }
-        
+
         let mut z = q.clone();
         for i in 0..self.s.len() {
             let beta = rho[i] * self.y[i].dot(&z);
@@ -206,7 +207,7 @@ where
         let mut q = g.clone();
         let mut alpha = vec![T::zero(); m];
         let mut rho = vec![T::zero(); m];
-        
+
         for i in (0..m).rev() {
             if i < self.s.len() {
                 rho[i] = T::one() / self.y[i].dot(&self.s[i]);
@@ -214,12 +215,13 @@ where
                 q -= &self.y[i] * alpha[i];
             }
         }
-        
+
         if !self.s.is_empty() {
-            let gamma = self.s.last().unwrap().dot(self.y.last().unwrap()) / self.y.last().unwrap().dot(self.y.last().unwrap());
+            let gamma = self.s.last().unwrap().dot(self.y.last().unwrap())
+                / self.y.last().unwrap().dot(self.y.last().unwrap());
             q *= gamma;
         }
-        
+
         let mut p = q.clone();
         for i in 0..m {
             if i < self.s.len() {
@@ -251,27 +253,30 @@ where
     }
 
     fn is_at_bound(&self, i: usize) -> bool {
-        let at_lower = self.lower_bounds.as_ref().map_or(false, |lb| self.st.best_x[i] == lb[i]);
-        let at_upper = self.upper_bounds.as_ref().map_or(false, |ub| self.st.best_x[i] == ub[i]);
+        let at_lower = self
+            .lower_bounds
+            .as_ref()
+            .map_or(false, |lb| self.st.best_x[i] == lb[i]);
+        let at_upper = self
+            .upper_bounds
+            .as_ref()
+            .map_or(false, |ub| self.st.best_x[i] == ub[i]);
         at_lower || at_upper
     }
 }
 
-impl<T, N, D> OptimizationAlgorithm<T, N, D> for LBFGS<T, N, D> 
-where 
+impl<T, N, D> OptimizationAlgorithm<T, N, D> for LBFGS<T, N, D>
+where
     T: FloatNum,
     N: Dim,
     D: Dim,
     OVector<T, D>: Send + Sync,
     OMatrix<T, N, D>: Send + Sync,
-    DefaultAllocator: Allocator<D> 
-                    + Allocator<N>
-                    + Allocator<N, D>
-                    + Allocator<U1, D>
+    DefaultAllocator: Allocator<D> + Allocator<N> + Allocator<N, D> + Allocator<U1, D>,
 {
     fn step(&mut self) {
         let g = self.opt_prob.objective.gradient(&self.x).unwrap();
-        
+
         if self.has_bounds {
             self.step_with_bounds(&g); // L-BFGS-B
         } else {

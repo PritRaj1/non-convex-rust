@@ -1,14 +1,13 @@
 mod common;
 
+use common::fcns::{QuadraticConstraints, QuadraticObjective};
 use nalgebra::{SMatrix, U1, U2};
-use common::fcns::{QuadraticObjective, QuadraticConstraints};
 
 use non_convex_opt::algorithms::simulated_annealing::sa::SimulatedAnnealing;
 use non_convex_opt::utils::{
     config::SAConf,
     opt_prob::{OptProb, OptimizationAlgorithm},
 };
-
 
 #[test]
 fn test_sa_basic() {
@@ -24,12 +23,13 @@ fn test_sa_basic() {
 
     let init_x = SMatrix::<f64, 1, 2>::from_row_slice(&[0.5, 0.5]);
     let obj_f = QuadraticObjective { a: 1.0, b: 100.0 };
-    let constraints = QuadraticConstraints{};
+    let constraints = QuadraticConstraints {};
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
-    
-    let mut sa: SimulatedAnnealing<f64, U1, U2> = SimulatedAnnealing::new(conf, init_x.clone(), opt_prob);
+
+    let mut sa: SimulatedAnnealing<f64, U1, U2> =
+        SimulatedAnnealing::new(conf, init_x.clone(), opt_prob);
     let initial_fitness = sa.st.best_f;
-    
+
     for _ in 0..10 {
         sa.step();
     }
@@ -52,12 +52,13 @@ fn test_sa_cooling() {
 
     let init_x = SMatrix::<f64, 1, 2>::from_row_slice(&[0.5, 0.5]);
     let obj_f = QuadraticObjective { a: 1.0, b: 100.0 };
-    let constraints = QuadraticConstraints{};
+    let constraints = QuadraticConstraints {};
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
-    
-    let mut sa: SimulatedAnnealing<f64, U1, U2> = SimulatedAnnealing::new(conf, init_x.clone(), opt_prob);
+
+    let mut sa: SimulatedAnnealing<f64, U1, U2> =
+        SimulatedAnnealing::new(conf, init_x.clone(), opt_prob);
     let initial_temp = sa.temperature;
-    
+
     for _ in 0..5 {
         sa.step();
     }
@@ -83,11 +84,12 @@ fn test_sa_neighbor_generation() {
 
     let init_x = SMatrix::<f64, 1, 2>::from_row_slice(&[0.5, 0.5]);
     let obj_f = QuadraticObjective { a: 1.0, b: 100.0 };
-    let constraints = QuadraticConstraints{};
+    let constraints = QuadraticConstraints {};
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
-    
-    let mut sa: SimulatedAnnealing<f64, U1, U2> = SimulatedAnnealing::new(conf, init_x.clone(), opt_prob);
-    
+
+    let mut sa: SimulatedAnnealing<f64, U1, U2> =
+        SimulatedAnnealing::new(conf, init_x.clone(), opt_prob);
+
     sa.step();
     assert!(sa.st.best_x.iter().all(|&x| x >= -10.0 && x <= 10.0));
 }
@@ -106,11 +108,12 @@ fn test_sa_with_constraints() {
 
     let init_x = SMatrix::<f64, 1, 2>::from_row_slice(&[0.5, 0.5]);
     let obj_f = QuadraticObjective { a: 1.0, b: 100.0 };
-    let constraints = QuadraticConstraints{};
+    let constraints = QuadraticConstraints {};
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
-    
-    let mut sa: SimulatedAnnealing<f64, U1, U2> = SimulatedAnnealing::new(conf, init_x.clone(), opt_prob);
-    
+
+    let mut sa: SimulatedAnnealing<f64, U1, U2> =
+        SimulatedAnnealing::new(conf, init_x.clone(), opt_prob);
+
     for _ in 0..10 {
         sa.step();
         assert!(sa.st.best_x.iter().all(|&x| x >= 0.0 && x <= 1.0));
@@ -120,7 +123,7 @@ fn test_sa_with_constraints() {
 #[test]
 fn test_sa_acceptance() {
     let conf = SAConf {
-        initial_temp: 1.0, 
+        initial_temp: 1.0,
         cooling_rate: 0.95,
         step_size: 0.1,
         num_neighbors: 10,
@@ -130,14 +133,15 @@ fn test_sa_acceptance() {
     };
 
     let init_x = SMatrix::<f64, 1, 2>::from_row_slice(&[0.5, 0.5]);
-    let obj_f = QuadraticObjective{ a: 1.0, b: 100.0 };
-    let constraints = QuadraticConstraints{};
+    let obj_f = QuadraticObjective { a: 1.0, b: 100.0 };
+    let constraints = QuadraticConstraints {};
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
-    
-    let mut sa: SimulatedAnnealing<f64, U1, U2> = SimulatedAnnealing::new(conf, init_x.clone(), opt_prob);
+
+    let mut sa: SimulatedAnnealing<f64, U1, U2> =
+        SimulatedAnnealing::new(conf, init_x.clone(), opt_prob);
     let initial_x = sa.st.best_x.clone();
-    
+
     sa.step();
-    
+
     assert_ne!(sa.st.best_x, initial_x);
-} 
+}

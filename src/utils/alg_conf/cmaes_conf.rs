@@ -8,5 +8,9 @@ pub struct CMAESConf {
     pub initial_sigma: f64,
 }
 
-fn default_num_parents() -> usize { 50 }
-fn default_initial_sigma() -> f64 { 0.3 } 
+fn default_num_parents() -> usize {
+    50
+}
+fn default_initial_sigma() -> f64 {
+    0.3
+}

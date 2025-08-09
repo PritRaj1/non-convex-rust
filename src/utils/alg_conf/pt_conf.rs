@@ -46,12 +46,30 @@ pub struct StochasticConf {
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct AlwaysConf {}
 
-fn default_num_replicas() -> usize { 10 }
-fn default_power_law_init() -> f64 { 2.0 }
-fn default_power_law_final() -> f64 { 0.5 }
-fn default_power_law_cycles() -> usize { 1 }
-fn default_alpha() -> f64 { 0.1 }
-fn default_omega() -> f64 { 2.1 }
-fn default_mala_step_size() -> f64 { 0.01 }
-fn default_swap_frequency() -> f64 { 1.0 }
-fn default_swap_probability() -> f64 { 0.1 }
+fn default_num_replicas() -> usize {
+    10
+}
+fn default_power_law_init() -> f64 {
+    2.0
+}
+fn default_power_law_final() -> f64 {
+    0.5
+}
+fn default_power_law_cycles() -> usize {
+    1
+}
+fn default_alpha() -> f64 {
+    0.1
+}
+fn default_omega() -> f64 {
+    2.1
+}
+fn default_mala_step_size() -> f64 {
+    0.01
+}
+fn default_swap_frequency() -> f64 {
+    1.0
+}
+fn default_swap_probability() -> f64 {
+    0.1
+}

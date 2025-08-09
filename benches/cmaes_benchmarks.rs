@@ -3,11 +3,11 @@ use nalgebra::SMatrix;
 use serde_json;
 use std::sync::LazyLock;
 
-use non_convex_opt::NonConvexOpt;
 use non_convex_opt::utils::config::Config;
+use non_convex_opt::NonConvexOpt;
 
 mod common;
-use common::fcns::{KBF, KBFConstraints};
+use common::fcns::{KBFConstraints, KBF};
 
 static CONFIG_JSON: &str = r#"
 {
@@ -24,14 +24,12 @@ static CONFIG_JSON: &str = r#"
     }
 }"#;
 
-static CONFIG: LazyLock<Config> = LazyLock::new(|| {
-    serde_json::from_str(CONFIG_JSON).unwrap()
-});
+static CONFIG: LazyLock<Config> = LazyLock::new(|| serde_json::from_str(CONFIG_JSON).unwrap());
 
 fn bench_cmaes_unconstrained(c: &mut Criterion) {
     c.bench_function("cmaes_unconstrained", |b| {
         b.iter(|| {
-            let init_x = SMatrix::<f64, 100, 2>::from_fn(|_,_| rand::random::<f64>() * 10.0);
+            let init_x = SMatrix::<f64, 100, 2>::from_fn(|_, _| rand::random::<f64>() * 10.0);
             let mut opt = NonConvexOpt::new(
                 CONFIG.clone(),
                 black_box(init_x),
@@ -46,17 +44,13 @@ fn bench_cmaes_unconstrained(c: &mut Criterion) {
 fn bench_cmaes_constrained(c: &mut Criterion) {
     c.bench_function("cmaes_constrained", |b| {
         b.iter(|| {
-            let init_x = SMatrix::<f64, 100, 2>::from_fn(|_,_| rand::random::<f64>() * 10.0);
-            let mut opt = NonConvexOpt::new(
-                CONFIG.clone(),
-                black_box(init_x),
-                KBF,
-                Some(KBFConstraints)
-            );
+            let init_x = SMatrix::<f64, 100, 2>::from_fn(|_, _| rand::random::<f64>() * 10.0);
+            let mut opt =
+                NonConvexOpt::new(CONFIG.clone(), black_box(init_x), KBF, Some(KBFConstraints));
             let _st = opt.run();
         })
     });
 }
 
 criterion_group!(benches, bench_cmaes_unconstrained, bench_cmaes_constrained);
-criterion_main!(benches); 
+criterion_main!(benches);

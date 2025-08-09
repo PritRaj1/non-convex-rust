@@ -1,48 +1,28 @@
-use nalgebra::{
-    allocator::Allocator, 
-    DefaultAllocator, 
-    Dim, 
-    OVector, 
-    OMatrix,
-    U1
-};
+use nalgebra::{allocator::Allocator, DefaultAllocator, Dim, OMatrix, OVector, U1};
 
 pub mod algorithms;
 pub mod utils;
-use crate::utils::config::{Config, AlgConf, OptConf};
+use crate::utils::config::{AlgConf, Config, OptConf};
 
 use crate::algorithms::{
-    continous_ga::cga::CGA,
-    parallel_tempering::pt::PT,
-    adam::adam::Adam,
-    sg_ascent::sga::SGAscent,
+    adam::adam::Adam, cma_es::cma_es::CMAES, continous_ga::cga::CGA,
+    differential_evolution::de::DE, grasp::grasp::GRASP, limited_memory_bfgs::lbfgs::LBFGS,
+    multi_swarm::mspo::MSPO, nelder_mead::nm::NelderMead, parallel_tempering::pt::PT,
+    sg_ascent::sga::SGAscent, simulated_annealing::sa::SimulatedAnnealing,
     tabu_search::tabu::TabuSearch,
-    grasp::grasp::GRASP,
-    nelder_mead::nm::NelderMead,
-    limited_memory_bfgs::lbfgs::LBFGS,
-    multi_swarm::mspo::MSPO,
-    simulated_annealing::sa::SimulatedAnnealing,
-    differential_evolution::de::DE,
-    cma_es::cma_es::CMAES,
 };
 
 use crate::utils::opt_prob::{
-    FloatNumber as FloatNum, 
-    OptProb, 
-    ObjectiveFunction, 
-    BooleanConstraintFunction,
-    OptimizationAlgorithm,
-    State
+    BooleanConstraintFunction, FloatNumber as FloatNum, ObjectiveFunction, OptProb,
+    OptimizationAlgorithm, State,
 };
 
-pub struct Result<T, N, D> 
+pub struct Result<T, N, D>
 where
     T: FloatNum,
     D: Dim,
     N: Dim,
-    DefaultAllocator: Allocator<D>
-                    + Allocator<N, D>
-                    + Allocator<N>
+    DefaultAllocator: Allocator<D> + Allocator<N, D> + Allocator<N>,
 {
     pub best_x: OVector<T, D>,
     pub best_f: T,
@@ -52,8 +32,8 @@ where
     pub convergence_iter: usize,
 }
 
-pub struct NonConvexOpt<T, N, D> 
-where 
+pub struct NonConvexOpt<T, N, D>
+where
     T: FloatNum,
     N: Dim,
     D: Dim,
@@ -65,20 +45,20 @@ where
     OMatrix<T, D, D>: Send + Sync,
     OMatrix<T, N, D>: Send + Sync,
     OMatrix<T, U1, D>: Send + Sync,
-    DefaultAllocator: Allocator<D> 
-                    + Allocator<N>
-                    + Allocator<N, D>
-                    + Allocator<D, D>
-                    + Allocator<U1, D>
-                    + Allocator<U1, N>
+    DefaultAllocator: Allocator<D>
+        + Allocator<N>
+        + Allocator<N, D>
+        + Allocator<D, D>
+        + Allocator<U1, D>
+        + Allocator<U1, N>,
 {
     pub alg: Box<dyn OptimizationAlgorithm<T, N, D>>,
     pub conf: OptConf,
     pub converged: bool,
 }
 
-impl<T, N, D> NonConvexOpt<T, N, D> 
-where 
+impl<T, N, D> NonConvexOpt<T, N, D>
+where
     T: FloatNum,
     N: Dim,
     D: Dim,
@@ -90,52 +70,91 @@ where
     OMatrix<T, D, D>: Send + Sync,
     OMatrix<T, N, D>: Send + Sync,
     OMatrix<T, U1, D>: Send + Sync,
-    DefaultAllocator: Allocator<D> 
-                    + Allocator<N>
-                    + Allocator<N, D>
-                    + Allocator<D, D>
-                    + Allocator<U1, D>
-                    + Allocator<U1, N>
+    DefaultAllocator: Allocator<D>
+        + Allocator<N>
+        + Allocator<N, D>
+        + Allocator<D, D>
+        + Allocator<U1, D>
+        + Allocator<U1, N>,
 {
-    pub fn new<F: ObjectiveFunction<T, D> + 'static, G: BooleanConstraintFunction<T, D> + 'static>(
-        conf: Config, 
-        init_pop: OMatrix<T, N, D>, 
-        obj_f: F, 
+    pub fn new<
+        F: ObjectiveFunction<T, D> + 'static,
+        G: BooleanConstraintFunction<T, D> + 'static,
+    >(
+        conf: Config,
+        init_pop: OMatrix<T, N, D>,
+        obj_f: F,
         constr_f: Option<G>,
     ) -> Self {
         let opt_prob = OptProb::new(
-            Box::new(obj_f), 
+            Box::new(obj_f),
             match constr_f {
                 Some(constr_f) => Some(Box::new(constr_f)),
                 None => None,
-            }
+            },
         );
 
         let alg: Box<dyn OptimizationAlgorithm<T, N, D>> = match conf.alg_conf {
-            AlgConf::CGA(cga_conf) => Box::new(CGA::new(cga_conf, init_pop, opt_prob, conf.opt_conf.max_iter)),
-            AlgConf::PT(pt_conf) => Box::new(PT::new(pt_conf, init_pop, opt_prob, conf.opt_conf.max_iter)),
-            AlgConf::TS(ts_conf) => Box::new(TabuSearch::new(ts_conf, init_pop.row(0).into_owned(), opt_prob)),
-            AlgConf::Adam(adam_conf) => Box::new(Adam::new(adam_conf, init_pop.row(0).into_owned(), opt_prob)),
-            AlgConf::GRASP(grasp_conf) => Box::new(GRASP::new(grasp_conf, init_pop.row(0).into_owned(), opt_prob)),
-            AlgConf::SGA(sga_conf) => Box::new(SGAscent::new(sga_conf, init_pop.row(0).into_owned(), opt_prob)),
+            AlgConf::CGA(cga_conf) => Box::new(CGA::new(
+                cga_conf,
+                init_pop,
+                opt_prob,
+                conf.opt_conf.max_iter,
+            )),
+            AlgConf::PT(pt_conf) => {
+                Box::new(PT::new(pt_conf, init_pop, opt_prob, conf.opt_conf.max_iter))
+            }
+            AlgConf::TS(ts_conf) => Box::new(TabuSearch::new(
+                ts_conf,
+                init_pop.row(0).into_owned(),
+                opt_prob,
+            )),
+            AlgConf::Adam(adam_conf) => {
+                Box::new(Adam::new(adam_conf, init_pop.row(0).into_owned(), opt_prob))
+            }
+            AlgConf::GRASP(grasp_conf) => Box::new(GRASP::new(
+                grasp_conf,
+                init_pop.row(0).into_owned(),
+                opt_prob,
+            )),
+            AlgConf::SGA(sga_conf) => Box::new(SGAscent::new(
+                sga_conf,
+                init_pop.row(0).into_owned(),
+                opt_prob,
+            )),
             AlgConf::NM(nm_conf) => Box::new(NelderMead::new(nm_conf, init_pop, opt_prob)),
-            AlgConf::LBFGS(lbfgs_conf) => Box::new(LBFGS::new(lbfgs_conf, init_pop.row(0).into_owned(), opt_prob)),
+            AlgConf::LBFGS(lbfgs_conf) => Box::new(LBFGS::new(
+                lbfgs_conf,
+                init_pop.row(0).into_owned(),
+                opt_prob,
+            )),
             AlgConf::MSPO(mspo_conf) => Box::new(MSPO::new(mspo_conf, init_pop, opt_prob)),
-            AlgConf::SA(sa_conf) => Box::new(SimulatedAnnealing::new(sa_conf, init_pop.row(0).into_owned(), opt_prob)),
+            AlgConf::SA(sa_conf) => Box::new(SimulatedAnnealing::new(
+                sa_conf,
+                init_pop.row(0).into_owned(),
+                opt_prob,
+            )),
             AlgConf::DE(de_conf) => Box::new(DE::new(de_conf, init_pop, opt_prob)),
             AlgConf::CMAES(cma_es_conf) => Box::new(CMAES::new(cma_es_conf, init_pop, opt_prob)),
         };
 
-        Self { alg, conf: conf.opt_conf, converged: false }
+        Self {
+            alg,
+            conf: conf.opt_conf,
+            converged: false,
+        }
     }
 
     fn check_convergence(&self, current_best: T, previous_best: T) -> bool {
         let converged = (-current_best).exp() <= T::from_f64(self.conf.atol).unwrap()
-            || ((current_best - previous_best).abs() <= T::from_f64(self.conf.rtol).unwrap() && self.alg.state().iter > (self.conf.max_iter as f64 * self.conf.rtol_max_iter_fraction).floor() as usize);
+            || ((current_best - previous_best).abs() <= T::from_f64(self.conf.rtol).unwrap()
+                && self.alg.state().iter
+                    > (self.conf.max_iter as f64 * self.conf.rtol_max_iter_fraction).floor()
+                        as usize);
         if converged {
             println!("Converged in {} iterations", self.alg.state().iter);
         }
-        
+
         converged
     }
 
@@ -148,10 +167,7 @@ where
         self.alg.step();
         let current_best_fitness = self.alg.state().best_f;
 
-        self.converged = self.check_convergence(
-            current_best_fitness, 
-            previous_best_fitness
-        );
+        self.converged = self.check_convergence(current_best_fitness, previous_best_fitness);
     }
 
     pub fn run(&mut self) -> &State<T, N, D> {

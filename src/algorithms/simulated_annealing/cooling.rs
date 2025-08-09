@@ -15,4 +15,4 @@ impl<T: FloatNum> CoolingSchedule<T> for ExponentialCooling {
     fn reheat(&self, initial_temp: T) -> T {
         initial_temp * T::from_f64(0.8).unwrap()
     }
-} 
+}

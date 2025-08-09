@@ -8,5 +8,9 @@ pub struct SGAConf {
     pub momentum: f64,
 }
 
-fn default_learning_rate() -> f64 { 0.01 }
-fn default_momentum() -> f64 { 0.9 }
+fn default_learning_rate() -> f64 {
+    0.01
+}
+fn default_momentum() -> f64 {
+    0.9
+}

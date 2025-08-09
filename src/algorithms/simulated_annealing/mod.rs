@@ -1,4 +1,4 @@
-pub mod sa;
-pub mod neighbor_gen;
+pub mod acceptance;
 pub mod cooling;
-pub mod acceptance; 
+pub mod neighbor_gen;
+pub mod sa;

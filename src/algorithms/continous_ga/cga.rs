@@ -1,41 +1,25 @@
+use nalgebra::{allocator::Allocator, DefaultAllocator, Dim, Dyn, OMatrix, OVector, U1};
 use rayon::prelude::*;
-use nalgebra::{
-    allocator::Allocator, 
-    DefaultAllocator, 
-    Dim, 
-    OMatrix, 
-    OVector,
-    U1,
-    Dyn,
-};
 
-use crate::utils::config::{CGAConf, CrossoverConf, SelectionConf, MutationConf};
-use crate::utils::opt_prob::{
-    FloatNumber as FloatNum, 
-    OptProb, 
-    OptimizationAlgorithm,
-    State
-};
+use crate::utils::config::{CGAConf, CrossoverConf, MutationConf, SelectionConf};
+use crate::utils::opt_prob::{FloatNumber as FloatNum, OptProb, OptimizationAlgorithm, State};
 
 use crate::algorithms::continous_ga::{
-    selection::*,
     crossover::*,
-    mutation::{MutationOperator, Gaussian, Uniform, NonUniform, Polynomial},
+    mutation::{Gaussian, MutationOperator, NonUniform, Polynomial, Uniform},
+    selection::*,
 };
 
-
-pub struct CGA<T, N, D> 
-where 
+pub struct CGA<T, N, D>
+where
     T: FloatNum,
     N: Dim,
     D: Dim,
-    OVector<T, D>: Send + Sync, 
+    OVector<T, D>: Send + Sync,
     OVector<T, N>: Send + Sync,
     OVector<bool, N>: Send + Sync,
     OMatrix<T, N, D>: Send + Sync,
-    DefaultAllocator: Allocator<D>
-                    + Allocator<N, D>
-                    + Allocator<N>
+    DefaultAllocator: Allocator<D> + Allocator<N, D> + Allocator<N>,
 {
     pub conf: CGAConf,
     pub st: State<T, N, D>,
@@ -45,8 +29,8 @@ where
     pub mutation: Box<dyn MutationOperator<T, D> + Send + Sync>,
 }
 
-impl<T, N, D> CGA<T, N, D> 
-where 
+impl<T, N, D> CGA<T, N, D>
+where
     T: FloatNum,
     N: Dim,
     D: Dim,
@@ -54,58 +38,53 @@ where
     OVector<T, N>: Send + Sync,
     OVector<bool, N>: Send + Sync,
     OMatrix<T, N, D>: Send + Sync,
-    DefaultAllocator: Allocator<D>
-                    + Allocator<N, D>
-                    + Allocator<N>
-                    + Allocator<U1, D>
+    DefaultAllocator: Allocator<D> + Allocator<N, D> + Allocator<N> + Allocator<U1, D>,
 {
-    pub fn new(conf: CGAConf, init_pop: OMatrix<T, N, D>, opt_prob: OptProb<T, D>, max_iter: usize) -> Self {
+    pub fn new(
+        conf: CGAConf,
+        init_pop: OMatrix<T, N, D>,
+        opt_prob: OptProb<T, D>,
+        max_iter: usize,
+    ) -> Self {
         let selector: Box<dyn SelectionOperator<T, N, D> + Send + Sync> = match &conf.selection {
             SelectionConf::RouletteWheel(_) => Box::new(RouletteWheel::new(
-                init_pop.nrows(), 
-                conf.common.num_parents
+                init_pop.nrows(),
+                conf.common.num_parents,
             )),
             SelectionConf::Tournament(tournament) => Box::new(Tournament::new(
-                init_pop.nrows(), 
-                conf.common.num_parents, 
-                tournament.tournament_size
+                init_pop.nrows(),
+                conf.common.num_parents,
+                tournament.tournament_size,
             )),
-            SelectionConf::Residual(_) => Box::new(Residual::new(
-                init_pop.nrows(), 
-                conf.common.num_parents
-            )),
+            SelectionConf::Residual(_) => {
+                Box::new(Residual::new(init_pop.nrows(), conf.common.num_parents))
+            }
         };
 
         let crossover: Box<dyn CrossoverOperator<T, N, D> + Send + Sync> = match &conf.crossover {
-            CrossoverConf::Random(random) => Box::new(Random::new(
-                random.crossover_prob, 
-                init_pop.nrows()
-            )),
-            CrossoverConf::Heuristic(heuristic) => Box::new(Heuristic::new(
-                heuristic.crossover_prob, 
-                init_pop.nrows()
-            )),
+            CrossoverConf::Random(random) => {
+                Box::new(Random::new(random.crossover_prob, init_pop.nrows()))
+            }
+            CrossoverConf::Heuristic(heuristic) => {
+                Box::new(Heuristic::new(heuristic.crossover_prob, init_pop.nrows()))
+            }
         };
 
         let mutation: Box<dyn MutationOperator<T, D> + Send + Sync> = match &conf.mutation {
-            MutationConf::Gaussian(gaussian) => Box::new(Gaussian::new(
-                gaussian.mutation_rate, 
-                gaussian.sigma
-            )),
-            MutationConf::Uniform(uniform) => Box::new(Uniform::new(
-                uniform.mutation_rate
-            )),
+            MutationConf::Gaussian(gaussian) => {
+                Box::new(Gaussian::new(gaussian.mutation_rate, gaussian.sigma))
+            }
+            MutationConf::Uniform(uniform) => Box::new(Uniform::new(uniform.mutation_rate)),
             MutationConf::NonUniform(non_uniform) => Box::new(NonUniform::new(
                 non_uniform.mutation_rate,
                 non_uniform.b,
-                max_iter
+                max_iter,
             )),
-            MutationConf::Polynomial(polynomial) => Box::new(Polynomial::new(
-                polynomial.mutation_rate,
-                polynomial.eta_m
-            )),
+            MutationConf::Polynomial(polynomial) => {
+                Box::new(Polynomial::new(polynomial.mutation_rate, polynomial.eta_m))
+            }
         };
-        
+
         // Calculate initial fitness and constraints in parallel
         let (fitness, constraints): (Vec<T>, Vec<bool>) = (0..init_pop.nrows())
             .into_par_iter()
@@ -117,9 +96,11 @@ where
             })
             .unzip();
 
-        let fitness = OVector::<T, N>::from_vec_generic(N::from_usize(init_pop.nrows()), U1, fitness);
-        let constraints =  OVector::<bool, N>::from_vec_generic(N::from_usize(init_pop.nrows()), U1, constraints);
-        
+        let fitness =
+            OVector::<T, N>::from_vec_generic(N::from_usize(init_pop.nrows()), U1, fitness);
+        let constraints =
+            OVector::<bool, N>::from_vec_generic(N::from_usize(init_pop.nrows()), U1, constraints);
+
         // Find best individual
         let mut best_idx = 0;
         let mut best_fitness = fitness[0];
@@ -131,7 +112,7 @@ where
         }
         let best_individual = init_pop.row(best_idx).transpose();
 
-        Self { 
+        Self {
             conf,
             st: State {
                 pop: init_pop,
@@ -139,7 +120,7 @@ where
                 constraints,
                 best_x: best_individual,
                 best_f: best_fitness,
-                iter: 1
+                iter: 1,
             },
             opt_prob,
             selector,
@@ -149,8 +130,8 @@ where
     }
 }
 
-impl<T, N, D> OptimizationAlgorithm<T, N, D> for CGA<T, N, D> 
-where 
+impl<T, N, D> OptimizationAlgorithm<T, N, D> for CGA<T, N, D>
+where
     T: FloatNum,
     D: Dim,
     N: Dim,
@@ -158,24 +139,35 @@ where
     OVector<T, N>: Send + Sync,
     OVector<bool, N>: Send + Sync,
     OMatrix<T, N, D>: Send + Sync,
-    DefaultAllocator: Allocator<N, D>
-                    + Allocator<N>
-                    + Allocator<U1, D>
-                    + Allocator<D>
-                    + Allocator<Dyn>
+    DefaultAllocator:
+        Allocator<N, D> + Allocator<N> + Allocator<U1, D> + Allocator<D> + Allocator<Dyn>,
 {
     fn step(&mut self) {
-        let selected = self.selector.select(&self.st.pop, &self.st.fitness, &self.st.constraints);
+        let selected = self
+            .selector
+            .select(&self.st.pop, &self.st.fitness, &self.st.constraints);
         let mut offspring = self.crossover.crossover(&selected);
 
         // Apply mutation
-        let fallback_vec_lower = OVector::<T, D>::from_element_generic(D::from_usize(offspring.ncols()), U1, T::from_f64(-10.0).unwrap());
-        let fallback_vec_upper = OVector::<T, D>::from_element_generic(D::from_usize(offspring.ncols()), U1, T::from_f64(10.0).unwrap());
+        let fallback_vec_lower = OVector::<T, D>::from_element_generic(
+            D::from_usize(offspring.ncols()),
+            U1,
+            T::from_f64(-10.0).unwrap(),
+        );
+        let fallback_vec_upper = OVector::<T, D>::from_element_generic(
+            D::from_usize(offspring.ncols()),
+            U1,
+            T::from_f64(10.0).unwrap(),
+        );
 
         let bounds = (
-            self.opt_prob.objective.x_lower_bound(&offspring.row(0).transpose())
+            self.opt_prob
+                .objective
+                .x_lower_bound(&offspring.row(0).transpose())
                 .unwrap_or_else(|| fallback_vec_lower)[0],
-            self.opt_prob.objective.x_upper_bound(&offspring.row(0).transpose())
+            self.opt_prob
+                .objective
+                .x_upper_bound(&offspring.row(0).transpose())
                 .unwrap_or_else(|| fallback_vec_upper)[0],
         );
 
@@ -195,8 +187,13 @@ where
             })
             .unzip();
 
-        let mut new_fitness = OVector::<T, N>::from_vec_generic(N::from_usize(offspring.nrows()), U1, new_fitness);
-        let mut new_constraints = OVector::<bool, N>::from_vec_generic(N::from_usize(offspring.nrows()), U1, new_constraints);
+        let mut new_fitness =
+            OVector::<T, N>::from_vec_generic(N::from_usize(offspring.nrows()), U1, new_fitness);
+        let mut new_constraints = OVector::<bool, N>::from_vec_generic(
+            N::from_usize(offspring.nrows()),
+            U1,
+            new_constraints,
+        );
 
         // Elitism: Keep the best individual from previous generation
         let mut best_old_idx = 0;

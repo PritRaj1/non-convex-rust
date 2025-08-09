@@ -1,16 +1,12 @@
 mod common;
 
-use nalgebra::{DVector, DMatrix};
-use common::fcns::{RosenbrockObjective, RosenbrockConstraints};
+use common::fcns::{RosenbrockConstraints, RosenbrockObjective};
+use nalgebra::{DMatrix, DVector};
 
+use non_convex_opt::algorithms::multi_swarm::{mspo::MSPO, particle::Particle, swarm::Swarm};
 use non_convex_opt::utils::{
-    config::{Config, AlgConf},
+    config::{AlgConf, Config},
     opt_prob::{OptProb, OptimizationAlgorithm},
-};
-use non_convex_opt::algorithms::multi_swarm::{
-    mspo::MSPO,
-    swarm::Swarm,
-    particle::Particle,
 };
 
 #[test]
@@ -18,54 +14,48 @@ fn test_particle_update() {
     let position = DVector::from_vec(vec![0.5f64, 0.5]);
     let velocity = DVector::from_vec(vec![0.1, 0.1]);
     let mut particle = Particle::new(position, velocity, 0.0);
-    
+
     let global_best = DVector::from_vec(vec![1.0, 1.0]);
-    let obj_f = RosenbrockObjective{ a: 1.0, b: 1.0};
-    let constraints = RosenbrockConstraints{};
+    let obj_f = RosenbrockObjective { a: 1.0, b: 1.0 };
+    let constraints = RosenbrockConstraints {};
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
-    
+
     particle.update_velocity_and_position(
-        &global_best, 
-        0.729, 
-        2.05, 
+        &global_best,
+        0.729,
+        2.05,
         2.05,
         &opt_prob,
-        (-10.0, 10.0)
+        (-10.0, 10.0),
     );
-    
+
     assert!(particle.position.len() == 2);
     assert!(particle.velocity.len() == 2);
 }
 
 #[test]
 fn test_swarm_initialization() {
-    let obj_f = RosenbrockObjective{ a: 1.0, b: 1.0};
-    let constraints = RosenbrockConstraints{};
+    let obj_f = RosenbrockObjective { a: 1.0, b: 1.0 };
+    let constraints = RosenbrockConstraints {};
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
 
     // Create initial population
-    let init_pop = DMatrix::from_vec(5, 2, vec![
-        0.5, 0.5,
-        0.6, 0.6,
-        0.4, 0.4,
-        0.3, 0.3,
-        0.7, 0.7,
-    ]);
+    let init_pop = DMatrix::from_vec(5, 2, vec![0.5, 0.5, 0.6, 0.6, 0.4, 0.4, 0.3, 0.3, 0.7, 0.7]);
 
     let swarm = Swarm::new(
         10,
-        2, 
-        0.729f64, 
-        2.05, 
-        2.05,  
+        2,
+        0.729f64,
+        2.05,
+        2.05,
         (-10.0, 10.0),
         &opt_prob,
-        init_pop
+        init_pop,
     );
-    
+
     assert_eq!(swarm.particles.len(), 10);
     assert!(swarm.global_best_position.len() == 2);
-    
+
     // Check particles are within bounds
     for particle in &swarm.particles {
         assert!(particle.position.iter().all(|&x| x >= -10.0 && x <= 10.0));
@@ -74,37 +64,31 @@ fn test_swarm_initialization() {
 
 #[test]
 fn test_swarm_update() {
-    let obj_f = RosenbrockObjective{ a: 1.0, b: 1.0};
-    let constraints = RosenbrockConstraints{};
+    let obj_f = RosenbrockObjective { a: 1.0, b: 1.0 };
+    let constraints = RosenbrockConstraints {};
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
 
-    let init_pop = DMatrix::from_vec(5, 2, vec![
-        0.5, 0.5,
-        0.6, 0.6,
-        0.4, 0.4,
-        0.3, 0.3,
-        0.7, 0.7,
-    ]);
+    let init_pop = DMatrix::from_vec(5, 2, vec![0.5, 0.5, 0.6, 0.6, 0.4, 0.4, 0.3, 0.3, 0.7, 0.7]);
 
     let mut swarm = Swarm::new(
-        10, 
-        2, 
-        0.729f64, 
-        2.05, 
-        2.05, 
+        10,
+        2,
+        0.729f64,
+        2.05,
+        2.05,
         (-10.0, 10.0),
         &opt_prob,
-        init_pop
+        init_pop,
     );
-    
+
     let initial_best = swarm.global_best_fitness;
     swarm.update(&opt_prob);
-    
+
     // After update, particles should still be within bounds
     for particle in &swarm.particles {
         assert!(particle.position.iter().all(|&x| x >= -10.0 && x <= 10.0));
     }
-    
+
     // Best fitness should not decrease
     assert!(swarm.global_best_fitness >= initial_best);
 }
@@ -140,17 +124,21 @@ fn test_mspo() {
     };
 
     // Create initial population matrix
-    let init_pop = DMatrix::from_vec(50, 2, (0..100).map(|i| {
-        0.5 + 0.1 * (i as f64)
-    }).collect::<Vec<f64>>());
+    let init_pop = DMatrix::from_vec(
+        50,
+        2,
+        (0..100)
+            .map(|i| 0.5 + 0.1 * (i as f64))
+            .collect::<Vec<f64>>(),
+    );
 
-    let obj_f = RosenbrockObjective{ a: 1.0, b: 1.0};
-    let constraints = RosenbrockConstraints{};
+    let obj_f = RosenbrockObjective { a: 1.0, b: 1.0 };
+    let constraints = RosenbrockConstraints {};
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
-    
+
     let mut mspo = MSPO::new(mspo_conf, init_pop, opt_prob);
     let initial_fitness = mspo.st.best_f;
-    
+
     for _ in 0..20 {
         mspo.step();
     }

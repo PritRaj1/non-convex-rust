@@ -1,13 +1,10 @@
 mod common;
 
+use common::fcns::{RosenbrockConstraints, RosenbrockObjective};
 use nalgebra::DMatrix;
-use common::fcns::{RosenbrockObjective, RosenbrockConstraints};
 
+use non_convex_opt::utils::{config::Config, opt_prob::ObjectiveFunction};
 use non_convex_opt::NonConvexOpt;
-use non_convex_opt::utils::{
-    config::Config,
-    opt_prob::ObjectiveFunction,
-};
 
 #[test]
 fn test_cga() {
@@ -20,10 +17,16 @@ fn test_cga() {
         }
     }
 
-    let mut opt = NonConvexOpt::new(conf, init_pop.clone(), RosenbrockObjective{ a: 1.0, b: 1.0}, Some(RosenbrockConstraints{}));
+    let mut opt = NonConvexOpt::new(
+        conf,
+        init_pop.clone(),
+        RosenbrockObjective { a: 1.0, b: 1.0 },
+        Some(RosenbrockConstraints {}),
+    );
 
-    let initial_best_fitness: f64 = init_pop.row_iter()
-        .map(|row| RosenbrockObjective{ a: 1.0, b: 1.0}.f(&row.transpose()))
+    let initial_best_fitness: f64 = init_pop
+        .row_iter()
+        .map(|row| RosenbrockObjective { a: 1.0, b: 1.0 }.f(&row.transpose()))
         .fold(f64::INFINITY, |a, b| a.min(b));
 
     let result = opt.run();
@@ -46,18 +49,24 @@ fn test_pt() {
         }
     }
 
-    let mut opt = NonConvexOpt::new(conf, init_pop.clone(), RosenbrockObjective{ a: 1.0, b: 1.0}, Some(RosenbrockConstraints{}));
+    let mut opt = NonConvexOpt::new(
+        conf,
+        init_pop.clone(),
+        RosenbrockObjective { a: 1.0, b: 1.0 },
+        Some(RosenbrockConstraints {}),
+    );
 
-    let initial_best_fitness: f64 = init_pop.row_iter()
-        .map(|row| RosenbrockObjective{ a: 1.0, b: 1.0}.f(&row.transpose()))
+    let initial_best_fitness: f64 = init_pop
+        .row_iter()
+        .map(|row| RosenbrockObjective { a: 1.0, b: 1.0 }.f(&row.transpose()))
         .fold(f64::INFINITY, |a, b| a.min(b));
 
     println!("Initial best fitness: {}", initial_best_fitness);
-    
+
     let result = opt.run();
 
     println!("Best f: {}", result.best_f);
 
     assert!(-result.best_f.exp() < 0.01);
     assert!(result.best_f > initial_best_fitness);
-}   
+}

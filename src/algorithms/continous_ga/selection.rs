@@ -1,62 +1,59 @@
+use nalgebra::{allocator::Allocator, DefaultAllocator, Dim, Dyn, OMatrix, OVector, U1};
 use rand::Rng;
-use nalgebra::{
-    allocator::Allocator, 
-    DefaultAllocator, 
-    Dim, 
-    OMatrix, 
-    OVector,
-    U1,
-    Dyn,
-};
 
 use crate::utils::opt_prob::FloatNumber as FloatNum;
 
-pub trait SelectionOperator<T, N, D> 
-where 
-    T: FloatNum,
-    N: Dim,
-    D: Dim,    
-    OVector<T, N>: Send + Sync,
-    OMatrix<T, Dyn, D>: Send + Sync,
-    OMatrix<T, N, D>: Send + Sync,
-    DefaultAllocator: Allocator<N>
-                    + Allocator<N, D>
-                    + Allocator<Dyn, D>
-{
-    fn select(
-        &self, 
-        population: &OMatrix<T, N, D>, 
-        fitness: &OVector<T, N>, 
-        constraints: &OVector<bool, N>
-    ) -> OMatrix<T, Dyn, D>;
-}
-
-pub struct RouletteWheel { 
-    pub population_size: usize,
-    pub num_parents: usize,
-}
-
-impl RouletteWheel {
-    pub fn new(population_size: usize, num_parents: usize) -> Self {
-        RouletteWheel { population_size, num_parents }
-    }
-}
-
-impl<T, N, D> SelectionOperator<T, N, D> for RouletteWheel 
-where 
+pub trait SelectionOperator<T, N, D>
+where
     T: FloatNum,
     N: Dim,
     D: Dim,
     OVector<T, N>: Send + Sync,
     OMatrix<T, Dyn, D>: Send + Sync,
     OMatrix<T, N, D>: Send + Sync,
-    DefaultAllocator: Allocator<N>
-                    + Allocator<N, D>
-                    + Allocator<Dyn, D>  
+    DefaultAllocator: Allocator<N> + Allocator<N, D> + Allocator<Dyn, D>,
 {
-    fn select(&self, population: &OMatrix<T, N, D>, fitness: &OVector<T, N>, constraints: &OVector<bool, N>) -> OMatrix<T, Dyn, D> {
+    fn select(
+        &self,
+        population: &OMatrix<T, N, D>,
+        fitness: &OVector<T, N>,
+        constraints: &OVector<bool, N>,
+    ) -> OMatrix<T, Dyn, D>;
+}
+
+pub struct RouletteWheel {
+    pub population_size: usize,
+    pub num_parents: usize,
+}
+
+impl RouletteWheel {
+    pub fn new(population_size: usize, num_parents: usize) -> Self {
+        RouletteWheel {
+            population_size,
+            num_parents,
+        }
+    }
+}
+
+impl<T, N, D> SelectionOperator<T, N, D> for RouletteWheel
+where
+    T: FloatNum,
+    N: Dim,
+    D: Dim,
+    OVector<T, N>: Send + Sync,
+    OMatrix<T, Dyn, D>: Send + Sync,
+    OMatrix<T, N, D>: Send + Sync,
+    DefaultAllocator: Allocator<N> + Allocator<N, D> + Allocator<Dyn, D>,
+{
+    fn select(
+        &self,
+        population: &OMatrix<T, N, D>,
+        fitness: &OVector<T, N>,
+        constraints: &OVector<bool, N>,
+    ) -> OMatrix<T, Dyn, D> {
         // Normalized selection probabilities only for valid individuals
-        let sum = fitness.iter()
+        let sum = fitness
+            .iter()
             .zip(constraints.iter())
             .filter(|(_, &valid)| valid)
             .fold(T::zero(), |acc, (&x, _)| acc + x);
@@ -67,8 +64,11 @@ where
                 llhoods[j] = fit / sum;
             }
         }
-        
-        let mut selected = OMatrix::<T, Dyn, D>::zeros_generic(Dyn::from_usize(self.num_parents), D::from_usize(population.ncols()));
+
+        let mut selected = OMatrix::<T, Dyn, D>::zeros_generic(
+            Dyn::from_usize(self.num_parents),
+            D::from_usize(population.ncols()),
+        );
         let mut rng = rand::rng();
 
         for i in 0..self.num_parents {
@@ -97,25 +97,35 @@ pub struct Tournament {
 
 impl Tournament {
     pub fn new(population_size: usize, num_parents: usize, tournament_size: usize) -> Self {
-        Tournament { population_size, num_parents, tournament_size }
+        Tournament {
+            population_size,
+            num_parents,
+            tournament_size,
+        }
     }
 }
 
-impl<T, N, D> SelectionOperator<T, N, D> for Tournament 
-where 
+impl<T, N, D> SelectionOperator<T, N, D> for Tournament
+where
     T: FloatNum,
     N: Dim,
     D: Dim,
     OVector<T, N>: Send + Sync,
     OMatrix<T, Dyn, D>: Send + Sync,
     OMatrix<T, N, D>: Send + Sync,
-    DefaultAllocator: Allocator<Dyn, D>
-                    + Allocator<N, D>
-                    + Allocator<N> 
+    DefaultAllocator: Allocator<Dyn, D> + Allocator<N, D> + Allocator<N>,
 {
-    fn select(&self, population: &OMatrix<T, N, D>, fitness: &OVector<T, N>, constraints: &OVector<bool, N>) -> OMatrix<T, Dyn, D> {
-        let mut selected = OMatrix::<T, Dyn, D>::zeros_generic(Dyn::from_usize(self.num_parents), D::from_usize(population.ncols()));
-        let mut rng = rand::rng(); 
+    fn select(
+        &self,
+        population: &OMatrix<T, N, D>,
+        fitness: &OVector<T, N>,
+        constraints: &OVector<bool, N>,
+    ) -> OMatrix<T, Dyn, D> {
+        let mut selected = OMatrix::<T, Dyn, D>::zeros_generic(
+            Dyn::from_usize(self.num_parents),
+            D::from_usize(population.ncols()),
+        );
+        let mut rng = rand::rng();
 
         for i in 0..self.num_parents {
             let mut tournament_indices = Vec::new();
@@ -123,7 +133,8 @@ where
             // Randomly select `tournament_size` valid individuals
             while tournament_indices.len() < self.tournament_size {
                 let index = rng.random_range(0..population.nrows());
-                if constraints[index] { // Only add if it satisfies the constraint
+                if constraints[index] {
+                    // Only add if it satisfies the constraint
                     tournament_indices.push(index);
                 }
             }
@@ -131,7 +142,7 @@ where
             // Find the best individual from the tournament
             let mut best_idx = tournament_indices[0];
             let mut best_fitness = fitness[best_idx];
-            
+
             for &idx in &tournament_indices[1..] {
                 if fitness[idx] > best_fitness {
                     best_idx = idx;
@@ -146,39 +157,49 @@ where
     }
 }
 
-pub struct Residual { 
+pub struct Residual {
     pub population_size: usize,
     pub num_parents: usize,
 }
 
 impl Residual {
     pub fn new(population_size: usize, num_parents: usize) -> Self {
-        Residual { population_size, num_parents }
+        Residual {
+            population_size,
+            num_parents,
+        }
     }
 }
 
-impl<T, N, D> SelectionOperator<T, N, D> for Residual 
-where 
+impl<T, N, D> SelectionOperator<T, N, D> for Residual
+where
     T: FloatNum,
     N: Dim,
     D: Dim,
     OVector<T, N>: Send + Sync,
     OMatrix<T, Dyn, D>: Send + Sync,
     OMatrix<T, N, D>: Send + Sync,
-    DefaultAllocator: Allocator<Dyn, D>
-                    + Allocator<N, D>
-                    + Allocator<N>  
+    DefaultAllocator: Allocator<Dyn, D> + Allocator<N, D> + Allocator<N>,
 {
-    fn select(&self, population: &OMatrix<T, N, D>, fitness: &OVector<T, N>, constraints: &OVector<bool, N>) -> OMatrix<T, Dyn, D> {
-        let mut selected = OMatrix::<T, Dyn, D>::zeros_generic(Dyn::from_usize(self.num_parents), D::from_usize(population.ncols()));
+    fn select(
+        &self,
+        population: &OMatrix<T, N, D>,
+        fitness: &OVector<T, N>,
+        constraints: &OVector<bool, N>,
+    ) -> OMatrix<T, Dyn, D> {
+        let mut selected = OMatrix::<T, Dyn, D>::zeros_generic(
+            Dyn::from_usize(self.num_parents),
+            D::from_usize(population.ncols()),
+        );
         let mut rng = rand::rng();
 
         // Calculate expected values
-        let sum = fitness.iter()
+        let sum = fitness
+            .iter()
             .zip(constraints.iter())
             .filter(|(_, &valid)| valid)
             .fold(T::zero(), |acc, (&x, _)| acc + x);
-        
+
         // Normalize and scale fitness to prevent very small residuals
         let scale = T::from_f64(self.num_parents as f64).unwrap();
         let mut expected_values = vec![T::zero(); fitness.len()];
@@ -192,7 +213,7 @@ where
                 let int_part = expected.floor();
                 expected_values[j] = int_part;
                 residual_probabilities[j] = expected - int_part;
-                
+
                 if residual_probabilities[j] > T::zero() {
                     remaining_indices.push(j);
                 }
@@ -212,7 +233,7 @@ where
 
         // Stochastic remainder selections - select based on residual probabilities
         let mut remaining_spots = self.num_parents - parent_index;
-        
+
         // If no remaining indices but spots left, add all valid individuals
         if remaining_indices.is_empty() && remaining_spots > 0 {
             remaining_indices = (0..population.nrows())
@@ -221,7 +242,8 @@ where
         }
 
         while remaining_spots > 0 && !remaining_indices.is_empty() {
-            let total_residual = remaining_indices.iter()
+            let total_residual = remaining_indices
+                .iter()
                 .fold(T::zero(), |acc, &i| acc + residual_probabilities[i]);
 
             if total_residual <= T::zero() {
@@ -230,7 +252,7 @@ where
                 selected.set_row(parent_index, &population.row(idx));
                 parent_index += 1;
                 remaining_spots -= 1;
-                
+
                 // Remove selected index
                 if let Some(pos) = remaining_indices.iter().position(|&x| x == idx) {
                     remaining_indices.swap_remove(pos);
@@ -238,14 +260,14 @@ where
             } else {
                 let r = rng.random::<f64>();
                 let mut cumsum = T::zero();
-                
+
                 for &idx in &remaining_indices {
                     cumsum += residual_probabilities[idx] / total_residual;
                     if T::from_f64(r).unwrap() <= cumsum {
                         selected.set_row(parent_index, &population.row(idx));
                         parent_index += 1;
                         remaining_spots -= 1;
-                        
+
                         // Remove selected index and reset its probability
                         if let Some(pos) = remaining_indices.iter().position(|&x| x == idx) {
                             remaining_indices.swap_remove(pos);

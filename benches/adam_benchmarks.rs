@@ -2,11 +2,11 @@ use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use nalgebra::SMatrix;
 use rand::random;
 
+use non_convex_opt::utils::config::{AdamConf, AlgConf, Config, OptConf};
 use non_convex_opt::NonConvexOpt;
-use non_convex_opt::utils::config::{Config, OptConf, AlgConf, AdamConf};
 
 mod common;
-use common::fcns::{RosenbrockFunction, RosenbrockConstraints};
+use common::fcns::{RosenbrockConstraints, RosenbrockFunction};
 
 fn bench_adam_unconstrained(c: &mut Criterion) {
     let config = Config {
@@ -61,7 +61,7 @@ fn bench_adam_constrained(c: &mut Criterion) {
                 config.clone(),
                 black_box(init_pop),
                 RosenbrockFunction,
-                Some(RosenbrockConstraints)
+                Some(RosenbrockConstraints),
             );
             let _st = opt.run();
         })
@@ -69,4 +69,4 @@ fn bench_adam_constrained(c: &mut Criterion) {
 }
 
 criterion_group!(benches, bench_adam_unconstrained, bench_adam_constrained);
-criterion_main!(benches); 
+criterion_main!(benches);

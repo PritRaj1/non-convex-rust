@@ -11,11 +11,14 @@ pub struct Periodic {
 
 impl Periodic {
     pub fn new(swap_frequency: f64, total_steps: usize) -> Self {
-        Self { swap_frequency, total_steps }
+        Self {
+            swap_frequency,
+            total_steps,
+        }
     }
 
     pub fn should_swap(&self, current_step: usize) -> bool {
-        current_step % (self.swap_frequency * self.total_steps as f64) as usize  == 0
+        current_step % (self.swap_frequency * self.total_steps as f64) as usize == 0
     }
 }
 
@@ -44,5 +47,3 @@ impl Always {
         true
     }
 }
-
-

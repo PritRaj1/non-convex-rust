@@ -7,6 +7,6 @@ pub mod limited_memory_bfgs;
 pub mod multi_swarm;
 pub mod nelder_mead;
 pub mod parallel_tempering;
-pub mod simulated_annealing;
 pub mod sg_ascent;
+pub mod simulated_annealing;
 pub mod tabu_search;

@@ -3,11 +3,11 @@ use nalgebra::SMatrix;
 use rand::random;
 use std::sync::LazyLock;
 
-use non_convex_opt::NonConvexOpt;
 use non_convex_opt::utils::config::Config;
+use non_convex_opt::NonConvexOpt;
 
 mod common;
-use common::fcns::{KBF, KBFConstraints};
+use common::fcns::{KBFConstraints, KBF};
 
 static CONFIG_JSON: &str = r#"
 {
@@ -36,9 +36,7 @@ static CONFIG_JSON: &str = r#"
     }
 }"#;
 
-static CONFIG: LazyLock<Config> = LazyLock::new(|| {
-    serde_json::from_str(CONFIG_JSON).unwrap()
-});
+static CONFIG: LazyLock<Config> = LazyLock::new(|| serde_json::from_str(CONFIG_JSON).unwrap());
 
 fn bench_de_unconstrained(c: &mut Criterion) {
     c.bench_function("de_unconstrained", |b| {
@@ -48,7 +46,7 @@ fn bench_de_unconstrained(c: &mut Criterion) {
                 CONFIG.clone(),
                 black_box(init_pop),
                 KBF,
-                None::<KBFConstraints>
+                None::<KBFConstraints>,
             );
             let _st = opt.run();
         })
@@ -63,7 +61,7 @@ fn bench_de_constrained(c: &mut Criterion) {
                 CONFIG.clone(),
                 black_box(init_pop),
                 KBF,
-                Some(KBFConstraints)
+                Some(KBFConstraints),
             );
             let _st = opt.run();
         })
@@ -71,4 +69,4 @@ fn bench_de_constrained(c: &mut Criterion) {
 }
 
 criterion_group!(benches, bench_de_unconstrained, bench_de_constrained);
-criterion_main!(benches); 
+criterion_main!(benches);

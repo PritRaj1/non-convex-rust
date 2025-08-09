@@ -1,22 +1,25 @@
 use serde::{Deserialize, Serialize};
 use serde_json;
-use thiserror::Error; 
 use serde_with::serde_as;
 use serde_with::DisplayFromStr;
+use thiserror::Error;
 
 pub use crate::utils::alg_conf::{
-    cga_conf::{CGAConf, CommonConf, CrossoverConf, SelectionConf, MutationConf},
-    pt_conf::{PTConf, SwapConf},
-    tabu_conf::{TabuConf, ListType, ReactiveConf, StandardConf},
     adam_conf::AdamConf,
-    grasp_conf::GRASPConf,
-    sga_conf::SGAConf,
-    nm_conf::NelderMeadConf,
-    lbfgs_conf::{LBFGSConf, LineSearchConf, BacktrackingConf, StrongWolfeConf, HagerZhangConf, MoreThuenteConf, GoldenSectionConf},
-    mspo_conf::MSPOConf,
-    sa_conf::SAConf,
-    de_conf::{DEConf, DEStrategy},
+    cga_conf::{CGAConf, CommonConf, CrossoverConf, MutationConf, SelectionConf},
     cmaes_conf::CMAESConf,
+    de_conf::{DEConf, DEStrategy},
+    grasp_conf::GRASPConf,
+    lbfgs_conf::{
+        BacktrackingConf, GoldenSectionConf, HagerZhangConf, LBFGSConf, LineSearchConf,
+        MoreThuenteConf, StrongWolfeConf,
+    },
+    mspo_conf::MSPOConf,
+    nm_conf::NelderMeadConf,
+    pt_conf::{PTConf, SwapConf},
+    sa_conf::SAConf,
+    sga_conf::SGAConf,
+    tabu_conf::{ListType, ReactiveConf, StandardConf, TabuConf},
 };
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
@@ -52,14 +55,22 @@ pub struct OptConf {
     #[serde_as(as = "DisplayFromStr")]
     #[serde(default = "default_atol")]
     pub atol: f64,
-    #[serde(default = "default_rtol_max_iter_fraction")] 
+    #[serde(default = "default_rtol_max_iter_fraction")]
     pub rtol_max_iter_fraction: f64,
 }
 
-fn default_max_iter() -> usize { 1000 }
-fn default_rtol() -> f64 { 1e-6 }
-fn default_atol() -> f64 { 1e-6 }
-fn default_rtol_max_iter_fraction() -> f64 { 1.0 }
+fn default_max_iter() -> usize {
+    1000
+}
+fn default_rtol() -> f64 {
+    1e-6
+}
+fn default_atol() -> f64 {
+    1e-6
+}
+fn default_rtol_max_iter_fraction() -> f64 {
+    1.0
+}
 
 #[derive(Error, Debug)]
 pub enum ConfigError {
@@ -74,14 +85,12 @@ pub enum ConfigError {
 impl Config {
     // Deserialize the json to config
     pub fn new(config: &str) -> Result<Self, ConfigError> {
-        serde_json::from_str(config)
-            .map_err(|e| ConfigError::DeserializationError(e.to_string()))
+        serde_json::from_str(config).map_err(|e| ConfigError::DeserializationError(e.to_string()))
     }
 
     // Serialize the config to json
     pub fn to_json(&self) -> Result<String, ConfigError> {
-        serde_json::to_string(self)
-            .map_err(|e| ConfigError::SerializationError(e.to_string()))
+        serde_json::to_string(self).map_err(|e| ConfigError::SerializationError(e.to_string()))
     }
 
     #[cfg(test)]

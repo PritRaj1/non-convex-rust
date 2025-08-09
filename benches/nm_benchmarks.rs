@@ -1,10 +1,10 @@
 mod common;
-use common::fcns::{KBF, KBFConstraints};
-use nalgebra::{SVector, SMatrix};
+use common::fcns::{KBFConstraints, KBF};
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use nalgebra::{SMatrix, SVector};
 
+use non_convex_opt::utils::config::{AlgConf, Config, NelderMeadConf, OptConf};
 use non_convex_opt::NonConvexOpt;
-use non_convex_opt::utils::config::{Config, OptConf, AlgConf, NelderMeadConf};
 
 fn bench_nm_unconstrained(c: &mut Criterion) {
     let config = Config {
@@ -74,4 +74,4 @@ fn bench_nm_constrained(c: &mut Criterion) {
 }
 
 criterion_group!(benches, bench_nm_unconstrained, bench_nm_constrained);
-criterion_main!(benches); 
+criterion_main!(benches);

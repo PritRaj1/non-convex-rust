@@ -14,8 +14,18 @@ pub struct GRASPConf {
     pub perturbation_prob: f64,
 }
 
-fn default_grasp_num_candidates() -> usize { 100 }
-fn default_grasp_alpha() -> f64 { 0.3 }
-fn default_grasp_num_neighbors() -> usize { 50 }
-fn default_grasp_step_size() -> f64 { 0.1 }
-fn default_grasp_perturbation_prob() -> f64 { 0.3 }
+fn default_grasp_num_candidates() -> usize {
+    100
+}
+fn default_grasp_alpha() -> f64 {
+    0.3
+}
+fn default_grasp_num_neighbors() -> usize {
+    50
+}
+fn default_grasp_step_size() -> f64 {
+    0.1
+}
+fn default_grasp_perturbation_prob() -> f64 {
+    0.3
+}

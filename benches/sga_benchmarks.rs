@@ -1,12 +1,12 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use rand::random;
 use nalgebra::SMatrix;
+use rand::random;
 
+use non_convex_opt::utils::config::{AlgConf, Config, OptConf, SGAConf};
 use non_convex_opt::NonConvexOpt;
-use non_convex_opt::utils::config::{Config, OptConf, AlgConf, SGAConf};
 
 mod common;
-use common::fcns::{RosenbrockFunction, RosenbrockConstraints};
+use common::fcns::{RosenbrockConstraints, RosenbrockFunction};
 
 fn bench_sga_unconstrained(c: &mut Criterion) {
     let config = Config {
@@ -29,7 +29,7 @@ fn bench_sga_unconstrained(c: &mut Criterion) {
                 config.clone(),
                 black_box(init_pop),
                 RosenbrockFunction,
-                None::<RosenbrockConstraints>
+                None::<RosenbrockConstraints>,
             );
             let _st = opt.run();
         })
@@ -37,4 +37,4 @@ fn bench_sga_unconstrained(c: &mut Criterion) {
 }
 
 criterion_group!(benches, bench_sga_unconstrained);
-criterion_main!(benches); 
+criterion_main!(benches);

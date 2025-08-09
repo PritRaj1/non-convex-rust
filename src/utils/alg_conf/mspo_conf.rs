@@ -7,7 +7,7 @@ pub struct MSPOConf {
     #[serde(default = "default_swarm_size")]
     pub swarm_size: usize,
     #[serde(default = "default_w")]
-    pub w: f64,  // Inertia weight
+    pub w: f64, // Inertia weight
     #[serde(default = "default_c1")]
     pub c1: f64, // Cognitive coefficient
     #[serde(default = "default_c2")]
@@ -24,13 +24,33 @@ pub struct MSPOConf {
     pub improvement_threshold: f64, // Minimum relative improvement needed for exchange
 }
 
-fn default_num_swarms() -> usize { 5 }
-fn default_swarm_size() -> usize { 50 }
-fn default_w() -> f64 { 0.729 } // Clerc's constriction coefficient
-fn default_c1() -> f64 { 2.05 }
-fn default_c2() -> f64 { 2.05 }
-fn default_x_min() -> f64 { -10.0 }
-fn default_x_max() -> f64 { 10.0 }
-fn default_exchange_interval() -> usize { 10 }
-fn default_exchange_ratio() -> f64 { 0.1 }
-fn default_improvement_threshold() -> f64 { 0.1 } // 10% improvement needed by default
+fn default_num_swarms() -> usize {
+    5
+}
+fn default_swarm_size() -> usize {
+    50
+}
+fn default_w() -> f64 {
+    0.729
+} // Clerc's constriction coefficient
+fn default_c1() -> f64 {
+    2.05
+}
+fn default_c2() -> f64 {
+    2.05
+}
+fn default_x_min() -> f64 {
+    -10.0
+}
+fn default_x_max() -> f64 {
+    10.0
+}
+fn default_exchange_interval() -> usize {
+    10
+}
+fn default_exchange_ratio() -> f64 {
+    0.1
+}
+fn default_improvement_threshold() -> f64 {
+    0.1
+} // 10% improvement needed by default

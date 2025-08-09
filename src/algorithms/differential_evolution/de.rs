@@ -1,42 +1,23 @@
+use nalgebra::{allocator::Allocator, DefaultAllocator, Dim, OMatrix, OVector, U1};
 use rayon::prelude::*;
 use std::collections::VecDeque;
-use nalgebra::{
-    allocator::Allocator, 
-    DefaultAllocator, 
-    Dim, 
-    OMatrix, 
-    OVector,
-    U1,
-};
 
 use crate::utils::alg_conf::de_conf::{DEConf, DEStrategy, MutationType};
-use crate::utils::opt_prob::{
-    FloatNumber as FloatNum, 
-    OptProb, 
-    OptimizationAlgorithm,
-    State
-};
+use crate::utils::opt_prob::{FloatNumber as FloatNum, OptProb, OptimizationAlgorithm, State};
 
 use crate::algorithms::differential_evolution::mutation::{
-    MutationStrategy,
-    Rand1Bin, 
-    Best1Bin, 
-    RandToBest1Bin, 
-    Best2Bin, 
-    Rand2Bin,
+    Best1Bin, Best2Bin, MutationStrategy, Rand1Bin, Rand2Bin, RandToBest1Bin,
 };
 
-pub struct DE<T, N, D> 
-where 
+pub struct DE<T, N, D>
+where
     T: FloatNum,
     N: Dim,
     D: Dim,
     OVector<T, D>: Send + Sync,
     OVector<T, N>: Send + Sync,
     OMatrix<T, N, D>: Send + Sync,
-    DefaultAllocator: Allocator<D>
-                    + Allocator<N>
-                    + Allocator<N, D>
+    DefaultAllocator: Allocator<D> + Allocator<N> + Allocator<N, D>,
 {
     pub conf: DEConf,
     pub st: State<T, N, D>,
@@ -48,8 +29,8 @@ where
     current_cr: f64,
 }
 
-impl<T, N, D> DE<T, N, D> 
-where 
+impl<T, N, D> DE<T, N, D>
+where
     T: FloatNum,
     N: Dim,
     D: Dim,
@@ -57,15 +38,14 @@ where
     OVector<T, N>: Send + Sync,
     OVector<bool, N>: Send + Sync,
     OMatrix<T, N, D>: Send + Sync,
-    DefaultAllocator: Allocator<D>
-                    + Allocator<N>
-                    + Allocator<N, D>
+    DefaultAllocator: Allocator<D> + Allocator<N> + Allocator<N, D>,
 {
     pub fn new(conf: DEConf, init_pop: OMatrix<T, N, D>, opt_prob: OptProb<T, D>) -> Self {
         let population_size = init_pop.nrows();
         let mut fitness = OVector::<T, N>::zeros_generic(N::from_usize(population_size), U1);
-        let mut constraints = OVector::<bool, N>::from_element_generic(N::from_usize(population_size), U1, true);
-        
+        let mut constraints =
+            OVector::<bool, N>::from_element_generic(N::from_usize(population_size), U1, true);
+
         let evaluations: Vec<(T, bool)> = (0..population_size)
             .into_par_iter()
             .map(|i| {
@@ -95,7 +75,7 @@ where
             MutationType::Standard(standard) => (standard.f, standard.cr),
             MutationType::Adaptive(adaptive) => (
                 (adaptive.f_min + adaptive.f_max) / 2.0,
-                (adaptive.cr_min + adaptive.cr_max) / 2.0
+                (adaptive.cr_min + adaptive.cr_max) / 2.0,
             ),
         };
 
@@ -110,7 +90,7 @@ where
                 constraints,
                 best_x: init_pop.row(best_idx).transpose(),
                 best_f: best_fitness,
-                iter: 1
+                iter: 1,
             },
             opt_prob,
             archive: Vec::with_capacity(archive_size),
@@ -120,7 +100,7 @@ where
             current_cr: initial_cr,
         }
     }
-    
+
     fn generate_trial_vector(&self, target_idx: usize) -> (OVector<T, D>, T, bool) {
         let strategy = match &self.conf.mutation_type {
             MutationType::Standard(standard) => &standard.strategy,
@@ -151,9 +131,9 @@ where
 
     fn update_parameters(&mut self) {
         if let MutationType::Adaptive(adaptive) = &self.conf.mutation_type {
-            let success_rate = self.success_history.iter().filter(|&&x| x).count() as f64 
+            let success_rate = self.success_history.iter().filter(|&&x| x).count() as f64
                 / self.success_history.len() as f64;
-            
+
             self.current_f = adaptive.f_min + success_rate * (adaptive.f_max - adaptive.f_min);
             self.current_cr = adaptive.cr_min + success_rate * (adaptive.cr_max - adaptive.cr_min);
         }
@@ -164,7 +144,9 @@ where
             self.archive.push(x);
             self.archive_fitness.push(fitness);
         } else {
-            if let Some(worst_idx) = self.archive_fitness.iter()
+            if let Some(worst_idx) = self
+                .archive_fitness
+                .iter()
                 .enumerate()
                 .min_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
                 .map(|(i, _)| i)
@@ -189,7 +171,7 @@ where
                 // Both feasible - compare fitness with tolerance
                 let eps = T::from_f64(1e-10).unwrap();
                 trial_fitness > current_fitness + eps
-            },
+            }
             (true, false) => true,  // Prefer feasible
             (false, true) => false, // Keep feasible
             (false, false) => {
@@ -201,7 +183,7 @@ where
 }
 
 impl<T: FloatNum, N: Dim, D: Dim> OptimizationAlgorithm<T, N, D> for DE<T, N, D>
-where 
+where
     T: FloatNum,
     N: Dim,
     D: Dim,
@@ -209,24 +191,21 @@ where
     OVector<T, N>: Send + Sync,
     OVector<bool, N>: Send + Sync,
     OMatrix<T, N, D>: Send + Sync,
-    DefaultAllocator: Allocator<D>
-                    + Allocator<N>
-                    + Allocator<N, D>
-                    + Allocator<U1, D>
+    DefaultAllocator: Allocator<D> + Allocator<N> + Allocator<N, D> + Allocator<U1, D>,
 {
     fn step(&mut self) {
         let pop_size = self.st.pop.nrows();
-        
+
         let trials: Vec<_> = (0..pop_size)
             .into_par_iter()
             .map(|i| {
                 let (trial, trial_fitness, trial_constraint) = self.generate_trial_vector(i);
-                
+
                 let success = self.select_trial(
                     trial_fitness,
                     trial_constraint,
                     self.st.fitness[i],
-                    self.st.constraints[i]
+                    self.st.constraints[i],
                 );
 
                 (i, trial, trial_fitness, trial_constraint, success)
@@ -235,14 +214,15 @@ where
 
         let mut successes = Vec::new();
 
-        let updates: Vec<_> = trials.into_iter()
+        let updates: Vec<_> = trials
+            .into_iter()
             .filter_map(|(i, trial, trial_fitness, trial_constraint, success)| {
                 if trial_constraint && trial_fitness > self.st.fitness[i] {
                     self.update_archive(trial.clone(), trial_fitness);
                 }
 
                 successes.push(success);
-                
+
                 if success {
                     Some((i, trial, trial_fitness, trial_constraint))
                 } else {
@@ -287,4 +267,4 @@ where
     fn state(&self) -> &State<T, N, D> {
         &self.st
     }
-} 
+}

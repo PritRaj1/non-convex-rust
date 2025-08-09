@@ -1,6 +1,13 @@
 # Simulated Annealing (SA)
 
-Simulated Annealing with either a Metropolis-Hastings update mechanism or Metropolis-Adjusted Langevin Algorithm (MALA) when gradients are available.
+<div align="center">
+
+<figure>
+  <img src="../../../examples/gifs/sa_kbf.gif" width="200" alt="SA Example">
+  <figcaption><b>Figure:</b> Simulated Annealing with either a Metropolis-Hastings update mechanism or Metropolis-Adjusted Langevin Algorithm (MALA) when gradients are available. </figcaption>
+</figure>
+
+</div>
 
 Neighbors are generated with a multi-neighbor generation mechanism.
 

@@ -1,27 +1,15 @@
-use nalgebra::{
-    allocator::Allocator, 
-    DefaultAllocator, 
-    Dim, 
-    OVector,
-    U1,
-};
+use nalgebra::{allocator::Allocator, DefaultAllocator, Dim, OVector, U1};
 
-use crate::utils::opt_prob::{FloatNumber as FloatNum, OptProb};
 use crate::utils::config::{
-    BacktrackingConf,
-    StrongWolfeConf,
-    HagerZhangConf,
-    MoreThuenteConf,
-    GoldenSectionConf,
+    BacktrackingConf, GoldenSectionConf, HagerZhangConf, MoreThuenteConf, StrongWolfeConf,
 };
+use crate::utils::opt_prob::{FloatNumber as FloatNum, OptProb};
 
-pub trait LineSearch<T, D> 
-where 
+pub trait LineSearch<T, D>
+where
     T: FloatNum,
     D: Dim,
-    DefaultAllocator: Allocator<D> 
-                    + Allocator<U1, D>
-                    + Allocator<U1>
+    DefaultAllocator: Allocator<D> + Allocator<U1, D> + Allocator<U1>,
 {
     fn search(
         &self,
@@ -43,13 +31,11 @@ impl BacktrackingLineSearch {
     }
 }
 
-impl<T, D> LineSearch<T, D> for BacktrackingLineSearch 
-where 
-    T: FloatNum, 
+impl<T, D> LineSearch<T, D> for BacktrackingLineSearch
+where
+    T: FloatNum,
     D: Dim,
-    DefaultAllocator: Allocator<D> 
-                    + Allocator<U1, D>
-                    + Allocator<U1>
+    DefaultAllocator: Allocator<D> + Allocator<U1, D> + Allocator<U1>,
 {
     fn search(
         &self,
@@ -61,13 +47,14 @@ where
     ) -> T {
         let mut alpha = T::one();
         let mut x_new = x + p * alpha;
-        
+
         // Repeat until the Armijo condition is satisfied (for maximization)
-        while opt_prob.evaluate(&x_new) < f + T::from_f64(self.conf.c1).unwrap() * alpha * g.dot(p) {
+        while opt_prob.evaluate(&x_new) < f + T::from_f64(self.conf.c1).unwrap() * alpha * g.dot(p)
+        {
             alpha = alpha * T::from_f64(self.conf.rho).unwrap();
             x_new = x + p * alpha;
         }
-        
+
         alpha
     }
 }
@@ -82,13 +69,11 @@ impl StrongWolfeLineSearch {
     }
 }
 
-impl<T, D> LineSearch<T, D> for StrongWolfeLineSearch 
-where 
-    T: FloatNum, 
+impl<T, D> LineSearch<T, D> for StrongWolfeLineSearch
+where
+    T: FloatNum,
     D: Dim,
-    DefaultAllocator: Allocator<D> 
-                    + Allocator<U1, D>
-                    + Allocator<U1>
+    DefaultAllocator: Allocator<D> + Allocator<U1, D> + Allocator<U1>,
 {
     fn search(
         &self,
@@ -110,14 +95,16 @@ where
             let f_new = opt_prob.evaluate(&x_new);
             let g_new = opt_prob.objective.gradient(&x_new).unwrap();
             let g_new_p = g_new.dot(p);
-            
+
             // For maximization:
-            if f_new < f + c1 * alpha * initial_gp {  // Armijo condition
+            if f_new < f + c1 * alpha * initial_gp {
+                // Armijo condition
                 alpha_high = alpha;
-            } else if g_new_p.abs() < -c2 * initial_gp {  // Wolfe condition for maximization
+            } else if g_new_p.abs() < -c2 * initial_gp {
+                // Wolfe condition for maximization
                 alpha_low = alpha;
             } else {
-                return alpha;  // Both conditions satisfied
+                return alpha; // Both conditions satisfied
             }
 
             if alpha_high < T::from_f64(10.0).unwrap() {
@@ -140,13 +127,11 @@ impl HagerZhangLineSearch {
     }
 }
 
-impl<T, D> LineSearch<T, D> for HagerZhangLineSearch 
-where 
-    T: FloatNum, 
+impl<T, D> LineSearch<T, D> for HagerZhangLineSearch
+where
+    T: FloatNum,
     D: Dim,
-    DefaultAllocator: Allocator<D> 
-                    + Allocator<U1, D>
-                    + Allocator<U1>
+    DefaultAllocator: Allocator<D> + Allocator<U1, D> + Allocator<U1>,
 {
     fn search(
         &self,
@@ -171,12 +156,14 @@ where
 
             // For maximization:
             if f_new < f + c1 * alpha * initial_gp {
-                alpha *= gamma;  // Reduce step size
+                alpha *= gamma; // Reduce step size
                 continue;
             }
 
-            if g_new_p < -c2 * initial_gp {  // Modified for maximization
-                let delta = theta * alpha * (initial_gp - g_new_p) / (f_new - f - alpha * initial_gp);
+            if g_new_p < -c2 * initial_gp {
+                // Modified for maximization
+                let delta =
+                    theta * alpha * (initial_gp - g_new_p) / (f_new - f - alpha * initial_gp);
                 alpha += delta;
                 continue;
             }
@@ -197,13 +184,11 @@ impl MoreThuenteLineSearch {
     }
 }
 
-impl<T, D> LineSearch<T, D> for MoreThuenteLineSearch 
-where 
-    T: FloatNum, 
+impl<T, D> LineSearch<T, D> for MoreThuenteLineSearch
+where
+    T: FloatNum,
     D: Dim,
-    DefaultAllocator: Allocator<D> 
-                    + Allocator<U1, D>
-                    + Allocator<U1>
+    DefaultAllocator: Allocator<D> + Allocator<U1, D> + Allocator<U1>,
 {
     fn search(
         &self,
@@ -215,7 +200,7 @@ where
     ) -> T {
         let ftol = T::from_f64(self.conf.ftol).unwrap();
         let gtol = T::from_f64(self.conf.gtol).unwrap();
-        
+
         let mut alpha = T::one();
         let mut alpha_low = T::zero();
         let mut alpha_high = T::from_f64(10.0).unwrap();
@@ -257,23 +242,21 @@ impl GoldenSectionLineSearch {
         x: &OVector<T, D>,
         p: &OVector<T, D>,
         opt_prob: &OptProb<T, D>,
-    ) -> (T, T, T) 
-    where 
-    DefaultAllocator: Allocator<D> 
-                    + Allocator<U1, D>
-                    + Allocator<U1>
+    ) -> (T, T, T)
+    where
+        DefaultAllocator: Allocator<D> + Allocator<U1, D> + Allocator<U1>,
     {
         let golden_ratio: T = T::from_f64((5.0_f64).sqrt() * 0.5 + 0.5).unwrap();
         let bracket_factor = T::from_f64(self.conf.bracket_factor).unwrap();
-        
+
         let mut a = T::zero();
         let mut b = T::one();
         let mut c = b * golden_ratio;
-        
+
         let mut fa = opt_prob.evaluate(&(x + p * a));
         let mut fb = opt_prob.evaluate(&(x + p * b));
         let mut fc = opt_prob.evaluate(&(x + p * c));
-        
+
         // Expand the bracket until we find a triplet where the middle point is higher
         while fb < fa || fb < fc {
             if fb < fa {
@@ -292,18 +275,16 @@ impl GoldenSectionLineSearch {
                 fc = opt_prob.evaluate(&(x + p * c));
             }
         }
-        
+
         (a, b, c)
     }
 }
 
-impl<T, D> LineSearch<T, D> for GoldenSectionLineSearch 
-where 
-    T: FloatNum, 
-    D: Dim,    
-    DefaultAllocator: Allocator<D> 
-                    + Allocator<U1, D>
-                    + Allocator<U1>
+impl<T, D> LineSearch<T, D> for GoldenSectionLineSearch
+where
+    T: FloatNum,
+    D: Dim,
+    DefaultAllocator: Allocator<D> + Allocator<U1, D> + Allocator<U1>,
 {
     fn search(
         &self,
@@ -315,7 +296,7 @@ where
     ) -> T {
         let resphi = T::from_f64((3.0_f64 - (5.0_f64).sqrt()) / 2.0).unwrap();
         let tol = T::from_f64(self.conf.tol).unwrap();
-        
+
         let (mut a, b, mut c) = self.bracket_maximum(x, p, opt_prob);
         let mut x0 = b - resphi * (c - a);
         let mut x1 = a + resphi * (c - a);

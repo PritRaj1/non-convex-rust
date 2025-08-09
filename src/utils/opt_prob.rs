@@ -1,25 +1,17 @@
+use nalgebra::{allocator::Allocator, DefaultAllocator, Dim, OMatrix, OVector, Scalar};
 use num_traits::{Float, FromPrimitive, NumCast, One, Zero};
-use nalgebra::{
-    Scalar,
-    allocator::Allocator, 
-    DefaultAllocator, 
-    Dim, 
-    OVector, 
-    OMatrix
-};
 use simba::scalar::{
-    ClosedAdd, ClosedAddAssign, ClosedDiv, 
-    ClosedDivAssign, ClosedMul, ClosedMulAssign, 
-    ClosedNeg, ClosedSub, ClosedSubAssign, SubsetOf,
+    ClosedAdd, ClosedAddAssign, ClosedDiv, ClosedDivAssign, ClosedMul, ClosedMulAssign, ClosedNeg,
+    ClosedSub, ClosedSubAssign, SubsetOf,
 };
 
-// More general trait for float numbers 
+// More general trait for float numbers
 pub trait FloatNumber:
     Copy
     + Float
     + NumCast // Convert from other types to float
     + FromPrimitive // Convert from primitive types to float
-    + SubsetOf<f64> 
+    + SubsetOf<f64>
     + Scalar
     + ClosedAdd
     + ClosedMul
@@ -52,18 +44,19 @@ pub trait CloneBoxConstraint<T: FloatNumber, D: Dim> {
     fn clone_box_constraint(&self) -> Box<dyn BooleanConstraintFunction<T, D>>;
 }
 
-impl<T: FloatNumber, D: Dim, F: ObjectiveFunction<T, D> + Clone + 'static> CloneBox<T, D> for F 
-where 
-    DefaultAllocator: Allocator<D>
+impl<T: FloatNumber, D: Dim, F: ObjectiveFunction<T, D> + Clone + 'static> CloneBox<T, D> for F
+where
+    DefaultAllocator: Allocator<D>,
 {
     fn clone_box(&self) -> Box<dyn ObjectiveFunction<T, D>> {
         Box::new(self.clone())
     }
 }
 
-impl<T: FloatNumber, D: Dim, F: BooleanConstraintFunction<T, D> + Clone + 'static> CloneBoxConstraint<T, D> for F 
-where 
-    DefaultAllocator: Allocator<D>
+impl<T: FloatNumber, D: Dim, F: BooleanConstraintFunction<T, D> + Clone + 'static>
+    CloneBoxConstraint<T, D> for F
+where
+    DefaultAllocator: Allocator<D>,
 {
     fn clone_box_constraint(&self) -> Box<dyn BooleanConstraintFunction<T, D>> {
         Box::new(self.clone())
@@ -89,7 +82,8 @@ where
     }
 }
 
-pub trait BooleanConstraintFunction<T: FloatNumber, D: Dim>: CloneBoxConstraint<T, D> + Send + Sync
+pub trait BooleanConstraintFunction<T: FloatNumber, D: Dim>:
+    CloneBoxConstraint<T, D> + Send + Sync
 where
     DefaultAllocator: Allocator<D>,
 {
@@ -138,7 +132,7 @@ where
 {
     fn clone(&self) -> Self {
         Self {
-            objective: self.objective.clone_box(), 
+            objective: self.objective.clone_box(),
             constraints: self.constraints.as_ref().map(|c| c.clone_box_constraint()),
         }
     }
@@ -149,9 +143,7 @@ where
     T: FloatNumber,
     N: Dim,
     D: Dim,
-    DefaultAllocator: Allocator<D> 
-                    + Allocator<N> 
-                    + Allocator<N, D> 
+    DefaultAllocator: Allocator<D> + Allocator<N> + Allocator<N, D>,
 {
     pub best_x: OVector<T, D>,
     pub best_f: T,
@@ -163,9 +155,7 @@ where
 
 pub trait OptimizationAlgorithm<T: FloatNumber, N: Dim, D: Dim>
 where
-    DefaultAllocator: Allocator<D> 
-                    + Allocator<N> 
-                    + Allocator<N, D> 
+    DefaultAllocator: Allocator<D> + Allocator<N> + Allocator<N, D>,
 {
     fn step(&mut self);
     fn state(&self) -> &State<T, N, D>;

@@ -1,18 +1,19 @@
 mod common;
 
-use nalgebra::SMatrix;
-use plotters::prelude::*;
 use gif::Frame;
 use image::ImageReader;
+use nalgebra::SMatrix;
+use plotters::prelude::*;
 
-use common::fcns::{MultiModalFunction, BoxConstraints};
-use common::img::{create_contour_data, setup_gif, find_closest_color, setup_chart, get_color_palette};
+use common::fcns::{BoxConstraints, MultiModalFunction};
+use common::img::{
+    create_contour_data, find_closest_color, get_color_palette, setup_chart, setup_gif,
+};
 
-use non_convex_opt::NonConvexOpt;
 use non_convex_opt::utils::config::Config;
+use non_convex_opt::NonConvexOpt;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-
     let config_json = r#"
     {
         "opt_conf": {
@@ -43,10 +44,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let constraints = BoxConstraints;
 
     let mut opt = NonConvexOpt::new(
-        config, 
+        config,
         SMatrix::<f64, 1, 2>::from_vec(vec![4.0, 9.0]),
-        obj_f.clone(), 
-        Some(constraints.clone())
+        obj_f.clone(),
+        Some(constraints.clone()),
     );
 
     let resolution = 100;
@@ -76,29 +77,29 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // Save frame and convert to GIF
         chart.plotting_area().present()?;
-        
+
         // Convert PNG to GIF frame
         let img = ImageReader::open("examples/lbfgs_frame.png")?
             .decode()?
             .into_rgba8();
-        
+
         let mut indexed_pixels = Vec::with_capacity((img.width() * img.height()) as usize);
         for pixel in img.pixels() {
             let idx = find_closest_color(pixel[0], pixel[1], pixel[2], &color_palette);
             indexed_pixels.push(idx as u8);
         }
-        
+
         let mut frame = Frame::default();
         frame.width = 800;
         frame.height = 800;
-        frame.delay = 40; 
+        frame.delay = 40;
         frame.buffer = std::borrow::Cow::from(indexed_pixels);
         encoder.write_frame(&frame)?;
 
         opt.step();
     }
 
-    std::fs::remove_file("examples/lbfgs_frame.png")?;   
+    std::fs::remove_file("examples/lbfgs_frame.png")?;
 
     Ok(())
 }

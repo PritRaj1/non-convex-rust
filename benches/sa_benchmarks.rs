@@ -1,12 +1,12 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use rand::random;
 use nalgebra::SMatrix;
+use rand::random;
 
+use non_convex_opt::utils::config::{AlgConf, Config, OptConf, SAConf};
 use non_convex_opt::NonConvexOpt;
-use non_convex_opt::utils::config::{Config, OptConf, AlgConf, SAConf};
 
 mod common;
-use common::fcns::{KBF, KBFConstraints};
+use common::fcns::{KBFConstraints, KBF};
 
 fn bench_sa_unconstrained(c: &mut Criterion) {
     let config = Config {
@@ -34,7 +34,7 @@ fn bench_sa_unconstrained(c: &mut Criterion) {
                 config.clone(),
                 black_box(init_pop),
                 KBF,
-                None::<KBFConstraints>
+                None::<KBFConstraints>,
             );
             let _st = opt.run();
         })
@@ -67,7 +67,7 @@ fn bench_sa_constrained(c: &mut Criterion) {
                 config.clone(),
                 black_box(init_pop),
                 KBF,
-                Some(KBFConstraints)
+                Some(KBFConstraints),
             );
             let _st = opt.run();
         })

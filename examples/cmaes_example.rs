@@ -1,19 +1,20 @@
 mod common;
 
-use serde_json;
-use nalgebra::{SMatrix, RowVector2};
-use plotters::prelude::*;
 use gif::Frame;
 use image::ImageReader;
+use nalgebra::{RowVector2, SMatrix};
+use plotters::prelude::*;
+use serde_json;
 
-use common::fcns::{KBF, KBFConstraints};
-use common::img::{create_contour_data, setup_gif, find_closest_color, setup_chart, get_color_palette};
+use common::fcns::{KBFConstraints, KBF};
+use common::img::{
+    create_contour_data, find_closest_color, get_color_palette, setup_chart, setup_gif,
+};
 
-use non_convex_opt::NonConvexOpt;
 use non_convex_opt::utils::config::Config;
+use non_convex_opt::NonConvexOpt;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    
     let config_json = r#"
     {
         "opt_conf": {
@@ -37,13 +38,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut init_x = SMatrix::<f64, 100, 2>::zeros();
     init_x.row_mut(0).copy_from(&RowVector2::new(4.0, 9.0));
-    
-    let mut opt = NonConvexOpt::new(
-        config,
-        init_x,
-        obj_f.clone(), 
-        Some(constraints.clone())
-    );
+
+    let mut opt = NonConvexOpt::new(config, init_x, obj_f.clone(), Some(constraints.clone()));
 
     let resolution = 100;
     let (z_values, min_val, max_val) = create_contour_data(&obj_f, resolution);
@@ -65,42 +61,36 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         // Draw population
         let population = opt.get_population();
         chart.draw_series(
-            population.row_iter().map(|row| {
-                Circle::new(
-                    (row[0], row[1]), 
-                    3, 
-                    RGBColor(255, 0, 0).filled()  
-                )
-            })
+            population
+                .row_iter()
+                .map(|row| Circle::new((row[0], row[1]), 3, RGBColor(255, 0, 0).filled())),
         )?;
 
         // Draw best individual
         let best_x = opt.get_best_individual();
-        chart.draw_series(std::iter::once(
-            Circle::new(
-                (best_x[0], best_x[1]),
-                6, 
-                RGBColor(255, 255, 0).filled()
-            )
-        ))?;
+        chart.draw_series(std::iter::once(Circle::new(
+            (best_x[0], best_x[1]),
+            6,
+            RGBColor(255, 255, 0).filled(),
+        )))?;
 
         chart.plotting_area().present()?;
-        
+
         // Convert PNG to GIF frame
         let img = ImageReader::open("examples/cmaes_frame.png")?
             .decode()?
             .into_rgb8();
-        
+
         let mut indexed_pixels = Vec::with_capacity((img.width() * img.height()) as usize);
         for pixel in img.pixels() {
             let idx = find_closest_color(pixel[0], pixel[1], pixel[2], &color_palette);
             indexed_pixels.push(idx as u8);
         }
-        
+
         let mut frame = Frame::default();
         frame.width = 800;
         frame.height = 800;
-        frame.delay = 20; 
+        frame.delay = 20;
         frame.buffer = std::borrow::Cow::from(indexed_pixels);
         encoder.write_frame(&frame)?;
 

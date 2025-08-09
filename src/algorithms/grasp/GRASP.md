@@ -1,6 +1,13 @@
 # Greedy Randomized Adaptive Search Procedures
 
-GRASP (Greedy Randomized Adaptive Search Procedures) is a multi-start metaheuristic algorithm for combinatorial optimization problems. Samples randomly, choooses greedily!
+<div align="center">
+
+<figure>
+  <img src="../../../examples/gifs/grasp_kbf.gif" width="200" alt="GRASP Example">
+  <figcaption><b>Figure:</b> GRASP (Greedy Randomized Adaptive Search Procedures) is a multi-start metaheuristic algorithm for combinatorial optimization problems. Samples randomly, choooses greedily!</figcaption>
+</figure>
+
+</div>
 
 ## Construction Phase
 The construction phase builds solutions incrementally by randomly selecting elements from the RCL - a subset of best candidates determined by a threshold parameter α. This provides controlled randomization while maintaining solution quality.

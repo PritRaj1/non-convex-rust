@@ -1,6 +1,15 @@
 # MSPO
 
-Multi-Swarm Particle Optimization (MSPO) is a population-based optimization algorithm that uses multiple swarms to explore the search space. Each swarm maintains its own population of particles that move through the search space according to:
+<div align="center">
+
+<figure>
+  <img src="../../../examples/gifs/mspo_kbf.gif" width="200" alt="MSPO Example">
+  <figcaption><b>Figure:</b> Multi-Swarm Particle Optimization (MSPO) is a population-based optimization algorithm that uses multiple swarms to explore the search space. </figcaption>
+</figure>
+
+</div>
+
+Each swarm maintains its own population of particles that move through the search space according to:
 
 - Inertia (w) - Tendency to continue current trajectory
 - Cognitive component (c1) - Attraction to particle's personal best position

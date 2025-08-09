@@ -1,13 +1,13 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use nalgebra::SMatrix;
 use rand::random;
 use std::sync::LazyLock;
-use nalgebra::SMatrix;
 
-use non_convex_opt::NonConvexOpt;
 use non_convex_opt::utils::config::Config;
+use non_convex_opt::NonConvexOpt;
 
 mod common;
-use common::fcns::{RosenbrockFunction, RosenbrockConstraints};
+use common::fcns::{RosenbrockConstraints, RosenbrockFunction};
 
 static BACKTRACKING_JSON: &str = r#"
 {
@@ -134,54 +134,63 @@ static STRONG_WOLFE_JSON: &str = r#"
         }
     }
 }
-"#; 
+"#;
 
-static BACKTRACKING_CONFIG: LazyLock<Config> = LazyLock::new(|| {
-    serde_json::from_str(BACKTRACKING_JSON).unwrap()
-});
+static BACKTRACKING_CONFIG: LazyLock<Config> =
+    LazyLock::new(|| serde_json::from_str(BACKTRACKING_JSON).unwrap());
 
-static HAGER_ZHANG_CONFIG: LazyLock<Config> = LazyLock::new(|| {
-    serde_json::from_str(HAGER_ZHANG_JSON).unwrap()
-});
+static HAGER_ZHANG_CONFIG: LazyLock<Config> =
+    LazyLock::new(|| serde_json::from_str(HAGER_ZHANG_JSON).unwrap());
 
-static MORE_THUENTE_CONFIG: LazyLock<Config> = LazyLock::new(|| {
-    serde_json::from_str(MORE_THUENTE_JSON).unwrap()
-});
+static MORE_THUENTE_CONFIG: LazyLock<Config> =
+    LazyLock::new(|| serde_json::from_str(MORE_THUENTE_JSON).unwrap());
 
-static GOLDEN_SECTION_CONFIG: LazyLock<Config> = LazyLock::new(|| {
-    serde_json::from_str(GOLDEN_SECTION_JSON).unwrap()
-});
+static GOLDEN_SECTION_CONFIG: LazyLock<Config> =
+    LazyLock::new(|| serde_json::from_str(GOLDEN_SECTION_JSON).unwrap());
 
-static STRONG_WOLFE_CONFIG: LazyLock<Config> = LazyLock::new(|| {
-    serde_json::from_str(STRONG_WOLFE_JSON).unwrap()
-});
-
+static STRONG_WOLFE_CONFIG: LazyLock<Config> =
+    LazyLock::new(|| serde_json::from_str(STRONG_WOLFE_JSON).unwrap());
 
 fn bench_lbfgs_backtracking(c: &mut Criterion) {
     c.bench_function("lbfgs_backtracking", |b| {
         b.iter(|| {
             let init_pop = SMatrix::<f64, 1, 2>::from_fn(|_, _| random::<f64>() * 10.0);
-            let mut opt = NonConvexOpt::new(BACKTRACKING_CONFIG.clone(), black_box(init_pop), RosenbrockFunction, None::<RosenbrockConstraints>);
+            let mut opt = NonConvexOpt::new(
+                BACKTRACKING_CONFIG.clone(),
+                black_box(init_pop),
+                RosenbrockFunction,
+                None::<RosenbrockConstraints>,
+            );
             let _st = opt.run();
         })
-    }); 
+    });
 }
 
 fn bench_lbfgs_hager_zhang(c: &mut Criterion) {
     c.bench_function("lbfgs_hager_zhang", |b| {
         b.iter(|| {
             let init_pop = SMatrix::<f64, 1, 2>::from_fn(|_, _| random::<f64>() * 10.0);
-            let mut opt = NonConvexOpt::new(HAGER_ZHANG_CONFIG.clone(), black_box(init_pop), RosenbrockFunction, None::<RosenbrockConstraints>);
+            let mut opt = NonConvexOpt::new(
+                HAGER_ZHANG_CONFIG.clone(),
+                black_box(init_pop),
+                RosenbrockFunction,
+                None::<RosenbrockConstraints>,
+            );
             let _st = opt.run();
         })
     });
-}   
+}
 
 fn bench_lbfgs_more_thuente(c: &mut Criterion) {
     c.bench_function("lbfgs_more_thuente", |b| {
         b.iter(|| {
             let init_pop = SMatrix::<f64, 1, 2>::from_fn(|_, _| random::<f64>() * 10.0);
-            let mut opt = NonConvexOpt::new(MORE_THUENTE_CONFIG.clone(), black_box(init_pop), RosenbrockFunction, None::<RosenbrockConstraints>);
+            let mut opt = NonConvexOpt::new(
+                MORE_THUENTE_CONFIG.clone(),
+                black_box(init_pop),
+                RosenbrockFunction,
+                None::<RosenbrockConstraints>,
+            );
             let _st = opt.run();
         })
     });
@@ -191,17 +200,27 @@ fn bench_lbfgs_golden_section(c: &mut Criterion) {
     c.bench_function("lbfgs_golden_section", |b| {
         b.iter(|| {
             let init_pop = SMatrix::<f64, 1, 2>::from_fn(|_, _| random::<f64>() * 10.0);
-            let mut opt = NonConvexOpt::new(GOLDEN_SECTION_CONFIG.clone(), black_box(init_pop), RosenbrockFunction, None::<RosenbrockConstraints>);
+            let mut opt = NonConvexOpt::new(
+                GOLDEN_SECTION_CONFIG.clone(),
+                black_box(init_pop),
+                RosenbrockFunction,
+                None::<RosenbrockConstraints>,
+            );
             let _st = opt.run();
         })
     });
-}   
+}
 
 fn bench_lbfgs_strong_wolfe(c: &mut Criterion) {
     c.bench_function("lbfgs_strong_wolfe", |b| {
         b.iter(|| {
             let init_pop = SMatrix::<f64, 1, 2>::from_fn(|_, _| random::<f64>() * 10.0);
-            let mut opt = NonConvexOpt::new(STRONG_WOLFE_CONFIG.clone(), black_box(init_pop), RosenbrockFunction, None::<RosenbrockConstraints>);
+            let mut opt = NonConvexOpt::new(
+                STRONG_WOLFE_CONFIG.clone(),
+                black_box(init_pop),
+                RosenbrockFunction,
+                None::<RosenbrockConstraints>,
+            );
             let _st = opt.run();
         })
     });
@@ -213,7 +232,7 @@ criterion_group!(
     bench_lbfgs_hager_zhang,
     bench_lbfgs_more_thuente,
     bench_lbfgs_golden_section,
-    bench_lbfgs_strong_wolfe    
+    bench_lbfgs_strong_wolfe
 );
 
 criterion_main!(benches);

@@ -1,6 +1,13 @@
 # Continous Genetic Algorithm
 
-Genetic algorithm for real valued (FP) vectors.
+<div align="center">
+
+<figure>
+  <img src="../../../examples/gifs/cga_kbf.gif" width="200" alt="CGA Example">
+  <figcaption><b>Figure:</b> Genetic algorithm adapted for floating-point vectors.</figcaption>
+</figure>
+
+</div>
 
 ## Selection
 
