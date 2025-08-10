@@ -51,7 +51,7 @@ where
         // Repeat until the Armijo condition is satisfied (for maximization)
         while opt_prob.evaluate(&x_new) < f + T::from_f64(self.conf.c1).unwrap() * alpha * g.dot(p)
         {
-            alpha = alpha * T::from_f64(self.conf.rho).unwrap();
+            alpha *= T::from_f64(self.conf.rho).unwrap();
             x_new = x + p * alpha;
         }
 
@@ -110,7 +110,7 @@ where
             if alpha_high < T::from_f64(10.0).unwrap() {
                 alpha = (alpha_low + alpha_high) / T::from_f64(2.0).unwrap();
             } else {
-                alpha = alpha * T::from_f64(2.0).unwrap();
+                alpha *= T::from_f64(2.0).unwrap();
             }
         }
         alpha

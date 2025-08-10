@@ -256,11 +256,11 @@ where
         let at_lower = self
             .lower_bounds
             .as_ref()
-            .map_or(false, |lb| self.st.best_x[i] == lb[i]);
+            .is_some_and(|lb| self.st.best_x[i] == lb[i]);
         let at_upper = self
             .upper_bounds
             .as_ref()
-            .map_or(false, |ub| self.st.best_x[i] == ub[i]);
+            .is_some_and(|ub| self.st.best_x[i] == ub[i]);
         at_lower || at_upper
     }
 }

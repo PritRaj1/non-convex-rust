@@ -2,10 +2,9 @@
 
 <div align="center">
 
-<figure>
-  <img src="../../../examples/gifs/sga_kbf.gif" width="200" alt="SGA Example">
-  <figcaption><b>Figure:</b> Stochastic Gradient Ascent (SGA) is a gradient-based optimization algorithm. It is a simple and efficient optimization algorithm that is often used in machine learning and deep learning applications. </figcaption>
-</figure>
+<img src="../../../examples/gifs/sga_kbf.gif" width="200" alt="SGA Example">
+
+<p><b>Figure:</b> The Stochastic Gradient Ascent (SGA) algorithm is a simple and efficient gradient-based optimization method. It is widely used in machine learning and deep learning for maximizing objective functions, updating parameters incrementally using noisy gradient estimates.</p>
 
 </div>
 

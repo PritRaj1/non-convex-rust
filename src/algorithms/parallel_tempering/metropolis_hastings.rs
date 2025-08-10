@@ -127,13 +127,12 @@ where
         let diff = x_new - x_old;
         let delta_x = diff.dot(&diff).sqrt();
 
-        let r: T;
-        if t_swap > T::from_f64(0.0).unwrap() {
+        let r: T = if t_swap > T::from_f64(0.0).unwrap() {
             // Pass in next temperature to signal global move
             let delta_t = (T::one() / t - T::one() / t_swap).powf(-T::one());
             let delta_f = self.prob.objective.f(&self.project(x_new))
                 - self.prob.objective.f(&self.project(x_old));
-            r = (delta_f / (self.k * delta_x * delta_t)).exp();
+            (delta_f / (self.k * delta_x * delta_t)).exp()
         } else {
             // Pass in negative anything to signal local move
 
@@ -144,19 +143,18 @@ where
             let langevin_correction =
                 if let Some(grad) = self.prob.objective.gradient(&self.project(x_old)) {
                     let proposal_grad = self.prob.objective.gradient(&self.project(x_new)).unwrap();
-                    let grad_term = -((x_new - x_old - grad.clone() * self.mala_step_size / t)
+                    -((x_new - x_old - grad.clone() * self.mala_step_size / t)
                         .dot(&(x_new - x_old - grad.clone() * self.mala_step_size / t))
                         / (T::from_f64(4.0).unwrap() * self.mala_step_size / t))
                         + ((x_old - x_new - proposal_grad.clone() * self.mala_step_size / t).dot(
                             &(x_old - x_new - proposal_grad.clone() * self.mala_step_size / t),
-                        ) / (T::from_f64(4.0).unwrap() * self.mala_step_size / t));
-                    grad_term
+                        ) / (T::from_f64(4.0).unwrap() * self.mala_step_size / t))
                 } else {
                     T::zero()
                 };
 
-            r = ((delta_f) / (self.k * delta_x * t) + langevin_correction).exp();
-        }
+            ((delta_f) / (self.k * delta_x * t) + langevin_correction).exp()
+        };
 
         let mut rng = rand::rng();
         let u = T::from_f64(rng.random::<f64>()).unwrap();

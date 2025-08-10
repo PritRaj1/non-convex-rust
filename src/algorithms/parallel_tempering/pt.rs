@@ -171,7 +171,7 @@ where
             constraints: constraints.clone(),
             opt_prob,
             best_individual: best_individual.clone(),
-            best_fitness: best_fitness.clone(),
+            best_fitness,
             step_sizes,
             st: State {
                 best_x: best_individual,
@@ -261,7 +261,7 @@ where
                 if swap_bool[(i, j)] {
                     for k in 0..m {
                         // Swap population rows
-                        let temp_row = self.population[i].row(k).clone();
+                        let temp_row = self.population[i].row(k);
                         new_population[i].set_row(k, &self.population[j].row(k));
                         new_population[j].set_row(k, &temp_row);
 
@@ -390,10 +390,10 @@ where
             .transpose()
             .into_owned();
         self.best_individual = best_individual.clone();
-        self.best_fitness = best_fitness.clone();
+        self.best_fitness = best_fitness;
 
         self.st.best_x = self.best_individual.clone();
-        self.st.best_f = best_fitness.clone();
+        self.st.best_f = best_fitness;
         self.st.pop = self.population[0].clone();
         self.st.fitness = self.fitness[0].clone();
         self.st.constraints = self.constraints[0].clone();

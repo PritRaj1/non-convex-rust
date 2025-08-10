@@ -2,10 +2,9 @@
 
 <div align="center">
 
-<figure>
-  <img src="../../../examples/gifs/pt_kbf.gif" width="200" alt="PT Example">
-  <figcaption><b>Figure:</b> Parallel Tempering with either a Metropolis-Hastings update mechanism or Metropolis-Adjusted Langevin Algorithm (MALA) when gradients are available. </figcaption>
-</figure>
+<img src="../../../examples/gifs/pt_kbf.gif" width="200" alt="PT Example">
+
+<p><b>Figure:</b> Parallel Tempering (also known as Replica Exchange Monte Carlo) runs multiple copies ("replicas") of the system at different temperatures in parallel. Replicas periodically attempt to swap states, allowing high-temperature replicas to explore broadly and low-temperature replicas to refine solutions. Each replica can use either Metropolis-Hastings or Metropolis-Adjusted Langevin Algorithm (MALA) updates, depending on whether gradients are available.</p>
 
 </div>
 

@@ -222,8 +222,8 @@ where
 
         // Deterministic selections first (integer replication)
         let mut parent_index = 0;
-        for j in 0..fitness.len() {
-            for _ in 0..expected_values[j].to_usize().unwrap_or(0) {
+        for (j, &expected_val) in expected_values.iter().enumerate().take(fitness.len()) {
+            for _ in 0..expected_val.to_usize().unwrap_or(0) {
                 if parent_index < self.num_parents {
                     selected.set_row(parent_index, &population.row(j));
                     parent_index += 1;

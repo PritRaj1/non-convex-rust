@@ -164,11 +164,11 @@ where
             self.opt_prob
                 .objective
                 .x_lower_bound(&offspring.row(0).transpose())
-                .unwrap_or_else(|| fallback_vec_lower)[0],
+                .unwrap_or(fallback_vec_lower)[0],
             self.opt_prob
                 .objective
                 .x_upper_bound(&offspring.row(0).transpose())
-                .unwrap_or_else(|| fallback_vec_upper)[0],
+                .unwrap_or(fallback_vec_upper)[0],
         );
 
         for i in 0..offspring.nrows() {

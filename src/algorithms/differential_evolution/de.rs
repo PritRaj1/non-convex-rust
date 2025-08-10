@@ -143,18 +143,16 @@ where
         if self.archive.len() < self.conf.common.archive_size {
             self.archive.push(x);
             self.archive_fitness.push(fitness);
-        } else {
-            if let Some(worst_idx) = self
-                .archive_fitness
-                .iter()
-                .enumerate()
-                .min_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
-                .map(|(i, _)| i)
-            {
-                if fitness > self.archive_fitness[worst_idx] {
-                    self.archive[worst_idx] = x;
-                    self.archive_fitness[worst_idx] = fitness;
-                }
+        } else if let Some(worst_idx) = self
+            .archive_fitness
+            .iter()
+            .enumerate()
+            .min_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+            .map(|(i, _)| i)
+        {
+            if fitness > self.archive_fitness[worst_idx] {
+                self.archive[worst_idx] = x;
+                self.archive_fitness[worst_idx] = fitness;
             }
         }
     }

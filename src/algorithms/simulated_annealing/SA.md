@@ -2,10 +2,9 @@
 
 <div align="center">
 
-<figure>
-  <img src="../../../examples/gifs/sa_kbf.gif" width="200" alt="SA Example">
-  <figcaption><b>Figure:</b> Simulated Annealing with either a Metropolis-Hastings update mechanism or Metropolis-Adjusted Langevin Algorithm (MALA) when gradients are available. </figcaption>
-</figure>
+<img src="../../../examples/gifs/sa_kbf.gif" width="200" alt="SA Example">
+
+<p><b>Figure:</b> The Simulated Annealing (SA) algorithm explores the search space using either Metropolis-Hastings updates or, when gradients are available, the Metropolis-Adjusted Langevin Algorithm (MALA). The temperature parameter controls the acceptance of worse solutions, gradually decreasing to focus the search.</p>
 
 </div>
 

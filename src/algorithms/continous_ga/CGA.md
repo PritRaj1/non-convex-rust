@@ -2,10 +2,9 @@
 
 <div align="center">
 
-<figure>
-  <img src="../../../examples/gifs/cga_kbf.gif" width="200" alt="CGA Example">
-  <figcaption><b>Figure:</b> Genetic algorithm adapted for floating-point vectors.</figcaption>
-</figure>
+<img src="../../../examples/gifs/cga_kbf.gif" width="200" alt="CGA Example">
+
+<p><b>Figure:</b> The Continous Genetic Algorithm (CGA) adapts the classic genetic algorithm for optimization in continuous (floating-point) search spaces.</p>
 
 </div>
 

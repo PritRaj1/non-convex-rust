@@ -36,6 +36,7 @@ impl Stochastic {
     }
 }
 
+#[derive(Default)]
 pub struct Always {}
 
 impl Always {

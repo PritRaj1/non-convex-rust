@@ -94,7 +94,7 @@ impl Config {
     }
 
     #[cfg(test)]
-    pub fn from_str(json: &str) -> Self {
+    pub fn from_json_str(json: &str) -> Self {
         serde_json::from_str(json).expect("Failed to parse config JSON")
     }
 }

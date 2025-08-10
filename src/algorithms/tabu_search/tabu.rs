@@ -44,7 +44,7 @@ where
             opt_prob: opt_prob.clone(),
             x: init_x.clone(),
             st: State {
-                best_x: init_x.clone().into(),
+                best_x: init_x.clone(),
                 best_f,
                 pop: OMatrix::<T, N, D>::from_fn_generic(
                     N::from_usize(1),

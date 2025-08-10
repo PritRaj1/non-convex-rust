@@ -2,10 +2,9 @@
 
 <div align="center">
 
-<figure>
-  <img src="../../../examples/gifs/adam_kbf.gif" width="200" alt="Adam Example">
-  <figcaption><b>Figure:</b> Adam (Adaptive Moment Estimation) is an optimization algorithm that computes adaptive learning rates for each parameter. It combines the benefits of <b>AdaGrad</b> and <b>RMSProp</b>.</figcaption>
-</figure>
+<img src="../../../examples/gifs/adam_kbf.gif" width="200" alt="Adam Example">
+
+<p><b>Figure:</b> The Adam (Adaptive Moment Estimation) algorithm computes adaptive learning rates for each parameter, combining the advantages of <b>AdaGrad</b> and <b>RMSProp</b>.</p>
 
 </div>
 

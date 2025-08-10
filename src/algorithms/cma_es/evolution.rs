@@ -34,7 +34,6 @@ where
     OMatrix<T, D, D>: Send + Sync,
     DefaultAllocator: Allocator<D> + Allocator<D, D>,
 {
-    let b_mat = &*b_mat;
     let d_inv = d_vec.map(|d| T::one() / d);
     let b_trans_y = b_mat.transpose() * y;
     let bdinvy = b_mat * &d_inv.component_mul(&b_trans_y);
@@ -51,7 +50,7 @@ where
     // Update hsig
     let decay = T::one() - cs;
     let decay_pow = decay.powi(2 * generation as i32);
-    let ps_norm = ps.dot(&ps).sqrt();
+    let ps_norm = ps.dot(ps).sqrt();
     ps_norm / (T::sqrt(T::one() - decay_pow) * chi_n) < T::from_f64(1.4).unwrap()
 }
 
@@ -156,14 +155,14 @@ pub fn update_covariance<T: FloatNum, N: Dim, D: Dim>(
         for prev_v in &eigenvectors {
             let proj = prev_v.dot(&v);
             for j in 0..n {
-                v[j] = v[j] - proj * prev_v[j];
+                v[j] -= proj * prev_v[j];
             }
         }
 
         // Normalize
         let v_norm = T::sqrt(v.dot(&v));
         for j in 0..n {
-            v[j] = v[j] / v_norm;
+            v[j] /= v_norm;
         }
 
         // Power iteration with Rayleigh quotient to improve convergence speed

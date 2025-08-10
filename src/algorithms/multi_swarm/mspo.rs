@@ -196,11 +196,9 @@ where
             .collect();
 
         for (pos, fitness) in results {
-            if fitness > self.st.best_f {
-                if self.opt_prob.is_feasible(&pos) {
-                    self.st.best_f = fitness;
-                    self.st.best_x = pos;
-                }
+            if fitness > self.st.best_f && self.opt_prob.is_feasible(&pos) {
+                self.st.best_f = fitness;
+                self.st.best_x = pos;
             }
         }
 

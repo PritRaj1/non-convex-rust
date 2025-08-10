@@ -193,8 +193,8 @@ where
         let old_mean = self.mean.clone();
         self.mean = OVector::zeros_generic(D::from_usize(n), U1);
 
-        for i in 0..self.mu {
-            let row = self.st.pop.row(indices[i]).transpose();
+        for (i, &idx) in indices.iter().enumerate().take(self.mu) {
+            let row = self.st.pop.row(idx).transpose();
             for j in 0..n {
                 self.mean[j] += self.weights[i] * row[j];
             }

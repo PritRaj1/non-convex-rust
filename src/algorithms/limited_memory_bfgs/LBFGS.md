@@ -2,10 +2,9 @@
 
 <div align="center">
 
-<figure>
-  <img src="../../../examples/gifs/lbfgs_kbf.gif" width="200" alt="L-BFGS Example">
-  <figcaption><b>Figure:</b> Limited Memory Broyden–Fletcher–Goldfarb–Shanno (L-BFGS) is a quasi-Newton method that uses a limited memory approximation to the Hessian matrix. Many different line search methods can be used with L-BFGS. If box constraints are present, L-BFGS-B is used.</figcaption>
-</figure>
+<img src="../../../examples/gifs/lbfgs_kbf.gif" width="200" alt="L-BFGS Example">
+
+<p><b>Figure:</b> The Limited Memory Broyden–Fletcher–Goldfarb–Shanno (L-BFGS) algorithm is a quasi-Newton optimization method that approximates the inverse Hessian matrix using a limited amount of memory. This makes it suitable for large-scale problems. L-BFGS can be paired with various line search strategies. When box constraints are required, the L-BFGS-B variant is used.</p>
 
 </div>
 

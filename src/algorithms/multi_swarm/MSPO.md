@@ -2,10 +2,9 @@
 
 <div align="center">
 
-<figure>
-  <img src="../../../examples/gifs/mspo_kbf.gif" width="200" alt="MSPO Example">
-  <figcaption><b>Figure:</b> Multi-Swarm Particle Optimization (MSPO) is a population-based optimization algorithm that uses multiple swarms to explore the search space. </figcaption>
-</figure>
+<img src="../../../examples/gifs/mspo_kbf.gif" width="200" alt="MSPO Example">
+
+<p><b>Figure:</b> Multi-Swarm Particle Optimization (MSPO) is a population-based optimization algorithm that uses multiple swarms to explore the search space.</p>
 
 </div>
 
