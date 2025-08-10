@@ -5,8 +5,8 @@ pub mod utils;
 use crate::utils::config::{AlgConf, Config, OptConf};
 
 use crate::algorithms::{
-    adam::adam::Adam, cma_es::cma_es::CMAES, continous_ga::cga::CGA,
-    differential_evolution::de::DE, grasp::grasp::GRASP, limited_memory_bfgs::lbfgs::LBFGS,
+    adam::adam_opt::Adam, cma_es::cma_es_opt::CMAES, continous_ga::cga::CGA,
+    differential_evolution::de::DE, grasp::grasp_opt::GRASP, limited_memory_bfgs::lbfgs::LBFGS,
     multi_swarm::mspo::MSPO, nelder_mead::nm::NelderMead, parallel_tempering::pt::PT,
     sg_ascent::sga::SGAscent, simulated_annealing::sa::SimulatedAnnealing,
     tabu_search::tabu::TabuSearch,

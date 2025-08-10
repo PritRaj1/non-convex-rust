@@ -10,6 +10,10 @@ use crate::algorithms::parallel_tempering::{
     replica_exchange::{Always, Periodic, Stochastic, SwapCheck},
 };
 
+// Type aliases to reduce complexity
+type InitResult<T, N, D> = (OMatrix<T, N, D>, OVector<T, N>, OVector<bool, N>);
+type UpdateResult<T, D> = Option<(OVector<T, D>, T, bool, OMatrix<T, D, D>)>;
+
 pub struct PT<T, N, D>
 where
     T: FloatNum,
@@ -84,45 +88,44 @@ where
             .collect();
 
         // Initialize populations in parallel
-        let init_results: Vec<(OMatrix<T, N, D>, OVector<T, N>, OVector<bool, N>)> =
-            (0..conf.common.num_replicas)
-                .into_par_iter()
-                .map(|_| {
-                    let mut pop = OMatrix::<T, N, D>::zeros_generic(
+        let init_results: Vec<InitResult<T, N, D>> = (0..conf.common.num_replicas)
+            .into_par_iter()
+            .map(|_| {
+                let mut pop = OMatrix::<T, N, D>::zeros_generic(
+                    N::from_usize(init_pop.nrows()),
+                    D::from_usize(init_pop.ncols()),
+                );
+                for i in 0..init_pop.nrows() {
+                    pop.set_row(i, &init_pop.row(i));
+                }
+
+                let fit: Vec<T> = (0..init_pop.nrows())
+                    .into_par_iter()
+                    .map(|i| {
+                        let individual = init_pop.row(i).transpose();
+                        opt_prob.evaluate(&individual)
+                    })
+                    .collect();
+
+                let constr: Vec<bool> = (0..init_pop.nrows())
+                    .into_par_iter()
+                    .map(|i| {
+                        let individual = init_pop.row(i).transpose();
+                        opt_prob.is_feasible(&individual)
+                    })
+                    .collect();
+
+                (
+                    pop,
+                    OVector::<T, N>::from_vec_generic(N::from_usize(init_pop.nrows()), U1, fit),
+                    OVector::<bool, N>::from_vec_generic(
                         N::from_usize(init_pop.nrows()),
-                        D::from_usize(init_pop.ncols()),
-                    );
-                    for i in 0..init_pop.nrows() {
-                        pop.set_row(i, &init_pop.row(i));
-                    }
-
-                    let fit: Vec<T> = (0..init_pop.nrows())
-                        .into_par_iter()
-                        .map(|i| {
-                            let individual = init_pop.row(i).transpose();
-                            opt_prob.evaluate(&individual)
-                        })
-                        .collect();
-
-                    let constr: Vec<bool> = (0..init_pop.nrows())
-                        .into_par_iter()
-                        .map(|i| {
-                            let individual = init_pop.row(i).transpose();
-                            opt_prob.is_feasible(&individual)
-                        })
-                        .collect();
-
-                    (
-                        pop,
-                        OVector::<T, N>::from_vec_generic(N::from_usize(init_pop.nrows()), U1, fit),
-                        OVector::<bool, N>::from_vec_generic(
-                            N::from_usize(init_pop.nrows()),
-                            U1,
-                            constr,
-                        ),
-                    )
-                })
-                .collect();
+                        U1,
+                        constr,
+                    ),
+                )
+            })
+            .collect();
 
         // Unzip the results
         let mut population = Vec::with_capacity(conf.common.num_replicas);
@@ -307,49 +310,48 @@ where
             .collect();
 
         // Local move
-        let updates: Vec<Vec<Option<(OVector<T, D>, T, bool, OMatrix<T, D, D>)>>> =
-            (0..self.conf.common.num_replicas)
-                .into_par_iter()
-                .map(|i| {
-                    (0..self.population[i].nrows())
-                        .into_par_iter()
-                        .map(|j| {
-                            let x_old = self.population[i].row(j).transpose();
-                            let x_new = self.metropolis_hastings.local_move(
-                                &x_old,
-                                &self.step_sizes[i][j],
-                                temperatures[i],
-                            );
-                            let constr_new = self.opt_prob.is_feasible(&x_new);
+        let updates: Vec<Vec<UpdateResult<T, D>>> = (0..self.conf.common.num_replicas)
+            .into_par_iter()
+            .map(|i| {
+                (0..self.population[i].nrows())
+                    .into_par_iter()
+                    .map(|j| {
+                        let x_old = self.population[i].row(j).transpose();
+                        let x_new = self.metropolis_hastings.local_move(
+                            &x_old,
+                            &self.step_sizes[i][j],
+                            temperatures[i],
+                        );
+                        let constr_new = self.opt_prob.is_feasible(&x_new);
 
-                            if self.metropolis_hastings.accept_reject(
-                                &x_old,
-                                &x_new,
-                                constr_new,
-                                temperatures[i],
-                                -T::from_f64(1.0).unwrap(), // Send in negative to signal local move
-                            ) {
-                                let new_step_size =
-                                    if self.opt_prob.objective.gradient(&x_old).is_none() {
-                                        self.metropolis_hastings.update_step_size(
-                                            &self.step_sizes[i][j],
-                                            &x_old,
-                                            &x_new,
-                                        )
-                                    } else {
-                                        self.step_sizes[i][j].clone()
-                                    };
+                        if self.metropolis_hastings.accept_reject(
+                            &x_old,
+                            &x_new,
+                            constr_new,
+                            temperatures[i],
+                            -T::from_f64(1.0).unwrap(), // Send in negative to signal local move
+                        ) {
+                            let new_step_size =
+                                if self.opt_prob.objective.gradient(&x_old).is_none() {
+                                    self.metropolis_hastings.update_step_size(
+                                        &self.step_sizes[i][j],
+                                        &x_old,
+                                        &x_new,
+                                    )
+                                } else {
+                                    self.step_sizes[i][j].clone()
+                                };
 
-                                let fitness_new = self.opt_prob.evaluate(&x_new);
+                            let fitness_new = self.opt_prob.evaluate(&x_new);
 
-                                Some((x_new.clone(), fitness_new, constr_new, new_step_size))
-                            } else {
-                                None
-                            }
-                        })
-                        .collect()
-                })
-                .collect();
+                            Some((x_new.clone(), fitness_new, constr_new, new_step_size))
+                        } else {
+                            None
+                        }
+                    })
+                    .collect()
+            })
+            .collect();
 
         // Apply updates
         for (i, replica) in updates.iter().enumerate() {

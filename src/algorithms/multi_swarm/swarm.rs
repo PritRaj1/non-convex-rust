@@ -7,6 +7,23 @@ use crate::utils::opt_prob::{FloatNumber as FloatNum, OptProb};
 
 use crate::algorithms::multi_swarm::particle::Particle;
 
+#[derive(Clone)]
+pub struct SwarmConfig<'a, T, D>
+where
+    T: FloatNum,
+    D: Dim,
+    DefaultAllocator: Allocator<D> + Allocator<U1, D> + Allocator<Dyn, D>,
+{
+    pub num_particles: usize,
+    pub dim: usize,
+    pub w: T,
+    pub c1: T,
+    pub c2: T,
+    pub bounds: (T, T),
+    pub opt_prob: &'a OptProb<T, D>,
+    pub init_pop: OMatrix<T, Dyn, D>,
+}
+
 pub struct Swarm<T, D>
 where
     T: FloatNum,
@@ -31,60 +48,51 @@ where
     OMatrix<T, Dyn, D>: Send + Sync,
     DefaultAllocator: Allocator<D> + Allocator<U1, D> + Allocator<Dyn, D>,
 {
-    pub fn new(
-        num_particles: usize,
-        dim: usize,
-        w: T,
-        c1: T,
-        c2: T,
-        bounds: (T, T),
-        opt_prob: &OptProb<T, D>,
-        init_pop: OMatrix<T, Dyn, D>,
-    ) -> Self {
-        let particles: Vec<_> = (0..num_particles)
+    pub fn new(config: SwarmConfig<T, D>) -> Self {
+        let particles: Vec<_> = (0..config.num_particles)
             .into_par_iter()
             .map(|i| {
                 let mut rng = rand::rng();
-                let mut position = OVector::<T, D>::zeros_generic(D::from_usize(dim), U1);
+                let mut position = OVector::<T, D>::zeros_generic(D::from_usize(config.dim), U1);
                 let fitness;
 
-                if i < init_pop.nrows() {
+                if i < config.init_pop.nrows() {
                     // Use initial population if available
-                    position = init_pop.row(i).transpose();
-                    fitness = opt_prob.evaluate(&position);
+                    position = config.init_pop.row(i).transpose();
+                    fitness = config.opt_prob.evaluate(&position);
                 } else {
                     // Generate random position if needed
                     loop {
-                        let values = (0..dim).map(|_| {
+                        let values = (0..config.dim).map(|_| {
                             let r = T::from_f64(rng.random::<f64>()).unwrap();
-                            bounds.0 + (bounds.1 - bounds.0) * r
+                            config.bounds.0 + (config.bounds.1 - config.bounds.0) * r
                         });
                         let position: OVector<T, D> =
-                            OVector::from_iterator_generic(D::from_usize(dim), U1, values);
+                            OVector::from_iterator_generic(D::from_usize(config.dim), U1, values);
 
-                        if opt_prob.is_feasible(&position) {
-                            fitness = opt_prob.evaluate(&position);
+                        if config.opt_prob.is_feasible(&position) {
+                            fitness = config.opt_prob.evaluate(&position);
                             break;
                         }
                     }
                 }
 
-                let values = (0..dim).map(|_| {
+                let values = (0..config.dim).map(|_| {
                     let r = T::from_f64(rng.random::<f64>()).unwrap();
-                    (bounds.1 - bounds.0)
+                    (config.bounds.1 - config.bounds.0)
                         * (r - T::from_f64(0.5).unwrap())
                         * T::from_f64(0.1).unwrap()
                 });
 
                 let velocity: OVector<T, D> =
-                    OVector::from_iterator_generic(D::from_usize(dim), U1, values);
+                    OVector::from_iterator_generic(D::from_usize(config.dim), U1, values);
 
                 Particle::new(position, velocity, fitness)
             })
             .collect();
 
         let mut best_fitness = T::neg_infinity();
-        let mut best_position = OVector::<T, D>::zeros_generic(D::from_usize(dim), U1);
+        let mut best_position = OVector::<T, D>::zeros_generic(D::from_usize(config.dim), U1);
 
         for particle in &particles {
             if particle.best_fitness > best_fitness {
@@ -97,11 +105,11 @@ where
             particles,
             global_best_position: best_position,
             global_best_fitness: best_fitness,
-            w,
-            c1,
-            c2,
-            x_min: bounds.0.to_f64().unwrap(),
-            x_max: bounds.1.to_f64().unwrap(),
+            w: config.w,
+            c1: config.c1,
+            c2: config.c2,
+            x_min: config.bounds.0.to_f64().unwrap(),
+            x_max: config.bounds.1.to_f64().unwrap(),
         }
     }
 
@@ -211,19 +219,19 @@ where
                 }
             }
 
-            Swarm::new(
-                particles_per_swarm,
+            Swarm::new(SwarmConfig {
+                num_particles: particles_per_swarm,
                 dim,
-                T::from_f64(conf.w).unwrap(),
-                T::from_f64(conf.c1).unwrap(),
-                T::from_f64(conf.c2).unwrap(),
-                (
+                w: T::from_f64(conf.w).unwrap(),
+                c1: T::from_f64(conf.c1).unwrap(),
+                c2: T::from_f64(conf.c2).unwrap(),
+                bounds: (
                     T::from_f64(conf.x_min).unwrap(),
                     T::from_f64(conf.x_max).unwrap(),
                 ),
                 opt_prob,
-                swarm_pop,
-            )
+                init_pop: swarm_pop,
+            })
         })
         .collect()
 }

@@ -2,6 +2,25 @@ use nalgebra::{allocator::Allocator, DefaultAllocator, Dim, Dyn, OMatrix, OVecto
 
 use crate::utils::opt_prob::FloatNumber as FloatNum;
 
+// Parameter structs to reduce function arguments
+#[derive(Debug)]
+pub struct PathUpdateParams<'a, T, D>
+where
+    T: FloatNum,
+    D: Dim,
+    DefaultAllocator: Allocator<D> + Allocator<D, D>,
+{
+    pub ps: &'a mut OVector<T, D>,
+    pub b_mat: &'a OMatrix<T, D, D>,
+    pub d_vec: &'a OVector<T, D>,
+    pub cs: T,
+    pub mueff: T,
+    pub generation: usize,
+    pub chi_n: T,
+    pub y: &'a OVector<T, D>,
+    pub n: usize,
+}
+
 pub fn compute_y<T, D>(mean: &OVector<T, D>, old_mean: &OVector<T, D>, sigma: T) -> OVector<T, D>
 where
     T: FloatNum,
@@ -16,17 +35,7 @@ where
     y
 }
 
-pub fn update_paths<T, D>(
-    ps: &mut OVector<T, D>,
-    b_mat: &OMatrix<T, D, D>,
-    d_vec: &OVector<T, D>,
-    cs: T,
-    mueff: T,
-    generation: usize,
-    chi_n: T,
-    y: &OVector<T, D>,
-    n: usize,
-) -> bool
+pub fn update_paths<T, D>(params: &mut PathUpdateParams<T, D>) -> bool
 where
     T: FloatNum,
     D: Dim,
@@ -34,71 +43,81 @@ where
     OMatrix<T, D, D>: Send + Sync,
     DefaultAllocator: Allocator<D> + Allocator<D, D>,
 {
-    let d_inv = d_vec.map(|d| T::one() / d);
-    let b_trans_y = b_mat.transpose() * y;
-    let bdinvy = b_mat * &d_inv.component_mul(&b_trans_y);
+    let d_inv = params.d_vec.map(|d| T::one() / d);
+    let b_trans_y = params.b_mat.transpose() * params.y;
+    let bdinvy = params.b_mat * &d_inv.component_mul(&b_trans_y);
 
-    let cs_factor = T::sqrt(cs * (T::from_f64(2.0).unwrap() - cs) * mueff);
+    let cs_factor = T::sqrt(params.cs * (T::from_f64(2.0).unwrap() - params.cs) * params.mueff);
 
     // Update ps
-    let mut ps_new = OVector::zeros_generic(D::from_usize(n), U1);
-    for i in 0..n {
-        ps_new[i] = (T::one() - cs) * ps[i] + cs_factor * bdinvy[i];
+    let mut ps_new = OVector::zeros_generic(D::from_usize(params.n), U1);
+    for i in 0..params.n {
+        ps_new[i] = (T::one() - params.cs) * params.ps[i] + cs_factor * bdinvy[i];
     }
-    *ps = ps_new;
+    *params.ps = ps_new;
 
     // Update hsig
-    let decay = T::one() - cs;
-    let decay_pow = decay.powi(2 * generation as i32);
-    let ps_norm = ps.dot(ps).sqrt();
-    ps_norm / (T::sqrt(T::one() - decay_pow) * chi_n) < T::from_f64(1.4).unwrap()
+    let decay = T::one() - params.cs;
+    let decay_pow = decay.powi(2 * params.generation as i32);
+    let ps_norm = params.ps.dot(params.ps).sqrt();
+    ps_norm / (T::sqrt(T::one() - decay_pow) * params.chi_n) < T::from_f64(1.4).unwrap()
 }
 
-pub fn update_covariance<T: FloatNum, N: Dim, D: Dim>(
-    c_mat: &mut OMatrix<T, D, D>,
-    b_mat: &mut OMatrix<T, D, D>,
-    d_vec: &mut OVector<T, D>,
-    pc: &mut OVector<T, D>,
-    y: &OVector<T, D>,
-    hsig: bool,
-    indices: &[usize],
-    old_mean: &OVector<T, D>,
-    c1: T,
-    cmu: T,
-    cc: T,
-    mueff: T,
-    population: &OMatrix<T, N, D>,
-    weights: &OVector<T, Dyn>,
-    sigma: T,
-    mu: usize,
-    n: usize,
-) where
+#[derive(Debug)]
+pub struct CovarianceUpdateParams<'a, T, N, D>
+where
+    T: FloatNum,
+    N: Dim,
+    D: Dim,
+    DefaultAllocator: Allocator<D, D> + Allocator<D> + Allocator<N, D> + Allocator<U1, D>,
+{
+    pub c_mat: &'a mut OMatrix<T, D, D>,
+    pub b_mat: &'a mut OMatrix<T, D, D>,
+    pub d_vec: &'a mut OVector<T, D>,
+    pub pc: &'a mut OVector<T, D>,
+    pub y: &'a OVector<T, D>,
+    pub hsig: bool,
+    pub indices: &'a [usize],
+    pub old_mean: &'a OVector<T, D>,
+    pub c1: T,
+    pub cmu: T,
+    pub cc: T,
+    pub mueff: T,
+    pub population: &'a OMatrix<T, N, D>,
+    pub weights: &'a OVector<T, Dyn>,
+    pub sigma: T,
+    pub mu: usize,
+    pub n: usize,
+}
+
+pub fn update_covariance<T: FloatNum, N: Dim, D: Dim>(params: &mut CovarianceUpdateParams<T, N, D>)
+where
     DefaultAllocator: Allocator<D, D> + Allocator<D> + Allocator<N, D> + Allocator<U1, D>,
 {
     let mut c_mat_new: OMatrix<T, D, D> =
-        OMatrix::zeros_generic(D::from_usize(n), D::from_usize(n));
-    let factor = T::one() - c1 - cmu;
+        OMatrix::zeros_generic(D::from_usize(params.n), D::from_usize(params.n));
+    let factor = T::one() - params.c1 - params.cmu;
 
     // Base update
-    for i in 0..n {
-        for j in 0..n {
-            c_mat_new[(i, j)] = factor * c_mat[(i, j)];
+    for i in 0..params.n {
+        for j in 0..params.n {
+            c_mat_new[(i, j)] = factor * params.c_mat[(i, j)];
         }
     }
 
     // Update pc
-    let cc_factor = T::sqrt(cc * (T::from_f64(2.0).unwrap() - cc) * mueff);
-    let hsig_t = if hsig { T::one() } else { T::zero() };
+    let cc_factor = T::sqrt(params.cc * (T::from_f64(2.0).unwrap() - params.cc) * params.mueff);
+    let hsig_t = if params.hsig { T::one() } else { T::zero() };
 
     // Update pc with single loop
-    for i in 0..n {
-        pc[i] = (T::one() - cc) * pc[i] + hsig_t * cc_factor * y[i];
+    for i in 0..params.n {
+        params.pc[i] = (T::one() - params.cc) * params.pc[i] + hsig_t * cc_factor * params.y[i];
     }
 
     // Rank-one update with single loop over upper triangle
-    for i in 0..n {
-        for j in i..n {
-            let val = c1 * pc[i] * pc[j];
+    for i in 0..params.n {
+        for j in i..params.n {
+            let val = params.c1 * params.pc[i] * params.pc[j];
             c_mat_new[(i, j)] += val;
             if i != j {
                 c_mat_new[(j, i)] += val;
@@ -107,27 +126,27 @@ pub fn update_covariance<T: FloatNum, N: Dim, D: Dim>(
     }
 
     // Rank-mu update
-    for k in 0..mu {
-        if k >= indices.len() || k >= weights.len() {
+    for k in 0..params.mu {
+        if k >= params.indices.len() || k >= params.weights.len() {
             continue;
         }
-        let idx = indices[k];
-        if idx >= population.nrows() {
+        let idx = params.indices[k];
+        if idx >= params.population.nrows() {
             continue;
         }
-        let w = weights[k];
+        let w = params.weights[k];
 
-        let mut y_k: OVector<T, D> = OVector::zeros_generic(D::from_usize(n), U1);
-        for i in 0..n {
-            if i < population.ncols() {
-                y_k[i] = (population[(idx, i)] - old_mean[i]) / sigma;
+        let mut y_k: OVector<T, D> = OVector::zeros_generic(D::from_usize(params.n), U1);
+        for i in 0..params.n {
+            if i < params.population.ncols() {
+                y_k[i] = (params.population[(idx, i)] - params.old_mean[i]) / params.sigma;
             }
         }
 
         // Update c_mat_new with upper triangle only
-        for i in 0..n {
-            for j in i..n {
-                let val = cmu * w * y_k[i] * y_k[j];
+        for i in 0..params.n {
+            for j in i..params.n {
+                let val = params.cmu * w * y_k[i] * y_k[j];
                 c_mat_new[(i, j)] += val;
                 if i != j {
                     c_mat_new[(j, i)] += val;
@@ -136,32 +155,32 @@ pub fn update_covariance<T: FloatNum, N: Dim, D: Dim>(
         }
     }
 
-    *c_mat = c_mat_new;
+    *params.c_mat = c_mat_new;
 
     // Symmetric power iteration with improvements
-    let mut eigenvectors: Vec<OVector<T, D>> = Vec::with_capacity(n);
-    let mut c_deflated = c_mat.clone();
+    let mut eigenvectors: Vec<OVector<T, D>> = Vec::with_capacity(params.n);
+    let mut c_deflated = params.c_mat.clone();
 
     /* Could parallelize this with Rayon - power iteration is used because covariance is
     positive semi-definite and symmetric, and it's memory efficient + stable.
     */
-    for i in 0..n {
+    for i in 0..params.n {
         // Initialize random vector
-        let mut v: OVector<T, D> = OVector::from_fn_generic(D::from_usize(n), U1, |_, _| {
+        let mut v: OVector<T, D> = OVector::from_fn_generic(D::from_usize(params.n), U1, |_, _| {
             T::from_f64(rand::random::<f64>()).unwrap() * T::from_f64(2.0).unwrap() - T::one()
         });
 
         // Orthogonalize against previous eigenvectors - this prevents repetition of eigenvectors
         for prev_v in &eigenvectors {
             let proj = prev_v.dot(&v);
-            for j in 0..n {
+            for j in 0..params.n {
                 v[j] -= proj * prev_v[j];
             }
         }
 
         // Normalize
         let v_norm = T::sqrt(v.dot(&v));
-        for j in 0..n {
+        for j in 0..params.n {
             v[j] /= v_norm;
         }
 
@@ -176,7 +195,7 @@ pub fn update_covariance<T: FloatNum, N: Dim, D: Dim>(
 
             if norm > T::from_f64(1e-10).unwrap() {
                 // Normalize v_new into v
-                for j in 0..n {
+                for j in 0..params.n {
                     v[j] = v_new[j] / norm;
                 }
 
@@ -192,8 +211,8 @@ pub fn update_covariance<T: FloatNum, N: Dim, D: Dim>(
         }
 
         // Store eigenpair
-        d_vec[i] = T::sqrt(T::max(eigenvalue.abs(), T::from_f64(1e-20).unwrap()));
-        b_mat.set_column(i, &v);
+        params.d_vec[i] = T::sqrt(T::max(eigenvalue.abs(), T::from_f64(1e-20).unwrap()));
+        params.b_mat.set_column(i, &v);
         eigenvectors.push(v.clone());
 
         // Hotelling's deflation (more stable than simple deflation) - this may improve numerical stability
@@ -202,16 +221,16 @@ pub fn update_covariance<T: FloatNum, N: Dim, D: Dim>(
     }
 
     // Restore C = BDB^T
-    let d_mat: OMatrix<T, D, D> = OMatrix::from_diagonal(&d_vec.map(|x| x * x));
-    let temp = &*b_mat * &d_mat;
-    *c_mat = &temp * &b_mat.transpose();
+    let d_mat: OMatrix<T, D, D> = OMatrix::from_diagonal(&params.d_vec.map(|x| x * x));
+    let temp = &*params.b_mat * &d_mat;
+    *params.c_mat = &temp * &params.b_mat.transpose();
 
     // Enforce symmetry (could be lost due to numerical errors)
-    for i in 0..n {
-        for j in i + 1..n {
-            let avg = (c_mat[(i, j)] + c_mat[(j, i)]) * T::from_f64(0.5).unwrap();
-            c_mat[(i, j)] = avg;
-            c_mat[(j, i)] = avg;
+    for i in 0..params.n {
+        for j in i + 1..params.n {
+            let avg = (params.c_mat[(i, j)] + params.c_mat[(j, i)]) * T::from_f64(0.5).unwrap();
+            params.c_mat[(i, j)] = avg;
+            params.c_mat[(j, i)] = avg;
         }
     }
 }
