@@ -3,7 +3,7 @@ mod common;
 use common::fcns::{RosenbrockConstraints, RosenbrockObjective};
 use nalgebra::{SMatrix, U1, U2};
 
-use non_convex_opt::algorithms::grasp::grasp::GRASP;
+use non_convex_opt::algorithms::grasp::grasp_opt::GRASP;
 use non_convex_opt::utils::{
     config::GRASPConf,
     opt_prob::{BooleanConstraintFunction, OptProb, OptimizationAlgorithm},

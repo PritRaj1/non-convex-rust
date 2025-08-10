@@ -2,7 +2,7 @@ mod common;
 
 use common::fcns::{QuadraticConstraints, QuadraticObjective};
 use nalgebra::{SMatrix, U1, U2};
-use non_convex_opt::algorithms::adam::adam::Adam;
+use non_convex_opt::algorithms::adam::adam_opt::Adam;
 use non_convex_opt::utils::{
     config::AdamConf,
     opt_prob::{OptProb, OptimizationAlgorithm},

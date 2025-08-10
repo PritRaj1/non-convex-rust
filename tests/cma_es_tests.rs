@@ -3,7 +3,7 @@ mod common;
 use common::fcns::{QuadraticConstraints, QuadraticObjective};
 use nalgebra::{OMatrix, OVector, U2, U20};
 
-use non_convex_opt::algorithms::cma_es::cma_es::CMAES;
+use non_convex_opt::algorithms::cma_es::cma_es_opt::CMAES;
 use non_convex_opt::utils::{
     config::CMAESConf,
     opt_prob::{OptProb, OptimizationAlgorithm},

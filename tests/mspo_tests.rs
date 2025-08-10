@@ -3,7 +3,7 @@ mod common;
 use common::fcns::{RosenbrockConstraints, RosenbrockObjective};
 use nalgebra::{DMatrix, DVector};
 
-use non_convex_opt::algorithms::multi_swarm::{mspo::MSPO, particle::Particle, swarm::Swarm};
+use non_convex_opt::algorithms::multi_swarm::{mspo::MSPO, particle::Particle, swarm::{Swarm, SwarmConfig}};
 use non_convex_opt::utils::{
     config::{AlgConf, Config},
     opt_prob::{OptProb, OptimizationAlgorithm},
@@ -42,16 +42,16 @@ fn test_swarm_initialization() {
     // Create initial population
     let init_pop = DMatrix::from_vec(5, 2, vec![0.5, 0.5, 0.6, 0.6, 0.4, 0.4, 0.3, 0.3, 0.7, 0.7]);
 
-    let swarm = Swarm::new(
-        10,
-        2,
-        0.729f64,
-        2.05,
-        2.05,
-        (-10.0, 10.0),
-        &opt_prob,
+    let swarm = Swarm::new(SwarmConfig {
+        num_particles: 10,
+        dim: 2,
+        w: 0.729f64,
+        c1: 2.05,
+        c2: 2.05,
+        bounds: (-10.0, 10.0),
+        opt_prob: &opt_prob,
         init_pop,
-    );
+    });
 
     assert_eq!(swarm.particles.len(), 10);
     assert!(swarm.global_best_position.len() == 2);
@@ -70,16 +70,16 @@ fn test_swarm_update() {
 
     let init_pop = DMatrix::from_vec(5, 2, vec![0.5, 0.5, 0.6, 0.6, 0.4, 0.4, 0.3, 0.3, 0.7, 0.7]);
 
-    let mut swarm = Swarm::new(
-        10,
-        2,
-        0.729f64,
-        2.05,
-        2.05,
-        (-10.0, 10.0),
-        &opt_prob,
+    let mut swarm = Swarm::new(SwarmConfig {
+        num_particles: 10,
+        dim: 2,
+        w: 0.729f64,
+        c1: 2.05,
+        c2: 2.05,
+        bounds: (-10.0, 10.0),
+        opt_prob: &opt_prob,
         init_pop,
-    );
+    });
 
     let initial_best = swarm.global_best_fitness;
     swarm.update(&opt_prob);
