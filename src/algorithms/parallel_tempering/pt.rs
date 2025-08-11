@@ -455,4 +455,11 @@ where
     fn get_replica_populations(&self) -> Option<Vec<OMatrix<T, N, D>>> {
         Some(self.population.clone())
     }
+
+    fn get_replica_temperatures(&self) -> Option<Vec<T>> {
+        let temperatures: Vec<T> = (0..self.conf.common.num_replicas)
+            .map(|i| self.get_temperature(i))
+            .collect();
+        Some(temperatures)
+    }
 }

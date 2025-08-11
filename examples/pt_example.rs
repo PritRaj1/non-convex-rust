@@ -16,9 +16,13 @@ use non_convex_opt::NonConvexOpt;
 fn get_replica_data(
     opt: &NonConvexOpt<f64, nalgebra::Const<50>, nalgebra::Const<2>>,
     obj_f: &KBF,
-) -> (Vec<Vec<(f64, f64)>>, Vec<(f64, f64)>) {
+) -> (Vec<Vec<(f64, f64)>>, Vec<(f64, f64)>, Vec<f64>) {
     let replica_populations = opt
         .get_pt_replica_populations()
+        .expect("This example requires Parallel Tempering algorithm");
+    
+    let replica_temperatures = opt
+        .get_pt_replica_temperatures()
         .expect("This example requires Parallel Tempering algorithm");
 
     let mut replica_pops = Vec::new();
@@ -45,7 +49,7 @@ fn get_replica_data(
         replica_bests.push(best_point);
     }
 
-    (replica_pops, replica_bests)
+    (replica_pops, replica_bests, replica_temperatures)
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -108,7 +112,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         let replica_areas = root.split_evenly((1, 5));
 
-        let (replica_populations, replica_bests) = get_replica_data(&opt, &obj_f);
+        let (replica_populations, replica_bests, replica_temperatures) = get_replica_data(&opt, &obj_f);
 
         let replica_colors = [
             RGBColor(255, 0, 0),
@@ -122,9 +126,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let mut chart = ChartBuilder::on(area)
                 .caption(
                     &format!(
-                        "Replica {} (T={:.2})",
+                        "Replica {} (T={:.3})",
                         replica_idx,
-                        replica_idx as f64 / 4.0
+                        replica_temperatures.get(replica_idx).unwrap_or(&0.0)
                     ),
                     ("sans-serif", 20),
                 )

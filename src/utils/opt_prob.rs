@@ -166,4 +166,7 @@ where
     fn get_replica_populations(&self) -> Option<Vec<OMatrix<T, N, D>>> {
         None
     }
+    fn get_replica_temperatures(&self) -> Option<Vec<T>> {
+        None
+    }
 }

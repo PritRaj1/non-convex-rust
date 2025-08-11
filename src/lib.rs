@@ -191,4 +191,8 @@ where
     pub fn get_pt_replica_populations(&self) -> Option<Vec<OMatrix<T, N, D>>> {
         self.alg.get_replica_populations()
     }
+
+    pub fn get_pt_replica_temperatures(&self) -> Option<Vec<T>> {
+        self.alg.get_replica_temperatures()
+    }
 }
