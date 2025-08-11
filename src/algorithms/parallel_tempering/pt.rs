@@ -1,9 +1,12 @@
-use nalgebra::{allocator::Allocator, DefaultAllocator, Dim, OMatrix, OVector, U1};
+use nalgebra::{allocator::Allocator, DefaultAllocator, Dim, OMatrix, OVector, U1, RealField, ComplexField, DimSub};
+
+use std::iter::Sum;
 
 use rayon::prelude::*;
 
 use crate::algorithms::parallel_tempering::{
     metropolis_hastings::MetropolisHastings,
+    preconditioners::{Preconditioner, SampleCovariance},
     replica_exchange::{Always, Periodic, Stochastic, SwapCheck},
 };
 use crate::utils::alg_conf::pt_conf::UpdateConf;
@@ -12,16 +15,16 @@ use crate::utils::opt_prob::{FloatNumber as FloatNum, OptProb, OptimizationAlgor
 
 pub struct PT<T, N, D>
 where
-    T: FloatNum + Send + Sync,
+    T: FloatNum + RealField + Send + Sync + Sum,
     N: Dim + Send + Sync,
-    D: Dim + Send + Sync,
+    D: Dim + Send + Sync + DimSub<nalgebra::Const<1>>,
     OVector<T, D>: Send + Sync,
     OVector<T, N>: Send + Sync,
     OVector<bool, N>: Send + Sync,
     OMatrix<T, N, D>: Send + Sync,
     OMatrix<T, D, D>: Send + Sync,
     DefaultAllocator:
-        Allocator<D> + Allocator<N, D> + Allocator<N> + Allocator<D, D> + Allocator<U1, D>,
+        Allocator<D> + Allocator<N, D> + Allocator<N> + Allocator<D, D> + Allocator<U1, D> + Allocator<<D as DimSub<nalgebra::Const<1>>>::Output>,
 {
     pub conf: PTConf,
     pub metropolis_hastings: MetropolisHastings<T, D>,
@@ -34,21 +37,23 @@ where
     pub best_individual: OVector<T, D>,
     pub best_fitness: T,
     pub step_sizes: Vec<Vec<OMatrix<T, D, D>>>,
+    pub preconditioner: Box<dyn Preconditioner<T, N, D> + Send + Sync>,
+    pub covariance_matrices: Vec<OMatrix<T, D, D>>,
     pub st: State<T, N, D>,
 }
 
 impl<T, N, D> PT<T, N, D>
 where
-    T: FloatNum + Send + Sync,
+    T: FloatNum + RealField + Send + Sync + Sum,
     N: Dim + Send + Sync,
-    D: Dim + Send + Sync,
+    D: Dim + Send + Sync + DimSub<nalgebra::Const<1>>,
     OVector<T, D>: Send + Sync,
     OVector<T, N>: Send + Sync,
     OVector<bool, N>: Send + Sync,
     OMatrix<T, N, D>: Send + Sync,
     OMatrix<T, D, D>: Send + Sync,
     DefaultAllocator:
-        Allocator<D> + Allocator<N, D> + Allocator<N> + Allocator<D, D> + Allocator<U1, D>,
+        Allocator<D> + Allocator<N, D> + Allocator<N> + Allocator<D, D> + Allocator<U1, D> + Allocator<<D as DimSub<nalgebra::Const<1>>>::Output>,
 {
     pub fn new(
         conf: PTConf,
@@ -114,6 +119,7 @@ where
             }
 
             let fit: Vec<T> = (0..init_pop.nrows())
+                .into_par_iter()
                 .map(|i| {
                     let individual = init_pop.row(i).transpose();
                     opt_prob.evaluate(&individual)
@@ -121,6 +127,7 @@ where
                 .collect();
 
             let constr: Vec<bool> = (0..init_pop.nrows())
+                .into_par_iter()
                 .map(|i| {
                     let individual = init_pop.row(i).transpose();
                     opt_prob.is_feasible(&individual)
@@ -177,6 +184,15 @@ where
             })
             .collect();
 
+        let preconditioner: Box<dyn Preconditioner<T, N, D> + Send + Sync> = 
+            Box::new(SampleCovariance::new(T::from_f64(0.01).unwrap()));
+
+        let mut covariance_matrices = Vec::with_capacity(conf.common.num_replicas);
+        for i in 0..conf.common.num_replicas {
+            let cov = preconditioner.compute_covariance(&population[i], &fitness[i], &constraints[i]);
+            covariance_matrices.push(cov);
+        }
+
         Self {
             conf,
             metropolis_hastings,
@@ -189,6 +205,8 @@ where
             best_individual: best_individual.clone(),
             best_fitness,
             step_sizes,
+            preconditioner,
+            covariance_matrices,
             st: State {
                 best_x: best_individual,
                 best_f: best_fitness,
@@ -241,20 +259,37 @@ where
     pub fn get_num_replicas(&self) -> usize {
         self.population.len()
     }
+
+    pub fn update_covariance_matrices(&mut self) {
+        self.covariance_matrices.clear();
+        for i in 0..self.conf.common.num_replicas {
+            let cov = self.preconditioner.compute_covariance(
+                &self.population[i], 
+                &self.fitness[i], 
+                &self.constraints[i]
+            );
+            self.covariance_matrices.push(cov);
+        }
+    }
+
+    pub fn set_preconditioner(&mut self, preconditioner: Box<dyn Preconditioner<T, N, D> + Send + Sync>) {
+        self.preconditioner = preconditioner;
+        self.update_covariance_matrices();
+    }
 }
 
 impl<T, N, D> OptimizationAlgorithm<T, N, D> for PT<T, N, D>
 where
-    T: FloatNum + Send + Sync,
+    T: FloatNum + RealField + Send + Sync + Sum,
     N: Dim + Send + Sync,
-    D: Dim + Send + Sync,
+    D: Dim + Send + Sync + DimSub<nalgebra::Const<1>>,
     OVector<T, D>: Send + Sync,
     OVector<T, N>: Send + Sync,
     OVector<bool, N>: Send + Sync,
     OMatrix<T, N, D>: Send + Sync,
     OMatrix<T, D, D>: Send + Sync,
     DefaultAllocator:
-        Allocator<D> + Allocator<N, D> + Allocator<N> + Allocator<D, D> + Allocator<U1, D>,
+        Allocator<D> + Allocator<N, D> + Allocator<N> + Allocator<D, D> + Allocator<U1, D> + Allocator<<D as DimSub<nalgebra::Const<1>>>::Output>,
 {
     fn step(&mut self) {
         let current_power = self.p_schedule[self.st.iter - 1].to_f64().unwrap();
@@ -274,43 +309,61 @@ where
                 let mut local_fitness = self.fitness[i].clone();
                 let mut local_constraints = self.constraints[i].clone();
                 let mut local_step_sizes = self.step_sizes[i].clone();
-                let mut local_metropolis_hastings = self.metropolis_hastings.clone();
-                let mut accepted_count = 0;
-                let total_moves = local_population.nrows();
+                let local_metropolis_hastings = self.metropolis_hastings.clone();
 
-                for j in 0..local_population.nrows() {
-                    let x_old = local_population.row(j).transpose();
-                    let x_new = local_metropolis_hastings.local_move(
-                        &x_old,
-                        &local_step_sizes[j],
-                        temperatures[i],
-                    );
 
-                    let fitness_new = self.opt_prob.evaluate(&x_new);
-                    let constr_new = self.opt_prob.is_feasible(&x_new);
+                let individual_results: Vec<_> = (0..local_population.nrows())
+                    .into_par_iter()
+                    .map(|j| {
+                        let x_old = local_population.row(j).transpose();
+                        
+                        let x_new = if matches!(local_metropolis_hastings.move_type, crate::algorithms::parallel_tempering::metropolis_hastings::MoveType::PCN) {
+                            let variance_param = T::from_f64(1.0).unwrap() / ComplexField::sqrt(T::from_usize(self.st.iter).unwrap() + T::from_f64(1.0).unwrap());
+                            local_metropolis_hastings.local_move_pcn_with_variance(
+                                &x_old,
+                                &self.covariance_matrices[i],
+                                variance_param,
+                            )
+                        } else {
+                            local_metropolis_hastings.local_move(
+                                &x_old,
+                                &local_step_sizes[j],
+                                temperatures[i],
+                            )
+                        };
 
-                    if local_metropolis_hastings.accept_reject(
-                        &x_old,
-                        &x_new,
-                        constr_new,
-                        temperatures[i],
-                    ) {
+                        let fitness_new = self.opt_prob.evaluate(&x_new);
+                        let constr_new = self.opt_prob.is_feasible(&x_new);
+
+                        let accepted = local_metropolis_hastings.accept_reject(
+                            &x_old,
+                            &x_new,
+                            constr_new,
+                            temperatures[i],
+                        );
+
+                        (j, x_old, x_new, fitness_new, constr_new, accepted)
+                    })
+                    .collect();
+
+                let alpha = T::from_f64(self.conf.common.alpha).unwrap(); // Learning rate
+                let omega = T::from_f64(self.conf.common.omega).unwrap(); // Scaling factor
+                
+                for (j, x_old, x_new, fitness_new, constr_new, accepted) in individual_results {
+                    if accepted {
                         local_population.row_mut(j).copy_from(&x_new.transpose());
                         local_fitness[j] = fitness_new;
                         local_constraints[j] = constr_new;
-                        accepted_count += 1;
+                        
+                        // Update step size for this individual using Parks et al. approach
+                        local_step_sizes[j] = crate::algorithms::parallel_tempering::metropolis_hastings::MetropolisHastings::update_step_size_parks(
+                            &local_step_sizes[j],
+                            &x_old,
+                            &x_new,
+                            alpha,
+                            omega,
+                        );
                     }
-                }
-
-                let acceptance_rate =
-                    T::from_f64(accepted_count as f64 / total_moves as f64).unwrap();
-                for step_size in local_step_sizes.iter_mut() {
-                    let new_step_size = local_metropolis_hastings.update_step_size(
-                        step_size,
-                        acceptance_rate,
-                        temperatures[i],
-                    );
-                    *step_size = new_step_size;
                 }
 
                 (
@@ -338,7 +391,10 @@ where
             self.swap();
         }
 
-        // Update best individual across all replicas and iterations
+        if self.st.iter % 10 == 0 {
+            self.update_covariance_matrices();
+        }
+
         let best_result = (0..self.conf.common.num_replicas)
             .into_par_iter()
             .flat_map(|i| {

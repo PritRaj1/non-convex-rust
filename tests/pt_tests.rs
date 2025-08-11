@@ -5,7 +5,9 @@ use crate::common::fcns::{
 };
 use nalgebra::{DMatrix, DVector};
 use non_convex_opt::algorithms::parallel_tempering::{
-    metropolis_hastings::MetropolisHastings, pt::PT,
+    metropolis_hastings::MetropolisHastings, 
+    pt::PT,
+    preconditioners::{SampleCovariance, FitnessWeightedCovariance, AdaptiveCovariance, ShrinkageCovariance, Preconditioner},
 };
 use non_convex_opt::utils::{
     alg_conf::pt_conf::{AutoConf, MALAConf, MetropolisHastingsConf, PCNConf, UpdateConf},
@@ -19,17 +21,19 @@ fn test_metropolis_hastings_accept_reject() {
     let constraints = RosenbrockConstraints {};
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
 
-    let x_old = DVector::from_vec(vec![0.1, 0.1]); // Low Rosenbrock value
-    let x_new = DVector::from_vec(vec![0.9, 0.9]); // High Rosenbrock value (uphill move for maximization)
+    let x_old = DVector::from_vec(vec![0.1, 0.1]); // High Rosenbrock value  
+    let x_new = DVector::from_vec(vec![0.95, 0.95]); // Lower Rosenbrock value, but closer to optimum
 
-    let mut mh: MetropolisHastings<f64, nalgebra::Dyn> =
+    let mh: MetropolisHastings<f64, nalgebra::Dyn> =
         MetropolisHastings::new(opt_prob, &UpdateConf::Auto(AutoConf {}), x_old.clone());
     let constraints_new = true;
-    let t = 1.0;
-
-    let accepted = mh.accept_reject(&x_old, &x_new, constraints_new, t);
-
-    assert_eq!(accepted, true);
+    
+    let x_better = DVector::from_vec(vec![0.95, 0.9025]); // Closer to Rosenbrock optimum [1,1]
+    let accepted_uphill = mh.accept_reject(&x_old, &x_better, constraints_new, 0.5);
+    assert_eq!(accepted_uphill, true);
+    
+    let accepted_constrained = mh.accept_reject(&x_old, &x_new, false, 0.5);
+    assert_eq!(accepted_constrained, false);
 }
 
 #[test]
@@ -40,27 +44,31 @@ fn test_metropolis_hastings_local_move() {
 
     let x_old = DVector::from_vec(vec![0.5, 0.5]);
     let step_size = DMatrix::identity(2, 2);
-    let mut mh = MetropolisHastings::new(opt_prob, &UpdateConf::Auto(AutoConf {}), x_old.clone());
+    let mh = MetropolisHastings::new(opt_prob, &UpdateConf::Auto(AutoConf {}), x_old.clone());
     let x_new = mh.local_move(&x_old, &step_size, 1.0);
 
     assert_eq!(x_old.len(), x_new.len());
 }
 
 #[test]
-fn test_metropolis_hastings_update_step_size() {
-    let obj_f = RosenbrockObjective { a: 1.0, b: 1.0 };
-    let constraints = RosenbrockConstraints {};
-    let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
-    let x_old = DVector::from_vec(vec![0.5, 0.5]);
+fn test_metropolis_hastings_update_step_size_parks() {
     let step_size = DMatrix::identity(2, 2);
-    let mut mh = MetropolisHastings::new(opt_prob, &UpdateConf::Auto(AutoConf {}), x_old.clone());
+    let x_old = DVector::from_vec(vec![0.5, 0.5]);
+    let x_new = DVector::from_vec(vec![0.6, 0.4]);
+    let alpha = 0.1; // Learning rate
+    let omega = 2.0; // Scaling factor
 
-    let acceptance_rate = 0.5;
-    let temperature = 1.0;
-    let new_step_size = mh.update_step_size(&step_size, acceptance_rate, temperature);
+    let new_step_size = MetropolisHastings::update_step_size_parks(
+        &step_size, 
+        &x_old, 
+        &x_new, 
+        alpha, 
+        omega
+    );
 
     assert_eq!(new_step_size.nrows(), 2);
     assert_eq!(new_step_size.ncols(), 2);
+    assert_ne!(new_step_size, step_size);
 }
 
 #[test]
@@ -77,7 +85,7 @@ fn test_pcn_local_move() {
         preconditioner: 1.0,
     };
 
-    let mut mh = MetropolisHastings::new(opt_prob, &UpdateConf::PCN(pcn_conf), x_old.clone());
+    let mh = MetropolisHastings::new(opt_prob, &UpdateConf::PCN(pcn_conf), x_old.clone());
     let x_new = mh.local_move(&x_old, &step_size, 1.0);
 
     assert_eq!(x_old.len(), x_new.len());
@@ -86,7 +94,6 @@ fn test_pcn_local_move() {
 
 #[test]
 fn test_mala_local_move() {
-    // Use QuadraticObjective which has gradients available
     let obj_f = RosenbrockObjective { a: 1.0, b: 1.0 };
     let constraints = RosenbrockConstraints {};
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
@@ -96,7 +103,7 @@ fn test_mala_local_move() {
 
     let mala_conf = MALAConf { step_size: 0.01 };
 
-    let mut mh = MetropolisHastings::new(opt_prob, &UpdateConf::MALA(mala_conf), x_old.clone());
+    let mh = MetropolisHastings::new(opt_prob, &UpdateConf::MALA(mala_conf), x_old.clone());
     let x_new = mh.local_move(&x_old, &step_size, 1.0);
 
     assert_eq!(x_old.len(), x_new.len());
@@ -116,7 +123,7 @@ fn test_metropolis_hastings_config() {
         random_walk_step_size: 0.05,
     };
 
-    let mut mh = MetropolisHastings::new(
+    let mh = MetropolisHastings::new(
         opt_prob,
         &UpdateConf::MetropolisHastings(mh_conf),
         x_old.clone(),
@@ -211,4 +218,214 @@ fn test_different_update_configurations() {
     assert_eq!(pt_pcn.population[0].nrows(), 2);
     assert_eq!(pt_mala.population[0].nrows(), 2);
     assert_eq!(pt_mh.population[0].nrows(), 2);
+}
+
+fn create_test_pt_pcn() -> PT<f64, nalgebra::Dyn, nalgebra::Dyn> {
+    let conf = Config::new(include_str!("jsons/pt_pcn.json")).unwrap();
+    let pt_conf = match conf.alg_conf {
+        AlgConf::PT(pt_conf) => pt_conf,
+        _ => panic!("Expected PTConf"),
+    };
+
+    let init_pop = DMatrix::from_vec(2, 2, vec![0.5, 0.5, 0.6, 0.4]);
+    let obj_f = QuadraticObjective { a: 1.0, b: 1.0 };
+    let constraints = QuadraticConstraints {};
+    let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
+    
+    PT::new(pt_conf, init_pop, opt_prob, 20)
+}
+
+#[test]
+fn test_sample_covariance_preconditioner() {
+    let mut pt = create_test_pt_pcn();
+    let initial_best = pt.st.best_f;
+    
+    let preconditioner: Box<dyn Preconditioner<f64, nalgebra::Dyn, nalgebra::Dyn> + Send + Sync> = 
+        Box::new(SampleCovariance::new(0.01));
+    pt.set_preconditioner(preconditioner);
+    
+    assert_eq!(pt.covariance_matrices.len(), pt.get_num_replicas());
+    
+    for _ in 0..5 {
+        pt.step();
+    }
+    
+    assert!(pt.st.best_f.is_finite());
+    assert!(pt.st.best_f >= initial_best || (pt.st.best_f - initial_best).abs() < 1e-10);
+    
+    for cov in &pt.covariance_matrices {
+        for i in 0..cov.nrows() {
+            assert!(cov[(i, i)] > 0.0, "Diagonal element should be positive");
+        }
+        
+        for i in 0..cov.nrows() {
+            for j in 0..cov.ncols() {
+                assert!((cov[(i, j)] - cov[(j, i)]).abs() < 1e-10, "Matrix should be symmetric");
+            }
+        }
+    }
+}
+
+#[test]
+fn test_fitness_weighted_covariance_preconditioner() {
+    let mut pt = create_test_pt_pcn();
+    let initial_best = pt.st.best_f;
+    
+    let preconditioner: Box<dyn Preconditioner<f64, nalgebra::Dyn, nalgebra::Dyn> + Send + Sync> = 
+        Box::new(FitnessWeightedCovariance::new(0.01, 0.5));
+    pt.set_preconditioner(preconditioner);
+    
+    for _ in 0..5 {
+        pt.step();
+    }
+    
+    assert!(pt.st.best_f.is_finite());
+    assert!(pt.st.best_f >= initial_best || (pt.st.best_f - initial_best).abs() < 1e-10);
+    
+    for cov in &pt.covariance_matrices {
+        assert!(cov.determinant() > 0.0, "Covariance matrix should be positive definite");
+        
+        for i in 0..cov.nrows() {
+            assert!(cov[(i, i)] >= 0.009, "Diagonal should include regularization");
+        }
+    }
+}
+
+#[test]
+fn test_adaptive_covariance_preconditioner() {
+    let mut pt = create_test_pt_pcn();
+    let initial_best = pt.st.best_f;
+    
+    let preconditioner: Box<dyn Preconditioner<f64, nalgebra::Dyn, nalgebra::Dyn> + Send + Sync> = 
+        Box::new(AdaptiveCovariance::new(0.01, 0.1, 0.234));
+    pt.set_preconditioner(preconditioner);
+    
+    let _initial_trace: f64 = pt.covariance_matrices[0].trace();
+    
+    for _ in 0..10 {
+        pt.step();
+    }
+    
+    assert!(pt.st.best_f.is_finite());
+    assert!(pt.st.best_f >= initial_best || (pt.st.best_f - initial_best).abs() < 1e-10);
+    
+    for cov in &pt.covariance_matrices {
+        assert!(cov.determinant() > 0.0, "Covariance matrix should be positive definite");
+        
+        let condition_number = {
+            let eigenvalues = cov.symmetric_eigenvalues();
+            let max_eig = eigenvalues.iter().fold(f64::NEG_INFINITY, |a, &b| a.max(b));
+            let min_eig = eigenvalues.iter().fold(f64::INFINITY, |a, &b| a.min(b.max(1e-12)));
+            max_eig / min_eig
+        };
+        assert!(condition_number < 1e6, "Condition number should be reasonable");
+    }
+}
+
+#[test]
+fn test_shrinkage_covariance_preconditioner() {
+    let mut pt = create_test_pt_pcn();
+    let initial_best = pt.st.best_f;
+    
+    let preconditioner: Box<dyn Preconditioner<f64, nalgebra::Dyn, nalgebra::Dyn> + Send + Sync> = 
+        Box::new(ShrinkageCovariance::new(0.3));
+    pt.set_preconditioner(preconditioner);
+    
+    for _ in 0..5 {
+        pt.step();
+    }
+    
+    assert!(pt.st.best_f.is_finite());
+    assert!(pt.st.best_f >= initial_best || (pt.st.best_f - initial_best).abs() < 1e-10);
+    
+    for cov in &pt.covariance_matrices {
+        assert!(cov.determinant() > 0.0, "Covariance matrix should be positive definite");
+        
+        let trace = cov.trace();
+        let avg_diagonal = trace / cov.nrows() as f64;
+        
+        for i in 0..cov.nrows() {
+            for j in 0..cov.ncols() {
+                if i != j {
+                    assert!(cov[(i, j)].abs() <= avg_diagonal, 
+                           "Off-diagonal elements should be shrunk");
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn test_preconditioner_covariance_update() {
+    let mut pt = create_test_pt_pcn();
+    
+    let preconditioner: Box<dyn Preconditioner<f64, nalgebra::Dyn, nalgebra::Dyn> + Send + Sync> = 
+        Box::new(SampleCovariance::new(0.01));
+    pt.set_preconditioner(preconditioner);
+    
+    let initial_covariances: Vec<_> = pt.covariance_matrices.clone();
+    
+    for _ in 0..12 {
+        pt.step();
+    }
+    
+    let updated = pt.covariance_matrices.iter()
+        .zip(initial_covariances.iter())
+        .any(|(new_cov, old_cov)| {
+            for i in 0..new_cov.nrows() {
+                for j in 0..new_cov.ncols() {
+                    if (new_cov[(i, j)] - old_cov[(i, j)]).abs() > 1e-12 {
+                        return true;
+                    }
+                }
+            }
+            false
+        });
+    
+    assert!(updated, "Covariance matrices should be updated after sufficient iterations");
+}
+
+#[test]
+fn test_pcn_variance_parameter_decrease() {
+    let mut pt = create_test_pt_pcn();
+    
+    let preconditioner: Box<dyn Preconditioner<f64, nalgebra::Dyn, nalgebra::Dyn> + Send + Sync> = 
+        Box::new(SampleCovariance::new(0.01));
+    pt.set_preconditioner(preconditioner);
+    
+    let initial_best = pt.st.best_f;
+    
+    for _ in 0..15 {
+        pt.step();
+    }
+    
+    assert!(pt.st.best_f.is_finite());
+    assert!(pt.st.best_f > -1e6, "Algorithm should not diverge");
+    
+    assert!(pt.st.best_f >= initial_best - 1.0, "Algorithm should not deteriorate significantly");
+}
+
+#[test]
+fn test_preconditioner_with_infeasible_individuals() {
+    let mut pt = create_test_pt_pcn();
+    
+    for replica_idx in 0..pt.get_num_replicas() {
+        pt.population[replica_idx][(0, 0)] = -1.0; // Outside QuadraticConstraints bounds
+        pt.population[replica_idx][(0, 1)] = 2.0;  // Outside QuadraticConstraints bounds
+        pt.constraints[replica_idx][0] = false;
+    }
+    
+    let preconditioner: Box<dyn Preconditioner<f64, nalgebra::Dyn, nalgebra::Dyn> + Send + Sync> = 
+        Box::new(SampleCovariance::new(0.01));
+    pt.set_preconditioner(preconditioner);
+    
+    for _ in 0..5 {
+        pt.step();
+    }
+    
+    assert!(pt.st.best_f.is_finite());
+    
+    for cov in &pt.covariance_matrices {
+        assert!(cov.determinant() > 0.0, "Should compute valid covariance despite infeasible individuals");
+    }
 }

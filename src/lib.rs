@@ -59,9 +59,9 @@ where
 
 impl<T, N, D> NonConvexOpt<T, N, D>
 where
-    T: FloatNum,
+    T: FloatNum + nalgebra::RealField + std::iter::Sum,
     N: Dim,
-    D: Dim,
+    D: Dim + nalgebra::DimSub<nalgebra::Const<1>>,
     OVector<bool, N>: Send + Sync,
     OVector<bool, D>: Send + Sync,
     OMatrix<bool, U1, N>: Send + Sync,
@@ -75,7 +75,8 @@ where
         + Allocator<N, D>
         + Allocator<D, D>
         + Allocator<U1, D>
-        + Allocator<U1, N>,
+        + Allocator<U1, N>
+        + Allocator<<D as nalgebra::DimSub<nalgebra::Const<1>>>::Output>,
 {
     pub fn new<
         F: ObjectiveFunction<T, D> + 'static,
@@ -146,8 +147,8 @@ where
     }
 
     fn check_convergence(&self, current_best: T, previous_best: T) -> bool {
-        let converged = (-current_best).exp() <= T::from_f64(self.conf.atol).unwrap()
-            || ((current_best - previous_best).abs() <= T::from_f64(self.conf.rtol).unwrap()
+        let converged = num_traits::Float::exp(-current_best) <= T::from_f64(self.conf.atol).unwrap()
+            || (num_traits::Float::abs(current_best - previous_best) <= T::from_f64(self.conf.rtol).unwrap()
                 && self.alg.state().iter
                     > (self.conf.max_iter as f64 * self.conf.rtol_max_iter_fraction).floor()
                         as usize);

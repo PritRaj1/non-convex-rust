@@ -60,7 +60,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "PT": {
                 "common": {
                     "num_replicas": 5,
-                    "power_law_init": 4.0,
+                    "power_law_init": 3.0,
                     "power_law_final": 1.0,
                     "power_law_cycles": 1,
                     "alpha": 0.1,
