@@ -19,18 +19,17 @@ fn test_metropolis_hastings_accept_reject() {
     let constraints = RosenbrockConstraints {};
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
 
-    let x_old = DVector::from_vec(vec![0.5, 0.5]);
-    let x_new = DVector::from_vec(vec![0.6, 0.6]);
+    let x_old = DVector::from_vec(vec![0.1, 0.1]); // Low Rosenbrock value
+    let x_new = DVector::from_vec(vec![0.9, 0.9]); // High Rosenbrock value (uphill move for maximization)
 
     let mut mh: MetropolisHastings<f64, nalgebra::Dyn> =
         MetropolisHastings::new(opt_prob, &UpdateConf::Auto(AutoConf {}), x_old.clone());
     let constraints_new = true;
     let t = 1.0;
-    let t_swap = 2.0;
 
-    let accepted = mh.accept_reject(&x_old, &x_new, constraints_new, t, t_swap);
+    let accepted = mh.accept_reject(&x_old, &x_new, constraints_new, t);
 
-    assert_eq!(accepted, true); // This move is downhill, so it should always be accepted
+    assert_eq!(accepted, true);
 }
 
 #[test]

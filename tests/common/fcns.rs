@@ -1,6 +1,7 @@
 use nalgebra::{allocator::Allocator, DefaultAllocator, Dim, OVector, U1};
 use non_convex_opt::utils::opt_prob::{BooleanConstraintFunction, ObjectiveFunction};
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct RosenbrockObjective {
     pub a: f64,
@@ -21,6 +22,7 @@ where
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct RosenbrockConstraints {}
 
@@ -33,6 +35,7 @@ where
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct QuadraticObjective {
     pub a: f64,
@@ -78,6 +81,7 @@ where
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct QuadraticConstraints {}
 
