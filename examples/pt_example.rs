@@ -34,6 +34,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 },
                 "swap_conf": {
                     "Always": {}
+                },
+                "update_conf": {
+                    "Auto": {}
                 }
             }
         }

@@ -1,3 +1,6 @@
+use rand::prelude::*;
+use rand::rng;
+
 pub enum SwapCheck {
     Periodic(Periodic),
     Stochastic(Stochastic),
@@ -32,7 +35,7 @@ impl Stochastic {
     }
 
     pub fn should_swap(&self, _current_step: usize) -> bool {
-        rand::random::<f64>() < self.swap_probability
+        rng().random::<f64>() < self.swap_probability
     }
 }
 

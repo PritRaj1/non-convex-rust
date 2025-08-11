@@ -16,7 +16,10 @@
                 "Always": {}
             },
             "update_conf": {
-                "Auto": {}
+                "PCN": {
+                    "step_size": 0.01,
+                    "preconditioner": 1.0
+                }
             }
         }
     }

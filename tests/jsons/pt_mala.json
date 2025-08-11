@@ -16,7 +16,9 @@
                 "Always": {}
             },
             "update_conf": {
-                "Auto": {}
+                "MALA": {
+                    "step_size": 0.01
+                }
             }
         }
     }

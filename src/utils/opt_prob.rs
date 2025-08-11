@@ -138,6 +138,7 @@ where
     }
 }
 
+#[derive(Clone)]
 pub struct State<T, N, D>
 where
     T: FloatNumber,

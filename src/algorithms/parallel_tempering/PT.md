@@ -4,9 +4,19 @@
 
 <img src="../../../examples/gifs/pt_kbf.gif" width="200" alt="PT Example">
 
-<p><b>Figure:</b> Parallel Tempering (also known as Replica Exchange Monte Carlo) runs multiple copies ("replicas") of the system at different temperatures in parallel. Replicas periodically attempt to swap states, allowing high-temperature replicas to explore broadly and low-temperature replicas to refine solutions. Each replica can use either Metropolis-Hastings or Metropolis-Adjusted Langevin Algorithm (MALA) updates, depending on whether gradients are available.</p>
+<p><b>Figure:</b> Parallel Tempering (Replica Exchange Monte Carlo) runs multiple copies ("replicas") of the system at different temperatures in parallel. Replicas periodically attempt to swap states, allowing high-temperature replicas to explore broadly and low-temperature replicas to refine solutions. Each replica can use different updates depending on the problem/conf setup.</p>
 
 </div>
+
+## Updates
+
+| Type         | What                                                                 | When                                                                                 |
+|---------------------|-----------------------------------------------------------------------------|---------------------------------------------------------------------------------------------|
+| Metropolis-Hastings | Standard random-walk.                                              | Use when gradients are unavailable or the objective is non-differentiable.                  |
+| MALA                | Metropolis-Adjusted Langevin Algorithm; uses gradient information.          | Use when gradients are available and you want faster mixing and more efficient exploration. |
+| pCN                 | Preconditioned Crank-Nicolson uses a mix of preconditioned noise and old state.   | Use for high-dimensional problems, (see this [notebook](https://github.com/PritRaj1/hilbert-mcmc/blob/main/metropolis_hastings.ipynb) for an explanation). |
+
+## Tempering
 
 Temperatures are scheduled with a dynamic power law relationship:
 
@@ -18,7 +28,7 @@ where $N_t$ is the number of temperatures and $p$ is a parameter that controls t
 
 In early iterations, $p$ is set large (>1) to cluster more temperatures towards smoother replicas. As iterations progress, $p$ is decreased to <1 to shift more temperatures towards detailed replicas.
 
-This ensures that early iterations are more explorative and later iterations are more exploitative.
+This is a personal trick I always use. It makes early iterations more explorative and later iterations more exploitative.
 
 ## Config example
 
@@ -47,6 +57,22 @@ Fully-defined:
                 "Stochastic": {
                     "swap_probability": 0.1
                 }
+            },
+            "update_conf": {
+                "MetropolisHastings": {
+                    "random_walk_step_size": 0.1
+                }
+                // or
+                "MALA": {
+                    "step_size": 0.1
+                }
+                // or
+                "PCN": {
+                    "step_size": 0.1,
+                    "preconditioner": 1.0
+                }
+                // or
+                "Auto": {}
             }
         }
     }
@@ -62,6 +88,9 @@ Default values, (only choices of swap check must be specified):
             "common": {},
             "swap_conf": {
                 "Always": {}
+            },
+            "update_conf": {
+                "Auto": {}
             }
         }
     }
@@ -77,3 +106,4 @@ Default values, (only choices of swap check must be specified):
 - [Metropolis-Hastings step size adaptation](https://doi.org/10.1007/BF00143556)
 - [Power-law scheduling and minimizing KL divergences between temperature distributions](https://doi.org/10.1016/j.csda.2009.07.025)
 - [Cyclic annealing-ish](https://arxiv.org/abs/1903.10145)
+- [pCN and other tricks](https://arxiv.org/abs/1202.0709)

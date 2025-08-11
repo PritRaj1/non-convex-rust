@@ -16,7 +16,9 @@
                 "Always": {}
             },
             "update_conf": {
-                "Auto": {}
+                "MetropolisHastings": {
+                    "random_walk_step_size": 0.1
+                }
             }
         }
     }

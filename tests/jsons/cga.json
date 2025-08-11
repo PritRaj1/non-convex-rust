@@ -18,6 +18,12 @@
                 "Tournament": {
                     "tournament_size": 2
                 }
+            },
+            "mutation": {
+                "Gaussian": {
+                    "mutation_rate": 0.01,
+                    "sigma": 0.1
+                }
             }
         }
     }
