@@ -1,6 +1,7 @@
 use nalgebra::{allocator::Allocator, DefaultAllocator, Dim, OVector, U1};
 use non_convex_opt::utils::opt_prob::{BooleanConstraintFunction, ObjectiveFunction};
 
+#[allow(dead_code)]
 #[derive(Clone)]
 pub struct KBF;
 
@@ -33,6 +34,7 @@ where
     }
 }
 
+#[allow(dead_code)]
 #[derive(Clone)]
 pub struct KBFConstraints;
 
@@ -52,6 +54,40 @@ where
     }
 }
 
+#[allow(dead_code)]
+#[derive(Clone)]
+pub struct MultiModalFunction;
+
+impl<D: Dim> ObjectiveFunction<f64, D> for MultiModalFunction
+where
+    D: Dim,
+    DefaultAllocator: Allocator<D>,
+{
+    fn f(&self, x: &OVector<f64, D>) -> f64 {
+        let n = x.len();
+        let mut sum = 0.0;
+        for i in 0..n {
+            sum += x[i].sin() * x[i].cos() + 0.1 * x[i].powi(2);
+        }
+        sum
+    }
+}
+
+#[allow(dead_code)]
+#[derive(Clone)]
+pub struct BoxConstraints;
+
+impl<D: Dim> BooleanConstraintFunction<f64, D> for BoxConstraints
+where
+    D: Dim,
+    DefaultAllocator: Allocator<D>,
+{
+    fn g(&self, x: &OVector<f64, D>) -> bool {
+        x.iter().all(|&xi| xi >= -5.0 && xi <= 5.0)
+    }
+}
+
+#[allow(dead_code)]
 #[derive(Clone)]
 pub struct RosenbrockFunction;
 
@@ -92,6 +128,7 @@ where
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct RosenbrockConstraints;
 

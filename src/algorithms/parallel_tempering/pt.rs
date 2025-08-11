@@ -200,7 +200,7 @@ where
         }
     }
 
-    // Temperature should be in [0, 1] range, with replica 0 being coldest (0) and highest being hottest (1)
+    // Temperature should be in [0, 1] range, with replica 0 being hottest (0) and highest being coldest (1)
     fn get_temperature(&self, replica_idx: usize) -> T {
         let power = self.p_schedule[self.st.iter - 1].to_f64().unwrap();
         let temp = (replica_idx as f64 / (self.conf.common.num_replicas - 1) as f64).powf(power);
@@ -289,14 +289,15 @@ where
                     }
                 }
 
-                let acceptance_rate = T::from_f64(accepted_count as f64 / total_moves as f64).unwrap();
-                for j in 0..local_population.nrows() {
+                let acceptance_rate =
+                    T::from_f64(accepted_count as f64 / total_moves as f64).unwrap();
+                for step_size in local_step_sizes.iter_mut() {
                     let new_step_size = local_metropolis_hastings.update_step_size(
-                        &local_step_sizes[j],
+                        step_size,
                         acceptance_rate,
                         temperatures[i],
                     );
-                    local_step_sizes[j] = new_step_size;
+                    *step_size = new_step_size;
                 }
 
                 (
@@ -352,12 +353,12 @@ where
             }
         }
 
-        // Update state with current best replica (replica 0)
+        let coldest_replica_idx = self.conf.common.num_replicas - 1;
         self.st.best_x = self.best_individual.clone();
         self.st.best_f = self.best_fitness;
-        self.st.pop = self.population[0].clone();
-        self.st.fitness = self.fitness[0].clone();
-        self.st.constraints = self.constraints[0].clone();
+        self.st.pop = self.population[coldest_replica_idx].clone();
+        self.st.fitness = self.fitness[coldest_replica_idx].clone();
+        self.st.constraints = self.constraints[coldest_replica_idx].clone();
 
         self.st.iter += 1;
     }

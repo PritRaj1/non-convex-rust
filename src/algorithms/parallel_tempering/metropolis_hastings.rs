@@ -152,7 +152,7 @@ where
         let mut x_new = x_old.clone();
         let random_vec =
             OVector::<T, D>::from_fn_generic(D::from_usize(x_old.len()), U1, |_, _| {
-                T::from_f64(rand::rng().random::<f64>()).unwrap()
+                T::from_f64(rand::rng().sample::<f64, _>(StandardNormal)).unwrap()
             });
         x_new += random_vec.component_mul(&step_size.diagonal());
         x_new
