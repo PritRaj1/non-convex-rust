@@ -14,7 +14,7 @@ use non_convex_opt::utils::opt_prob::{BooleanConstraintFunction, ObjectiveFuncti
 use non_convex_opt::NonConvexOpt;
 
 fn get_replica_data(
-    opt: &NonConvexOpt<f64, nalgebra::Const<20>, nalgebra::Const<2>>,
+    opt: &NonConvexOpt<f64, nalgebra::Const<50>, nalgebra::Const<2>>,
     obj_f: &KBF,
 ) -> (Vec<Vec<(f64, f64)>>, Vec<(f64, f64)>) {
     let replica_populations = opt
@@ -52,7 +52,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let conf_json = r#"
     {
         "opt_conf": {
-            "max_iter": 25,
+            "max_iter": 100,
             "rtol": "1e-6",
             "atol": "1e-6"
         },
@@ -61,14 +61,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 "common": {
                     "num_replicas": 5,
                     "power_law_init": 4.0,
-                    "power_law_final": 0.25,
-                    "power_law_cycles": 0,
+                    "power_law_final": 1.0,
+                    "power_law_cycles": 1,
                     "alpha": 0.1,
                     "omega": 2.1,
                     "mala_step_size": 0.1
                 },
                 "swap_conf": {
-                    "Always": {}
+                    "Periodic": {
+                        "swap_frequency": 0.1
+                    }
                 },
                 "update_conf": {
                     "Auto": {}
@@ -83,8 +85,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let obj_f = KBF;
     let constraints = KBFConstraints;
 
-    let mut init_pop = SMatrix::<f64, 20, 2>::zeros();
-    for i in 0..20 {
+    let mut init_pop = SMatrix::<f64, 50, 2>::zeros();
+    for i in 0..50 {
         for j in 0..2 {
             init_pop[(i, j)] = rand::random::<f64>() * 10.0;
         }
@@ -97,7 +99,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let color_palette = get_color_palette();
     let mut encoder = setup_gif("examples/gifs/pt_kbf.gif")?;
 
-    for _frame in 0..25 {
+    for _frame in 0..100 {
         let root = BitMapBackend::new("examples/pt_frame.png", (2000, 400)).into_drawing_area();
         root.fill(&WHITE)?;
 
@@ -207,7 +209,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let mut frame = Frame::default();
         frame.width = 2000;
         frame.height = 400;
-        frame.delay = 20;
+        frame.delay = 5;
         frame.buffer = std::borrow::Cow::from(indexed_pixels);
         encoder.write_frame(&frame)?;
 
