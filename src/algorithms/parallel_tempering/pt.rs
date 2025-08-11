@@ -262,7 +262,8 @@ where
         let temperatures: Vec<T> = (0..self.conf.common.num_replicas)
             .map(|k| {
                 let power = current_power;
-                T::from_f64((k as f64 / (self.conf.common.num_replicas - 1) as f64).powf(power)).unwrap()
+                T::from_f64((k as f64 / (self.conf.common.num_replicas - 1) as f64).powf(power))
+                    .unwrap()
             })
             .collect();
 

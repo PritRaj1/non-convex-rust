@@ -10,28 +10,42 @@ use common::fcns::{KBFConstraints, KBF};
 use common::img::{create_contour_data, find_closest_color, get_color_palette, setup_gif};
 
 use non_convex_opt::utils::config::Config;
-use non_convex_opt::utils::opt_prob::BooleanConstraintFunction;
+use non_convex_opt::utils::opt_prob::{BooleanConstraintFunction, ObjectiveFunction};
 use non_convex_opt::NonConvexOpt;
 
-fn get_replica_populations(
-    opt: &NonConvexOpt<f64, nalgebra::Const<10>, nalgebra::Const<2>>,
-) -> Vec<Vec<(f64, f64)>> {
-    let replica_populations = opt.get_pt_replica_populations()
+fn get_replica_data(
+    opt: &NonConvexOpt<f64, nalgebra::Const<20>, nalgebra::Const<2>>,
+    obj_f: &KBF,
+) -> (Vec<Vec<(f64, f64)>>, Vec<(f64, f64)>) {
+    let replica_populations = opt
+        .get_pt_replica_populations()
         .expect("This example requires Parallel Tempering algorithm");
-    
+
     let mut replica_pops = Vec::new();
+    let mut replica_bests = Vec::new();
 
     for replica_pop in &replica_populations {
         let mut replica_points = Vec::new();
+        let mut best_fitness = f64::NEG_INFINITY;
+        let mut best_point = (0.0, 0.0);
 
         for row_idx in 0..replica_pop.nrows() {
             let row = replica_pop.row(row_idx);
-            replica_points.push((row[0], row[1]));
+            let point = (row[0], row[1]);
+            replica_points.push(point);
+
+            let fitness = obj_f.f(&nalgebra::SVector::<f64, 2>::from_vec(vec![row[0], row[1]]));
+            if fitness > best_fitness {
+                best_fitness = fitness;
+                best_point = point;
+            }
         }
+
         replica_pops.push(replica_points);
+        replica_bests.push(best_point);
     }
 
-    replica_pops
+    (replica_pops, replica_bests)
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -69,8 +83,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let obj_f = KBF;
     let constraints = KBFConstraints;
 
-    let mut init_pop = SMatrix::<f64, 10, 2>::zeros();
-    for i in 0..10 {
+    let mut init_pop = SMatrix::<f64, 20, 2>::zeros();
+    for i in 0..20 {
         for j in 0..2 {
             init_pop[(i, j)] = rand::random::<f64>() * 10.0;
         }
@@ -89,15 +103,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         let replica_areas = root.split_evenly((1, 5));
 
-        let replica_populations = get_replica_populations(&opt);
-        let best_x = opt.get_best_individual();
+        let (replica_populations, replica_bests) = get_replica_data(&opt, &obj_f);
 
         let replica_colors = [
             RGBColor(255, 0, 0),
-            RGBColor(255, 0, 0),   
-            RGBColor(255, 0, 0),   
-            RGBColor(255, 0, 0),   
-            RGBColor(255, 0, 0),   
+            RGBColor(255, 0, 0),
+            RGBColor(255, 0, 0),
+            RGBColor(255, 0, 0),
+            RGBColor(255, 0, 0),
         ];
 
         for (replica_idx, area) in replica_areas.iter().enumerate() {
@@ -128,7 +141,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         (255.0 * val) as u8,
                         (255.0 * val) as u8,
                     );
-                    
+
                     chart.draw_series(std::iter::once(Rectangle::new(
                         [(x, y), (x + dx, y + dx)],
                         color.filled(),
@@ -140,7 +153,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 for j in 0..resolution - 1 {
                     let x = 10.0 * i as f64 / (resolution - 1) as f64;
                     let y = 10.0 * j as f64 / (resolution - 1) as f64;
-                    
+
                     let point = nalgebra::SVector::<f64, 2>::from_vec(vec![x, y]);
                     if !constraints.g(&point) {
                         let stripe_width = 0.2;
@@ -149,7 +162,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             chart.draw_series(std::iter::once(Rectangle::new(
                                 [
                                     (x, y),
-                                    (x + 10.0 / (resolution - 1) as f64, y + 10.0 / (resolution - 1) as f64),
+                                    (
+                                        x + 10.0 / (resolution - 1) as f64,
+                                        y + 10.0 / (resolution - 1) as f64,
+                                    ),
                                 ],
                                 RGBColor(100, 100, 100).filled(),
                             )))?;
@@ -166,11 +182,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 )?;
             }
 
-            chart.draw_series(std::iter::once(Circle::new(
-                (best_x[0], best_x[1]),
-                6,
-                RGBColor(255, 255, 0).filled(),
-            )))?;
+            if replica_idx < replica_bests.len() {
+                let best_point = replica_bests[replica_idx];
+                chart.draw_series(std::iter::once(Circle::new(
+                    best_point,
+                    6,
+                    RGBColor(255, 255, 0).filled(),
+                )))?;
+            }
         }
 
         root.present()?;
