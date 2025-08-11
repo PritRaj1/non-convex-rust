@@ -184,4 +184,8 @@ where
     pub fn get_population(&self) -> OMatrix<T, N, D> {
         self.alg.state().pop.clone()
     }
+
+    pub fn get_pt_replica_populations(&self) -> Option<Vec<OMatrix<T, N, D>>> {
+        self.alg.get_replica_populations()
+    }
 }

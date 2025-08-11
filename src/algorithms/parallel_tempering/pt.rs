@@ -229,6 +229,18 @@ where
             }
         }
     }
+
+    pub fn get_replica_population(&self, replica_idx: usize) -> Option<&OMatrix<T, N, D>> {
+        self.population.get(replica_idx)
+    }
+
+    pub fn get_all_replica_populations(&self) -> &Vec<OMatrix<T, N, D>> {
+        &self.population
+    }
+
+    pub fn get_num_replicas(&self) -> usize {
+        self.population.len()
+    }
 }
 
 impl<T, N, D> OptimizationAlgorithm<T, N, D> for PT<T, N, D>
@@ -250,7 +262,7 @@ where
         let temperatures: Vec<T> = (0..self.conf.common.num_replicas)
             .map(|k| {
                 let power = current_power;
-                T::from_f64((k as f64 / self.conf.common.num_replicas as f64).powf(power)).unwrap()
+                T::from_f64((k as f64 / (self.conf.common.num_replicas - 1) as f64).powf(power)).unwrap()
             })
             .collect();
 
@@ -365,5 +377,9 @@ where
 
     fn state(&self) -> &State<T, N, D> {
         &self.st
+    }
+
+    fn get_replica_populations(&self) -> Option<Vec<OMatrix<T, N, D>>> {
+        Some(self.population.clone())
     }
 }

@@ -57,6 +57,7 @@ pub fn find_closest_color(r: u8, g: u8, b: u8, palette: &[u8]) -> usize {
     best_idx
 }
 
+#[allow(dead_code)]
 pub fn setup_chart<'a, F: BooleanConstraintFunction<f64, U2>>(
     frame: usize,
     algorithm_name: &'a str,
