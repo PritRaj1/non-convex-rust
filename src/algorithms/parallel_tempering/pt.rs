@@ -1,5 +1,5 @@
 use nalgebra::{allocator::Allocator, DefaultAllocator, Dim, OMatrix, OVector, U1};
-use rand::Rng;
+
 use rayon::prelude::*;
 
 use crate::algorithms::parallel_tempering::{
@@ -20,7 +20,8 @@ where
     OVector<bool, N>: Send + Sync,
     OMatrix<T, N, D>: Send + Sync,
     OMatrix<T, D, D>: Send + Sync,
-    DefaultAllocator: Allocator<D> + Allocator<N, D> + Allocator<N> + Allocator<D, D> + Allocator<U1, D>,
+    DefaultAllocator:
+        Allocator<D> + Allocator<N, D> + Allocator<N> + Allocator<D, D> + Allocator<U1, D>,
 {
     pub conf: PTConf,
     pub metropolis_hastings: MetropolisHastings<T, D>,
@@ -46,7 +47,8 @@ where
     OVector<bool, N>: Send + Sync,
     OMatrix<T, N, D>: Send + Sync,
     OMatrix<T, D, D>: Send + Sync,
-    DefaultAllocator: Allocator<D> + Allocator<N, D> + Allocator<N> + Allocator<D, D> + Allocator<U1, D>,
+    DefaultAllocator:
+        Allocator<D> + Allocator<N, D> + Allocator<N> + Allocator<D, D> + Allocator<U1, D>,
 {
     pub fn new(
         conf: PTConf,
@@ -54,7 +56,6 @@ where
         opt_prob: OptProb<T, D>,
         max_iter: usize,
     ) -> Self {
-
         assert!(
             conf.common.num_replicas > 0,
             "Number of replicas must be positive"
@@ -208,35 +209,19 @@ where
 
     pub fn swap(&mut self) {
         let n = self.population.len();
-        let m = self.population[0].nrows();
+        let _m = self.population[0].nrows();
 
         // Try swapping adjacent replicas
         for i in 0..n - 1 {
             let t_i = self.get_temperature(i);
             let t_j = self.get_temperature(i + 1);
 
-            // Calculate ensemble-level energy difference
-            let mut total_energy_i = T::zero();
-            let mut total_energy_j = T::zero();
-            
-            for k in 0..m {
-                total_energy_i += self.fitness[i][k];
-                total_energy_j += self.fitness[i + 1][k];
-            }
-
-            // Standard replica exchange acceptance criterion
-            let delta_beta = (T::from_f64(1.0).unwrap() / t_j) - (T::from_f64(1.0).unwrap() / t_i);
-            let delta_e = total_energy_j - total_energy_i;
-
-            let log_acceptance = -delta_beta * delta_e;
-            let acceptance_prob = if log_acceptance > T::from_f64(0.0).unwrap() {
-                T::from_f64(1.0).unwrap()
-            } else {
-                log_acceptance.exp()
-            };
-
-            // Accept/reject the entire replica swap based on ensemble-level criterion
-            if rand::rng().random::<f64>() < acceptance_prob.to_f64().unwrap() {
+            if self.metropolis_hastings.accept_replica_exchange::<N>(
+                &self.fitness[i],
+                &self.fitness[i + 1],
+                t_i,
+                t_j,
+            ) {
                 self.population.swap(i, i + 1);
                 self.fitness.swap(i, i + 1);
                 self.constraints.swap(i, i + 1);
@@ -277,7 +262,9 @@ where
                 let mut local_constraints = self.constraints[i].clone();
                 let mut local_step_sizes = self.step_sizes[i].clone();
                 let mut local_metropolis_hastings = self.metropolis_hastings.clone();
-                
+                let mut accepted_count = 0;
+                let total_moves = local_population.nrows();
+
                 for j in 0..local_population.nrows() {
                     let x_old = local_population.row(j).transpose();
                     let x_new = local_metropolis_hastings.local_move(
@@ -285,34 +272,43 @@ where
                         &local_step_sizes[j],
                         temperatures[i],
                     );
-                    
+
                     let fitness_new = self.opt_prob.evaluate(&x_new);
                     let constr_new = self.opt_prob.is_feasible(&x_new);
-                    
+
                     if local_metropolis_hastings.accept_reject(
                         &x_old,
                         &x_new,
                         constr_new,
                         temperatures[i],
-                        -T::from_f64(1.0).unwrap(), // Negative to signal local move
                     ) {
                         local_population.row_mut(j).copy_from(&x_new.transpose());
                         local_fitness[j] = fitness_new;
                         local_constraints[j] = constr_new;
-                        
-                        let new_step_size = local_metropolis_hastings.update_step_size(
-                            &local_step_sizes[j],
-                            T::from_f64(0.5).unwrap(), // Placeholder acceptance rate
-                            temperatures[i],
-                        );
-                        local_step_sizes[j] = new_step_size;
+                        accepted_count += 1;
                     }
                 }
-                
-                (i, local_population, local_fitness, local_constraints, local_step_sizes)
+
+                let acceptance_rate = T::from_f64(accepted_count as f64 / total_moves as f64).unwrap();
+                for j in 0..local_population.nrows() {
+                    let new_step_size = local_metropolis_hastings.update_step_size(
+                        &local_step_sizes[j],
+                        acceptance_rate,
+                        temperatures[i],
+                    );
+                    local_step_sizes[j] = new_step_size;
+                }
+
+                (
+                    i,
+                    local_population,
+                    local_fitness,
+                    local_constraints,
+                    local_step_sizes,
+                )
             })
             .collect();
-        
+
         for (i, pop, fit, constr, step) in results {
             self.population[i] = pop;
             self.fitness[i] = fit;
@@ -355,8 +351,6 @@ where
                     .into_owned();
             }
         }
-
-
 
         // Update state with current best replica (replica 0)
         self.st.best_x = self.best_individual.clone();

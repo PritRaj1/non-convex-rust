@@ -20,7 +20,7 @@ where
     D: Dim,
     DefaultAllocator: Allocator<D> + Allocator<D, D>,
 {
-    pub k: T,
+    pub k: T, // Boltzmann constant
     pub move_type: MoveType,
     pub prob: OptProb<T, D>,
     pub mala_step_size: T,
@@ -35,7 +35,7 @@ where
     DefaultAllocator: Allocator<D> + Allocator<D, D>,
 {
     pub fn new(prob: OptProb<T, D>, update_conf: &UpdateConf, generic_x: OVector<T, D>) -> Self {
-        let k = T::from_f64(1.38064852e-23).unwrap(); // Boltzmann constant
+        let k = T::from_f64(1.0).unwrap(); // Boltzmann constant
 
         // MALA needs gradients, PCN and Metropolis-Hastings don't
         let (move_type, mala_step_size, pcn_step_size, pcn_preconditioner) = match update_conf {
@@ -139,9 +139,7 @@ where
                     .expect("Gradient should be available for MALA");
                 self.local_move_mala(x_old, &grad, t)
             }
-            MoveType::PCN => {
-                self.local_move_pcn(x_old, step_size)
-            }
+            MoveType::PCN => self.local_move_pcn(x_old, step_size),
             MoveType::RandomDrift => self.local_move_random_drift(x_old, step_size),
         }
     }
@@ -166,7 +164,8 @@ where
         grad: &OVector<T, D>,
         t: T,
     ) -> OVector<T, D> {
-        let step = self.mala_step_size / t;
+        let t_for_step = T::from_f64(1.0).unwrap() - t;
+        let step = self.mala_step_size * t_for_step.max(T::from_f64(0.01).unwrap());
         let drift = grad * step;
 
         let noise = OVector::<T, D>::from_fn_generic(D::from_usize(x_old.len()), U1, |_, _| {
@@ -205,7 +204,6 @@ where
         x_new: &OVector<T, D>,
         constraints_new: bool,
         t: T,
-        t_swap: T,
     ) -> bool {
         if !constraints_new {
             return false;
@@ -213,30 +211,61 @@ where
 
         let f_old = self.prob.evaluate(x_old);
         let f_new = self.prob.evaluate(x_new);
+        let delta_e = f_new - f_old;
 
-        // If this is a local move (t_swap < 0), use standard Metropolis criterion
-        if t_swap < T::from_f64(0.0).unwrap() {
-            let delta_e = f_new - f_old;
-            let beta = T::from_f64(1.0).unwrap() / t;
-
-            if delta_e >= T::from_f64(0.0).unwrap() {
-                return true; // Always accept uphill moves (maximization)
-            }
-
-            let acceptance_prob = (-beta * delta_e).exp();
-            rand::rng().random::<f64>() < acceptance_prob.to_f64().unwrap()
-        } else {
-            // For global replica exchange, use the >0 swap temperature
-            let delta_e = f_new - f_old;
-            let beta = T::from_f64(1.0).unwrap() / t_swap;
-
-            if delta_e >= T::from_f64(0.0).unwrap() {
-                return true; // Always accept uphill moves (maximization)
-            }
-
-            let acceptance_prob = (-beta * delta_e).exp();
-            rand::rng().random::<f64>() < acceptance_prob.to_f64().unwrap()
+        if delta_e >= T::from_f64(0.0).unwrap() {
+            return true; // Always accept uphill moves
         }
+
+        // Boltzmann acceptance criterion: P = min(1, exp(ΔE / (k*(1-T))))
+        let t_inverted = T::from_f64(1.0).unwrap() - t;
+        let t_safe = t_inverted.max(T::from_f64(1e-10).unwrap());
+        let acceptance_prob = (delta_e / (self.k * t_safe)).exp();
+        rand::rng().random::<f64>() < acceptance_prob.to_f64().unwrap()
+    }
+
+    pub fn accept_replica_exchange<N>(
+        &self,
+        fitness_i: &OVector<T, N>,
+        fitness_j: &OVector<T, N>,
+        t_i: T,
+        t_j: T,
+    ) -> bool
+    where
+        N: Dim,
+        DefaultAllocator: Allocator<N>,
+    {
+        // Calculate ensemble-level energy sums
+        let mut total_energy_i = T::zero();
+        let mut total_energy_j = T::zero();
+
+        for &energy in fitness_i.iter() {
+            total_energy_i += energy;
+        }
+
+        for &energy in fitness_j.iter() {
+            total_energy_j += energy;
+        }
+
+        // Replica exchange acceptance criterion: P = min(1, exp((E_i - E_j) * (1/(k*(1-T_i)) - 1/(k*(1-T_j)))))
+        // T=0 is hot, T=1 is cold, so invert temperatures
+        let t_i_inverted = T::from_f64(1.0).unwrap() - t_i;
+        let t_j_inverted = T::from_f64(1.0).unwrap() - t_j;
+        let t_i_safe = t_i_inverted.max(T::from_f64(1e-10).unwrap());
+        let t_j_safe = t_j_inverted.max(T::from_f64(1e-10).unwrap());
+
+        let delta_beta = (T::from_f64(1.0).unwrap() / (self.k * t_i_safe))
+            - (T::from_f64(1.0).unwrap() / (self.k * t_j_safe));
+        let delta_e = total_energy_i - total_energy_j;
+
+        let log_acceptance = delta_beta * delta_e;
+        let acceptance_prob = if log_acceptance > T::from_f64(0.0).unwrap() {
+            T::from_f64(1.0).unwrap()
+        } else {
+            log_acceptance.exp()
+        };
+
+        rand::rng().random::<f64>() < acceptance_prob.to_f64().unwrap()
     }
 
     pub fn update_step_size(
