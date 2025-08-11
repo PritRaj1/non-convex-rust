@@ -147,8 +147,10 @@ where
     }
 
     fn check_convergence(&self, current_best: T, previous_best: T) -> bool {
-        let converged = num_traits::Float::exp(-current_best) <= T::from_f64(self.conf.atol).unwrap()
-            || (num_traits::Float::abs(current_best - previous_best) <= T::from_f64(self.conf.rtol).unwrap()
+        let converged = num_traits::Float::exp(-current_best)
+            <= T::from_f64(self.conf.atol).unwrap()
+            || (num_traits::Float::abs(current_best - previous_best)
+                <= T::from_f64(self.conf.rtol).unwrap()
                 && self.alg.state().iter
                     > (self.conf.max_iter as f64 * self.conf.rtol_max_iter_fraction).floor()
                         as usize);

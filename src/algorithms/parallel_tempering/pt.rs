@@ -1,4 +1,7 @@
-use nalgebra::{allocator::Allocator, DefaultAllocator, Dim, OMatrix, OVector, U1, RealField, ComplexField, DimSub};
+use nalgebra::{
+    allocator::Allocator, ComplexField, DefaultAllocator, Dim, DimSub, OMatrix, OVector, RealField,
+    U1,
+};
 
 use std::iter::Sum;
 
@@ -23,8 +26,12 @@ where
     OVector<bool, N>: Send + Sync,
     OMatrix<T, N, D>: Send + Sync,
     OMatrix<T, D, D>: Send + Sync,
-    DefaultAllocator:
-        Allocator<D> + Allocator<N, D> + Allocator<N> + Allocator<D, D> + Allocator<U1, D> + Allocator<<D as DimSub<nalgebra::Const<1>>>::Output>,
+    DefaultAllocator: Allocator<D>
+        + Allocator<N, D>
+        + Allocator<N>
+        + Allocator<D, D>
+        + Allocator<U1, D>
+        + Allocator<<D as DimSub<nalgebra::Const<1>>>::Output>,
 {
     pub conf: PTConf,
     pub metropolis_hastings: MetropolisHastings<T, D>,
@@ -52,8 +59,12 @@ where
     OVector<bool, N>: Send + Sync,
     OMatrix<T, N, D>: Send + Sync,
     OMatrix<T, D, D>: Send + Sync,
-    DefaultAllocator:
-        Allocator<D> + Allocator<N, D> + Allocator<N> + Allocator<D, D> + Allocator<U1, D> + Allocator<<D as DimSub<nalgebra::Const<1>>>::Output>,
+    DefaultAllocator: Allocator<D>
+        + Allocator<N, D>
+        + Allocator<N>
+        + Allocator<D, D>
+        + Allocator<U1, D>
+        + Allocator<<D as DimSub<nalgebra::Const<1>>>::Output>,
 {
     pub fn new(
         conf: PTConf,
@@ -184,12 +195,13 @@ where
             })
             .collect();
 
-        let preconditioner: Box<dyn Preconditioner<T, N, D> + Send + Sync> = 
+        let preconditioner: Box<dyn Preconditioner<T, N, D> + Send + Sync> =
             Box::new(SampleCovariance::new(T::from_f64(0.01).unwrap()));
 
         let mut covariance_matrices = Vec::with_capacity(conf.common.num_replicas);
         for i in 0..conf.common.num_replicas {
-            let cov = preconditioner.compute_covariance(&population[i], &fitness[i], &constraints[i]);
+            let cov =
+                preconditioner.compute_covariance(&population[i], &fitness[i], &constraints[i]);
             covariance_matrices.push(cov);
         }
 
@@ -264,15 +276,18 @@ where
         self.covariance_matrices.clear();
         for i in 0..self.conf.common.num_replicas {
             let cov = self.preconditioner.compute_covariance(
-                &self.population[i], 
-                &self.fitness[i], 
-                &self.constraints[i]
+                &self.population[i],
+                &self.fitness[i],
+                &self.constraints[i],
             );
             self.covariance_matrices.push(cov);
         }
     }
 
-    pub fn set_preconditioner(&mut self, preconditioner: Box<dyn Preconditioner<T, N, D> + Send + Sync>) {
+    pub fn set_preconditioner(
+        &mut self,
+        preconditioner: Box<dyn Preconditioner<T, N, D> + Send + Sync>,
+    ) {
         self.preconditioner = preconditioner;
         self.update_covariance_matrices();
     }
@@ -288,8 +303,12 @@ where
     OVector<bool, N>: Send + Sync,
     OMatrix<T, N, D>: Send + Sync,
     OMatrix<T, D, D>: Send + Sync,
-    DefaultAllocator:
-        Allocator<D> + Allocator<N, D> + Allocator<N> + Allocator<D, D> + Allocator<U1, D> + Allocator<<D as DimSub<nalgebra::Const<1>>>::Output>,
+    DefaultAllocator: Allocator<D>
+        + Allocator<N, D>
+        + Allocator<N>
+        + Allocator<D, D>
+        + Allocator<U1, D>
+        + Allocator<<D as DimSub<nalgebra::Const<1>>>::Output>,
 {
     fn step(&mut self) {
         let current_power = self.p_schedule[self.st.iter - 1].to_f64().unwrap();
@@ -316,7 +335,6 @@ where
                     .into_par_iter()
                     .map(|j| {
                         let x_old = local_population.row(j).transpose();
-                        
                         let x_new = if matches!(local_metropolis_hastings.move_type, crate::algorithms::parallel_tempering::metropolis_hastings::MoveType::PCN) {
                             let variance_param = T::from_f64(1.0).unwrap() / ComplexField::sqrt(T::from_usize(self.st.iter).unwrap() + T::from_f64(1.0).unwrap());
                             local_metropolis_hastings.local_move_pcn_with_variance(
@@ -348,13 +366,11 @@ where
 
                 let alpha = T::from_f64(self.conf.common.alpha).unwrap(); // Learning rate
                 let omega = T::from_f64(self.conf.common.omega).unwrap(); // Scaling factor
-                
                 for (j, x_old, x_new, fitness_new, constr_new, accepted) in individual_results {
                     if accepted {
                         local_population.row_mut(j).copy_from(&x_new.transpose());
                         local_fitness[j] = fitness_new;
                         local_constraints[j] = constr_new;
-                        
                         // Update step size for this individual using Parks et al. approach
                         local_step_sizes[j] = crate::algorithms::parallel_tempering::metropolis_hastings::MetropolisHastings::update_step_size_parks(
                             &local_step_sizes[j],

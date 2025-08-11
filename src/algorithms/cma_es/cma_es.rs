@@ -1,4 +1,4 @@
-use nalgebra::{allocator::Allocator, DefaultAllocator, Dim, Dyn, OMatrix, OVector, U1};
+use nalgebra::{allocator::Allocator, DefaultAllocator, Dim, Dyn, OMatrix, OVector, U1, RealField, DimSub};
 use rand;
 use rand_distr::{Distribution, Normal};
 
@@ -15,13 +15,13 @@ use crate::algorithms::cma_es::{
 
 pub struct CMAES<T, N, D>
 where
-    T: FloatNum,
+    T: FloatNum + RealField,
     N: Dim,
-    D: Dim,
+    D: Dim + DimSub<nalgebra::Const<1>>,
     OVector<T, D>: Send + Sync,
     OMatrix<T, D, D>: Send + Sync,
     OMatrix<T, N, D>: Send + Sync,
-    DefaultAllocator: Allocator<D> + Allocator<N, D> + Allocator<N> + Allocator<D, D>,
+    DefaultAllocator: Allocator<D> + Allocator<N, D> + Allocator<N> + Allocator<D, D> + Allocator<<D as DimSub<nalgebra::Const<1>>>::Output>,
 {
     pub conf: CMAESConf,
     pub opt_prob: OptProb<T, D>,
@@ -51,14 +51,14 @@ where
 
 impl<T, N, D> CMAES<T, N, D>
 where
-    T: FloatNum,
+    T: FloatNum + RealField,
     N: Dim,
-    D: Dim,
+    D: Dim + DimSub<nalgebra::Const<1>>,
     OVector<T, D>: Send + Sync,
     OMatrix<T, D, D>: Send + Sync,
     OMatrix<T, N, D>: Send + Sync,
     DefaultAllocator:
-        Allocator<D> + Allocator<N, D> + Allocator<N> + Allocator<D, D> + Allocator<U1, D>,
+        Allocator<D> + Allocator<N, D> + Allocator<N> + Allocator<D, D> + Allocator<U1, D> + Allocator<<D as DimSub<nalgebra::Const<1>>>::Output>,
 {
     pub fn new(conf: CMAESConf, init_pop: OMatrix<T, N, D>, opt_prob: OptProb<T, D>) -> Self {
         let init_x: OVector<T, D> = init_pop.row(0).transpose().into_owned();
@@ -158,15 +158,15 @@ where
 
 impl<T, N, D> OptimizationAlgorithm<T, N, D> for CMAES<T, N, D>
 where
-    T: FloatNum,
+    T: FloatNum + RealField,
     N: Dim,
-    D: Dim,
+    D: Dim + DimSub<nalgebra::Const<1>>,
     OVector<T, D>: Send + Sync,
     OVector<T, N>: Send + Sync,
     OMatrix<T, N, D>: Send + Sync,
     OMatrix<T, D, D>: Send + Sync,
     DefaultAllocator:
-        Allocator<D> + Allocator<N, D> + Allocator<N> + Allocator<D, D> + Allocator<U1, D>,
+        Allocator<D> + Allocator<N, D> + Allocator<N> + Allocator<D, D> + Allocator<U1, D> + Allocator<<D as DimSub<nalgebra::Const<1>>>::Output>,
 {
     fn step(&mut self) {
         let n = self.mean.len();

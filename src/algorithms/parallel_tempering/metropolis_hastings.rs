@@ -1,4 +1,7 @@
-use nalgebra::{allocator::Allocator, DefaultAllocator, Dim, OMatrix, OVector, U1, RealField, ComplexField, DimSub};
+use nalgebra::{
+    allocator::Allocator, ComplexField, DefaultAllocator, Dim, DimSub, OMatrix, OVector, RealField,
+    U1,
+};
 use rand::Rng;
 use rand_distr::StandardNormal;
 
@@ -32,7 +35,8 @@ impl<T, D> MetropolisHastings<T, D>
 where
     T: FloatNum + RealField,
     D: Dim + DimSub<nalgebra::Const<1>>,
-    DefaultAllocator: Allocator<D> + Allocator<D, D> + Allocator<<D as DimSub<nalgebra::Const<1>>>::Output>,
+    DefaultAllocator:
+        Allocator<D> + Allocator<D, D> + Allocator<<D as DimSub<nalgebra::Const<1>>>::Output>,
 {
     pub fn new(prob: OptProb<T, D>, update_conf: &UpdateConf, generic_x: OVector<T, D>) -> Self {
         let k = T::from_f64(1.0).unwrap(); // Boltzmann constant
@@ -158,12 +162,7 @@ where
         x_new
     }
 
-    fn local_move_mala(
-        &self,
-        x_old: &OVector<T, D>,
-        grad: &OVector<T, D>,
-        t: T,
-    ) -> OVector<T, D> {
+    fn local_move_mala(&self, x_old: &OVector<T, D>, grad: &OVector<T, D>, t: T) -> OVector<T, D> {
         let t_for_step = T::from_f64(1.0).unwrap() - t;
         let step = self.mala_step_size * RealField::max(t_for_step, T::from_f64(0.01).unwrap());
         let drift = grad * step;
@@ -192,7 +191,10 @@ where
         variance_param: T,
     ) -> OVector<T, D> {
         let beta = self.pcn_step_size;
-        let beta = RealField::min(RealField::max(beta, T::from_f64(0.01).unwrap()), T::from_f64(0.99).unwrap());
+        let beta = RealField::min(
+            RealField::max(beta, T::from_f64(0.01).unwrap()),
+            T::from_f64(0.99).unwrap(),
+        );
 
         // First term: √(1-β²) X_n
         let sqrt_term = ComplexField::sqrt(T::from_f64(1.0).unwrap() - beta * beta);
@@ -204,26 +206,24 @@ where
         });
 
         let scaled_covariance = covariance_matrix * (variance_param * variance_param);
-        
+
         // Use Cholesky: ε = L * ε where L is lower triangular, but fallback to eigendecomposition
         let xi_sample = if let Some(cholesky) = scaled_covariance.clone().cholesky() {
-            
             cholesky.l() * xi
         } else {
             let eigen = scaled_covariance.symmetric_eigen();
             let eigenvalues = eigen.eigenvalues;
             let eigenvectors = eigen.eigenvectors;
-            
-            let sqrt_eigenvalues = OVector::<T, D>::from_fn_generic(
-                D::from_usize(eigenvalues.len()),
-                U1,
-                |i, _| ComplexField::sqrt(RealField::max(eigenvalues[i], T::from_f64(1e-12).unwrap()))
-            );
-            
+
+            let sqrt_eigenvalues =
+                OVector::<T, D>::from_fn_generic(D::from_usize(eigenvalues.len()), U1, |i, _| {
+                    ComplexField::sqrt(RealField::max(eigenvalues[i], T::from_f64(1e-12).unwrap()))
+                });
+
             let scaled_xi = xi.component_mul(&sqrt_eigenvalues);
             eigenvectors * scaled_xi
         };
-        
+
         let second_term = xi_sample * beta;
         first_term + second_term
     }
@@ -309,7 +309,7 @@ where
         let diff = x_new - x_old;
         let abs_diff = diff.map(|x| ComplexField::abs(x));
         let r = OMatrix::<T, D, D>::from_diagonal(&abs_diff);
-        
+
         // Update: (1-alpha) * current + alpha * omega * r
         let one_minus_alpha = T::from_f64(1.0).unwrap() - alpha;
         current_step_size * one_minus_alpha + r * (alpha * omega)

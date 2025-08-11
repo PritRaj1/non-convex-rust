@@ -1,4 +1,6 @@
-use nalgebra::{allocator::Allocator, DefaultAllocator, Dim, Dyn, OMatrix, OVector, U1};
+use nalgebra::{
+    allocator::Allocator, DefaultAllocator, Dim, DimSub, Dyn, OMatrix, OVector, RealField, U1,
+};
 
 use crate::utils::opt_prob::FloatNumber as FloatNum;
 
@@ -90,9 +92,15 @@ where
     pub n: usize,
 }
 
-pub fn update_covariance<T: FloatNum, N: Dim, D: Dim>(params: &mut CovarianceUpdateParams<T, N, D>)
-where
-    DefaultAllocator: Allocator<D, D> + Allocator<D> + Allocator<N, D> + Allocator<U1, D>,
+pub fn update_covariance<T: FloatNum + RealField, N: Dim, D>(
+    params: &mut CovarianceUpdateParams<T, N, D>,
+) where
+    D: Dim + DimSub<nalgebra::Const<1>>,
+    DefaultAllocator: Allocator<D, D>
+        + Allocator<D>
+        + Allocator<N, D>
+        + Allocator<U1, D>
+        + Allocator<<D as DimSub<nalgebra::Const<1>>>::Output>,
 {
     let mut c_mat_new: OMatrix<T, D, D> =
         OMatrix::zeros_generic(D::from_usize(params.n), D::from_usize(params.n));
@@ -106,7 +114,8 @@ where
     }
 
     // Update pc
-    let cc_factor = T::sqrt(params.cc * (T::from_f64(2.0).unwrap() - params.cc) * params.mueff);
+    let cc_factor =
+        num_traits::Float::sqrt(params.cc * (T::from_f64(2.0).unwrap() - params.cc) * params.mueff);
     let hsig_t = if params.hsig { T::one() } else { T::zero() };
 
     // Update pc with single loop
@@ -157,68 +166,18 @@ where
 
     *params.c_mat = c_mat_new;
 
-    // Symmetric power iteration with improvements
-    let mut eigenvectors: Vec<OVector<T, D>> = Vec::with_capacity(params.n);
-    let mut c_deflated = params.c_mat.clone();
+    let eigen = params.c_mat.clone().symmetric_eigen();
+    let eigenvalues = eigen.eigenvalues;
+    let eigenvectors = eigen.eigenvectors;
 
-    /* Could parallelize this with Rayon - power iteration is used because covariance is
-    positive semi-definite and symmetric, and it's memory efficient + stable.
-    */
     for i in 0..params.n {
-        // Initialize random vector
-        let mut v: OVector<T, D> = OVector::from_fn_generic(D::from_usize(params.n), U1, |_, _| {
-            T::from_f64(rand::random::<f64>()).unwrap() * T::from_f64(2.0).unwrap() - T::one()
-        });
-
-        // Orthogonalize against previous eigenvectors - this prevents repetition of eigenvectors
-        for prev_v in &eigenvectors {
-            let proj = prev_v.dot(&v);
-            for j in 0..params.n {
-                v[j] -= proj * prev_v[j];
-            }
-        }
-
-        // Normalize
-        let v_norm = T::sqrt(v.dot(&v));
-        for j in 0..params.n {
-            v[j] /= v_norm;
-        }
-
-        // Power iteration with Rayleigh quotient to improve convergence speed
-        let mut eigenvalue = T::zero();
-        let mut prev_eigenvalue = T::neg_infinity();
-
-        for _ in 0..20 {
-            // Usually converges to machine precision in < 20 iterations - but might need to fiddle?
-            let v_new = &c_deflated * &v;
-            let norm = T::sqrt(v_new.dot(&v_new));
-
-            if norm > T::from_f64(1e-10).unwrap() {
-                // Normalize v_new into v
-                for j in 0..params.n {
-                    v[j] = v_new[j] / norm;
-                }
-
-                // Rayleigh quotient for faster convergence - break if eigenvalue is stable
-                eigenvalue = v.dot(&(&c_deflated * &v));
-
-                let diff = (eigenvalue - prev_eigenvalue).abs();
-                if diff < T::from_f64(1e-12).unwrap() {
-                    break;
-                }
-                prev_eigenvalue = eigenvalue;
-            }
-        }
-
-        // Store eigenpair
-        params.d_vec[i] = T::sqrt(T::max(eigenvalue.abs(), T::from_f64(1e-20).unwrap()));
-        params.b_mat.set_column(i, &v);
-        eigenvectors.push(v.clone());
-
-        // Hotelling's deflation (more stable than simple deflation) - this may improve numerical stability
-        let vv_t = &v * &v.transpose();
-        c_deflated -= &vv_t * eigenvalue;
+        params.d_vec[i] = nalgebra::ComplexField::sqrt(nalgebra::RealField::max(
+            eigenvalues[i],
+            T::from_f64(1e-20).unwrap(),
+        ));
     }
+
+    *params.b_mat = eigenvectors;
 
     // Restore C = BDB^T
     let d_mat: OMatrix<T, D, D> = OMatrix::from_diagonal(&params.d_vec.map(|x| x * x));
