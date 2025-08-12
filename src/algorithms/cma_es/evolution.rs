@@ -4,7 +4,7 @@ use nalgebra::{
 
 use crate::utils::opt_prob::FloatNumber as FloatNum;
 
-// Parameter structs to reduce function arguments
+// Immutable parameters
 #[derive(Debug)]
 pub struct PathUpdateParams<'a, T, D>
 where

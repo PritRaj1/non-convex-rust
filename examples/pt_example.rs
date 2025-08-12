@@ -20,7 +20,7 @@ fn get_replica_data(
     let replica_populations = opt
         .get_pt_replica_populations()
         .expect("This example requires Parallel Tempering algorithm");
-    
+
     let replica_temperatures = opt
         .get_pt_replica_temperatures()
         .expect("This example requires Parallel Tempering algorithm");
@@ -64,23 +64,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "PT": {
                 "common": {
                     "num_replicas": 5,
-                    "power_law_init": 3.0,
-                    "power_law_final": 1.0,
-                    "power_law_cycles": 1,
-                    "alpha": 0.1,
+                    "power_law_init": 2.0,
+                    "power_law_final": 0.5,
+                    "power_law_cycles": 0,
+                    "alpha": 0.2,
                     "omega": 2.1,
                     "mala_step_size": 0.1
                 },
                 "swap_conf": {
                     "Periodic": {
-                        "swap_frequency": 0.1
+                        "swap_frequency": 0.2
                     }
                 },
                 "update_conf": {
-                    "PCN": {
-                        "step_size": 0.1,
-                        "preconditioner": 1.0
-                    }
+                    "Auto": {}
                 }
             }
         }
@@ -112,7 +109,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         let replica_areas = root.split_evenly((1, 5));
 
-        let (replica_populations, replica_bests, replica_temperatures) = get_replica_data(&opt, &obj_f);
+        let (replica_populations, replica_bests, replica_temperatures) =
+            get_replica_data(&opt, &obj_f);
 
         let replica_colors = [
             RGBColor(255, 0, 0),
