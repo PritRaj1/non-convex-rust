@@ -57,6 +57,8 @@ pub struct OptConf {
     pub atol: f64,
     #[serde(default = "default_rtol_max_iter_fraction")]
     pub rtol_max_iter_fraction: f64,
+    #[serde(default = "default_stagnation_window")]
+    pub stagnation_window: usize,
 }
 
 fn default_max_iter() -> usize {
@@ -70,6 +72,9 @@ fn default_atol() -> f64 {
 }
 fn default_rtol_max_iter_fraction() -> f64 {
     1.0
+}
+fn default_stagnation_window() -> usize {
+    50
 }
 
 #[derive(Error, Debug)]

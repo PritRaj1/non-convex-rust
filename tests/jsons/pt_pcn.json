@@ -2,7 +2,8 @@
     "opt_conf": {
         "max_iter": 100,
         "rtol": "1e-6",
-        "atol": "1e-6"
+        "atol": "1e-6",
+        "stagnation_window": 50
     },
     "alg_conf": {
         "PT": {

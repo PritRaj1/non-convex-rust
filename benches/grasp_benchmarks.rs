@@ -15,6 +15,7 @@ fn bench_grasp_unconstrained(c: &mut Criterion) {
             rtol: -1e8,
             atol: -1e8,
             rtol_max_iter_fraction: 1.0,
+            stagnation_window: 50,
         },
         alg_conf: AlgConf::GRASP(GRASPConf {
             num_candidates: 50,
@@ -46,6 +47,7 @@ fn bench_grasp_constrained(c: &mut Criterion) {
             rtol: -1e8,
             atol: -1e8,
             rtol_max_iter_fraction: 1.0,
+            stagnation_window: 50,
         },
         alg_conf: AlgConf::GRASP(GRASPConf {
             num_candidates: 50,

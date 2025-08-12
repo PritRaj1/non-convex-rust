@@ -23,6 +23,17 @@ pub struct CommonConf {
     pub omega: f64,
     #[serde(default = "default_mala_step_size")]
     pub mala_step_size: f64,
+
+    #[serde(default = "default_adaptive_swapping")]
+    pub adaptive_swapping: bool,
+    #[serde(default = "default_min_covariance_update_freq")]
+    pub min_covariance_update_freq: usize,
+    #[serde(default = "default_acceptance_rate_smoothing")]
+    pub acceptance_rate_smoothing: f64,
+    #[serde(default = "default_swap_rate_smoothing")]
+    pub swap_rate_smoothing: f64,
+    #[serde(default = "default_random_swap_probability")]
+    pub random_swap_probability: f64,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
@@ -106,6 +117,11 @@ impl CommonConf {
             alpha: default_alpha(),
             omega: default_omega(),
             mala_step_size: default_mala_step_size(),
+            adaptive_swapping: default_adaptive_swapping(),
+            min_covariance_update_freq: default_min_covariance_update_freq(),
+            acceptance_rate_smoothing: default_acceptance_rate_smoothing(),
+            swap_rate_smoothing: default_swap_rate_smoothing(),
+            random_swap_probability: default_random_swap_probability(),
         }
     }
 }
@@ -154,4 +170,19 @@ fn default_pcn_preconditioner() -> f64 {
 }
 fn default_use_preconditioning() -> bool {
     false
+}
+fn default_adaptive_swapping() -> bool {
+    true
+}
+fn default_min_covariance_update_freq() -> usize {
+    5
+}
+fn default_acceptance_rate_smoothing() -> f64 {
+    0.1
+}
+fn default_swap_rate_smoothing() -> f64 {
+    0.05
+}
+fn default_random_swap_probability() -> f64 {
+    0.1
 }

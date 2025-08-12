@@ -108,3 +108,4 @@ Default values, (only choices of swap check must be specified):
 - [Power-law scheduling and minimizing KL divergences between temperature distributions](https://doi.org/10.1016/j.csda.2009.07.025)
 - [Cyclic annealing-ish](https://arxiv.org/abs/1903.10145)
 - [pCN and other tricks](https://arxiv.org/abs/1202.0709)
+- [MC tricks, and ESS](https://www.sciencedirect.com/science/article/abs/pii/S0010465503004673)

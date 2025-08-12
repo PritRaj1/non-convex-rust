@@ -15,6 +15,7 @@ fn bench_adam_unconstrained(c: &mut Criterion) {
             rtol: -1e8,
             atol: -1e8,
             rtol_max_iter_fraction: 1.0,
+            stagnation_window: 50,
         },
         alg_conf: AlgConf::Adam(AdamConf {
             learning_rate: 0.05,
@@ -45,6 +46,7 @@ fn bench_adam_constrained(c: &mut Criterion) {
             rtol: -1e8,
             atol: -1e8,
             rtol_max_iter_fraction: 1.0,
+            stagnation_window: 50,
         },
         alg_conf: AlgConf::Adam(AdamConf {
             learning_rate: 0.05,

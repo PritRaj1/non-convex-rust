@@ -15,6 +15,7 @@ fn bench_sga_unconstrained(c: &mut Criterion) {
             rtol: -1e8,
             atol: -1e8,
             rtol_max_iter_fraction: 1.0,
+            stagnation_window: 50,
         },
         alg_conf: AlgConf::SGA(SGAConf {
             learning_rate: 0.01,

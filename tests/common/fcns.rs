@@ -18,7 +18,7 @@ where
         for i in 0..n - 1 {
             sum += self.b * (x[i + 1] - x[i].powi(2)).powi(2) + (self.a - x[i]).powi(2);
         }
-        sum
+        -sum // Negate for maximization (higher is better, closer to optimum)
     }
 }
 

@@ -99,7 +99,10 @@ fn test_mala_local_move() {
     let x_old = DVector::from_vec(vec![0.5, 0.5]);
     let step_size = DMatrix::identity(2, 2);
 
-    let mala_conf = MALAConf { step_size: 0.01 };
+    let mala_conf = MALAConf {
+        step_size: 0.01,
+        use_preconditioning: false,
+    };
 
     let mh = MetropolisHastings::new(opt_prob, &UpdateConf::MALA(mala_conf), x_old.clone());
     let x_new = mh.local_move(&x_old, &step_size, 1.0);
@@ -385,7 +388,7 @@ fn test_preconditioner_covariance_update() {
 
     let initial_covariances: Vec<_> = pt.covariance_matrices.clone();
 
-    for _ in 0..12 {
+    for _ in 0..25 {
         pt.step();
     }
 

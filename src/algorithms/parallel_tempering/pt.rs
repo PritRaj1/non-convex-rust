@@ -5,6 +5,7 @@ use nalgebra::{
 
 use std::iter::Sum;
 
+use rand::Rng;
 use rayon::prelude::*;
 
 use crate::algorithms::parallel_tempering::{
@@ -47,6 +48,9 @@ where
     pub preconditioner: Box<dyn Preconditioner<T, N, D> + Send + Sync>,
     pub covariance_matrices: Vec<OMatrix<T, D, D>>,
     pub st: State<T, N, D>,
+    acceptance_rates: Vec<f64>,
+    swap_acceptance_rates: Vec<f64>,
+    last_covariance_update: usize,
 }
 
 impl<T, N, D> PT<T, N, D>
@@ -205,6 +209,8 @@ where
             covariance_matrices.push(cov);
         }
 
+        let num_replicas = conf.common.num_replicas;
+
         Self {
             conf,
             metropolis_hastings,
@@ -227,36 +233,88 @@ where
                 constraints: constraints[0].clone(),
                 iter: 1,
             },
+            acceptance_rates: vec![0.5; num_replicas],
+            swap_acceptance_rates: vec![0.3; num_replicas.saturating_sub(1)],
+            last_covariance_update: 0,
         }
     }
 
     // Temperature should be in [0, 1] range, with replica 0 being hottest (0) and highest being coldest (1)
     fn get_temperature(&self, replica_idx: usize) -> T {
-        let power = self.p_schedule[self.st.iter - 1].to_f64().unwrap();
+        let schedule_idx = (self.st.iter - 1).min(self.p_schedule.len() - 1);
+        let power = self.p_schedule[schedule_idx].to_f64().unwrap();
         let temp = (replica_idx as f64 / (self.conf.common.num_replicas - 1) as f64).powf(power);
-        T::from_f64(temp).unwrap()
+
+        let temp_clamped = temp.clamp(1e-10, 1.0 - 1e-10);
+        T::from_f64(temp_clamped).unwrap()
     }
 
     pub fn swap(&mut self) {
         let n = self.population.len();
-        let _m = self.population[0].nrows();
+        if n < 2 {
+            return;
+        }
 
         // Try swapping adjacent replicas
         for i in 0..n - 1 {
             let t_i = self.get_temperature(i);
             let t_j = self.get_temperature(i + 1);
 
-            if self.metropolis_hastings.accept_replica_exchange::<N>(
+            let swap_accepted = self.metropolis_hastings.accept_replica_exchange::<N>(
                 &self.fitness[i],
                 &self.fitness[i + 1],
                 t_i,
                 t_j,
-            ) {
+            );
+
+            if swap_accepted {
                 self.population.swap(i, i + 1);
                 self.fitness.swap(i, i + 1);
                 self.constraints.swap(i, i + 1);
                 self.step_sizes.swap(i, i + 1);
             }
+
+            // Swap acceptance rate with exponential moving average
+            let smoothing = self.conf.common.swap_rate_smoothing;
+            let current_success = if swap_accepted { 1.0 } else { 0.0 };
+            self.swap_acceptance_rates[i] =
+                smoothing * current_success + (1.0 - smoothing) * self.swap_acceptance_rates[i];
+        }
+
+        if self.conf.common.adaptive_swapping
+            && rand::rng().random::<f64>() < self.conf.common.random_swap_probability
+        {
+            self.attempt_random_swap();
+        }
+    }
+
+    /// Random non-adjacent swaps
+    fn attempt_random_swap(&mut self) {
+        let n = self.population.len();
+        if n < 3 {
+            return;
+        }
+
+        let i = rand::rng().random_range(0..n);
+        let mut j = rand::rng().random_range(0..n);
+
+        while j == i || j == i.wrapping_sub(1) || j == i + 1 {
+            j = rand::rng().random_range(0..n);
+        }
+
+        let t_i = self.get_temperature(i);
+        let t_j = self.get_temperature(j);
+
+        if self.metropolis_hastings.accept_replica_exchange::<N>(
+            &self.fitness[i],
+            &self.fitness[j],
+            t_i,
+            t_j,
+        ) {
+            self.population.swap(i, j);
+            self.fitness.swap(i, j);
+            self.constraints.swap(i, j);
+            self.step_sizes.swap(i, j);
         }
     }
 
@@ -272,6 +330,16 @@ where
         self.population.len()
     }
 
+    /// Set a new preconditioner for covariance matrix computation
+    pub fn set_preconditioner(
+        &mut self,
+        preconditioner: Box<dyn Preconditioner<T, N, D> + Send + Sync>,
+    ) {
+        self.preconditioner = preconditioner;
+        // Recompute covariance matrices with the new preconditioner
+        self.update_covariance_matrices();
+    }
+
     pub fn update_covariance_matrices(&mut self) {
         self.covariance_matrices = (0..self.conf.common.num_replicas)
             .into_par_iter()
@@ -283,6 +351,134 @@ where
                 )
             })
             .collect();
+        self.last_covariance_update = self.st.iter;
+    }
+
+    /// Only update cov when acceptance is poor
+    fn should_update_covariance(&self) -> bool {
+        let iterations_since_update = self.st.iter - self.last_covariance_update;
+
+        let avg_acceptance =
+            self.acceptance_rates.iter().sum::<f64>() / self.acceptance_rates.len() as f64;
+
+        let min_freq = self.conf.common.min_covariance_update_freq;
+        let base_frequency = if avg_acceptance < 0.2 {
+            min_freq // Very low acceptance - barely update
+        } else if avg_acceptance < 0.4 {
+            min_freq * 2 // Low acceptance - update moderately
+        } else {
+            min_freq * 4 // Good acceptance - update less frequently
+        };
+
+        iterations_since_update >= base_frequency || iterations_since_update >= min_freq * 10
+    }
+
+    pub fn get_acceptance_rates(&self) -> &[f64] {
+        &self.acceptance_rates
+    }
+
+    pub fn get_swap_acceptance_rates(&self) -> &[f64] {
+        &self.swap_acceptance_rates
+    }
+
+    pub fn compute_effective_sample_size(&self) -> Vec<f64> {
+        let mut ess_values = Vec::with_capacity(self.conf.common.num_replicas);
+
+        for replica_idx in 0..self.conf.common.num_replicas {
+            let fitness_chain: Vec<f64> = self.fitness[replica_idx]
+                .iter()
+                .map(|f| f.to_f64().unwrap_or(0.0))
+                .collect();
+
+            let ess = self.compute_ess_for_chain(&fitness_chain);
+            ess_values.push(ess);
+        }
+
+        ess_values
+    }
+
+    /// Compute ESS using autocorrelation function
+    fn compute_ess_for_chain(&self, chain: &[f64]) -> f64 {
+        let n = chain.len();
+        if n < 10 {
+            return n as f64;
+        }
+
+        let mean = chain.iter().sum::<f64>() / n as f64;
+        let variance = chain.iter().map(|x| (x - mean).powi(2)).sum::<f64>() / (n - 1) as f64;
+
+        if variance < 1e-12 {
+            return n as f64; // Constant chain, perfect mixing
+        }
+
+        let max_lag = (n / 4).min(200);
+        let mut autocorr = Vec::with_capacity(max_lag);
+
+        for lag in 0..max_lag {
+            let mut sum = 0.0;
+            let count = n - lag;
+
+            for i in 0..count {
+                sum += (chain[i] - mean) * (chain[i + lag] - mean);
+            }
+
+            let rho = sum / (count as f64 * variance);
+            autocorr.push(rho);
+
+            if lag > 5 && rho < 0.01 {
+                break;
+            }
+        }
+
+        // Integrated autocorrelation time: τ = 1 + 2 * Σ ρ(k)
+        let mut tau_int = 1.0;
+        let mut cumsum = 0.0;
+
+        for (k, &rho) in autocorr.iter().enumerate().skip(1) {
+            if rho <= 0.0 {
+                break;
+            }
+
+            cumsum += rho;
+            let current_tau = 1.0 + 2.0 * cumsum;
+
+            if k as f64 >= 6.0 * current_tau {
+                break;
+            }
+
+            tau_int = current_tau;
+        }
+
+        let ess = n as f64 / (2.0 * tau_int + 1.0);
+
+        ess.min(n as f64).max(1.0)
+    }
+
+    pub fn compute_population_diversity(&self) -> f64 {
+        let mut total_variance = 0.0;
+        let num_replicas = self.conf.common.num_replicas;
+
+        if num_replicas < 2 {
+            return 0.0;
+        }
+
+        let replica_best_fitness: Vec<f64> = (0..num_replicas)
+            .map(|i| {
+                self.fitness[i]
+                    .iter()
+                    .zip(self.constraints[i].iter())
+                    .filter_map(|(f, c)| if *c { Some(f.to_f64().unwrap()) } else { None })
+                    .fold(f64::NEG_INFINITY, f64::max)
+            })
+            .collect();
+
+        let mean_fitness = replica_best_fitness.iter().sum::<f64>() / num_replicas as f64;
+
+        for fitness in replica_best_fitness {
+            total_variance += (fitness - mean_fitness).powi(2);
+        }
+
+        total_variance / num_replicas as f64
     }
 }
 
@@ -304,99 +500,109 @@ where
         + Allocator<<D as DimSub<nalgebra::Const<1>>>::Output>,
 {
     fn step(&mut self) {
-        let current_power = self.p_schedule[self.st.iter - 1].to_f64().unwrap();
-
         let temperatures: Vec<T> = (0..self.conf.common.num_replicas)
-            .map(|k| {
-                let power = current_power;
-                T::from_f64((k as f64 / (self.conf.common.num_replicas - 1) as f64).powf(power))
-                    .unwrap()
-            })
+            .map(|i| self.get_temperature(i))
             .collect();
 
-        let results: Vec<_> = (0..self.conf.common.num_replicas)
+        let mut new_best_fitness = self.best_fitness;
+        let mut new_best_individual = self.best_individual.clone();
+
+        let replica_updates: Vec<_> = (0..self.conf.common.num_replicas)
             .into_par_iter()
-            .map(|i| {
-                let mut local_population = self.population[i].clone();
-                let mut local_fitness = self.fitness[i].clone();
-                let mut local_constraints = self.constraints[i].clone();
-                let mut local_step_sizes = self.step_sizes[i].clone();
-                let local_metropolis_hastings = self.metropolis_hastings.clone();
+            .map(|replica_idx| {
+                let temperature = temperatures[replica_idx];
+                let alpha = T::from_f64(self.conf.common.alpha).unwrap();
+                let omega = T::from_f64(self.conf.common.omega).unwrap();
 
-
-                let individual_results: Vec<_> = (0..local_population.nrows())
+                let individual_updates: Vec<_> = (0..self.population[replica_idx].nrows())
                     .into_par_iter()
                     .map(|j| {
-                        let x_old = local_population.row(j).transpose();
-                        let x_new = if matches!(local_metropolis_hastings.move_type, crate::algorithms::parallel_tempering::metropolis_hastings::MoveType::PCN) {
+                        let x_old = self.population[replica_idx].row(j).transpose();
+                        // Proposals
+                        let x_new = if matches!(self.metropolis_hastings.move_type, crate::algorithms::parallel_tempering::metropolis_hastings::MoveType::PCN) {
                             let variance_param = T::from_f64(1.0).unwrap() / ComplexField::sqrt(T::from_usize(self.st.iter).unwrap() + T::from_f64(1.0).unwrap());
-                            local_metropolis_hastings.local_move_pcn_with_variance(
+                            self.metropolis_hastings.local_move_pcn_with_variance(
                                 &x_old,
-                                &self.covariance_matrices[i],
+                                &self.covariance_matrices[replica_idx],
                                 variance_param,
                             )
-                        } else if matches!(local_metropolis_hastings.move_type, crate::algorithms::parallel_tempering::metropolis_hastings::MoveType::MALA) && local_metropolis_hastings.mala_use_preconditioning {
-                            local_metropolis_hastings.local_move_with_covariance(
+                        } else if matches!(self.metropolis_hastings.move_type, crate::algorithms::parallel_tempering::metropolis_hastings::MoveType::MALA) && self.metropolis_hastings.mala_use_preconditioning {
+                            self.metropolis_hastings.local_move_with_covariance(
                                 &x_old,
-                                &local_step_sizes[j],
-                                &self.covariance_matrices[i],
-                                temperatures[i],
+                                &self.step_sizes[replica_idx][j],
+                                &self.covariance_matrices[replica_idx],
+                                temperature,
                             )
                         } else {
-                            local_metropolis_hastings.local_move(
+                            self.metropolis_hastings.local_move(
                                 &x_old,
-                                &local_step_sizes[j],
-                                temperatures[i],
+                                &self.step_sizes[replica_idx][j],
+                                temperature,
                             )
                         };
 
                         let fitness_new = self.opt_prob.evaluate(&x_new);
                         let constr_new = self.opt_prob.is_feasible(&x_new);
 
-                        let accepted = local_metropolis_hastings.accept_reject(
+                        let accepted = self.metropolis_hastings.accept_reject(
                             &x_old,
                             &x_new,
                             constr_new,
-                            temperatures[i],
+                            temperature,
                         );
 
-                        (j, x_old, x_new, fitness_new, constr_new, accepted)
+                        // Step size tuning (Parks et al. 2013)
+                        let new_step_size = if accepted {
+                            crate::algorithms::parallel_tempering::metropolis_hastings::MetropolisHastings::update_step_size_parks(
+                                &self.step_sizes[replica_idx][j],
+                                &x_old,
+                                &x_new,
+                                alpha,
+                                omega,
+                            )
+                        } else {
+                            self.step_sizes[replica_idx][j].clone()
+                        };
+
+                        (j, x_new, fitness_new, constr_new, accepted, new_step_size)
                     })
                     .collect();
 
-                let alpha = T::from_f64(self.conf.common.alpha).unwrap(); // Learning rate
-                let omega = T::from_f64(self.conf.common.omega).unwrap(); // Scaling factor
-                for (j, x_old, x_new, fitness_new, constr_new, accepted) in individual_results {
-                    if accepted {
-                        local_population.row_mut(j).copy_from(&x_new.transpose());
-                        local_fitness[j] = fitness_new;
-                        local_constraints[j] = constr_new;
-                        // Update step size for this individual using Parks et al. approach
-                        local_step_sizes[j] = crate::algorithms::parallel_tempering::metropolis_hastings::MetropolisHastings::update_step_size_parks(
-                            &local_step_sizes[j],
-                            &x_old,
-                            &x_new,
-                            alpha,
-                            omega,
-                        );
-                    }
-                }
-
-                (
-                    i,
-                    local_population,
-                    local_fitness,
-                    local_constraints,
-                    local_step_sizes,
-                )
+                (replica_idx, individual_updates)
             })
             .collect();
 
-        for (i, pop, fit, constr, step) in results {
-            self.population[i] = pop;
-            self.fitness[i] = fit;
-            self.constraints[i] = constr;
-            self.step_sizes[i] = step;
+        // Apply updates, not threads safe (race conditions)
+        for (replica_idx, individual_updates) in replica_updates {
+            let mut accepted_count = 0;
+            let total_count = individual_updates.len();
+
+            for (j, x_new, fitness_new, constr_new, accepted, new_step_size) in individual_updates {
+                if accepted {
+                    accepted_count += 1;
+                    self.population[replica_idx]
+                        .row_mut(j)
+                        .copy_from(&x_new.transpose());
+                    self.fitness[replica_idx][j] = fitness_new;
+                    self.constraints[replica_idx][j] = constr_new;
+                    self.step_sizes[replica_idx][j] = new_step_size;
+
+                    if constr_new && fitness_new > new_best_fitness {
+                        new_best_fitness = fitness_new;
+                        new_best_individual = x_new;
+                    }
+                }
+            }
+
+            let current_rate = accepted_count as f64 / total_count as f64;
+            let smoothing = self.conf.common.acceptance_rate_smoothing;
+            self.acceptance_rates[replica_idx] =
+                smoothing * current_rate + (1.0 - smoothing) * self.acceptance_rates[replica_idx];
+        }
+
+        if new_best_fitness > self.best_fitness {
+            self.best_fitness = new_best_fitness;
+            self.best_individual = new_best_individual;
         }
 
         if match &self.swap_check {
@@ -407,35 +613,8 @@ where
             self.swap();
         }
 
-        if self.st.iter % 10 == 0 {
+        if self.should_update_covariance() {
             self.update_covariance_matrices();
-        }
-
-        let best_result = (0..self.conf.common.num_replicas)
-            .into_par_iter()
-            .flat_map(|i| {
-                (0..self.fitness[i].len())
-                    .into_par_iter()
-                    .filter_map(|j| {
-                        if self.fitness[i][j] > self.best_fitness && self.constraints[i][j] {
-                            Some((i, j, self.fitness[i][j]))
-                        } else {
-                            None
-                        }
-                    })
-                    .collect::<Vec<_>>()
-            })
-            .max_by(|a, b| a.2.partial_cmp(&b.2).unwrap_or(std::cmp::Ordering::Equal));
-
-        // Update global best if we found a better solution
-        if let Some((best_idx, best_row, best_fitness)) = best_result {
-            if best_fitness > self.best_fitness {
-                self.best_fitness = best_fitness;
-                self.best_individual = self.population[best_idx]
-                    .row(best_row)
-                    .transpose()
-                    .into_owned();
-            }
         }
 
         let coldest_replica_idx = self.conf.common.num_replicas - 1;

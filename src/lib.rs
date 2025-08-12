@@ -55,6 +55,7 @@ where
     pub alg: Box<dyn OptimizationAlgorithm<T, N, D>>,
     pub conf: OptConf,
     pub converged: bool,
+    best_fitness_history: Vec<T>,
 }
 
 impl<T, N, D> NonConvexOpt<T, N, D>
@@ -143,19 +144,63 @@ where
             alg,
             conf: conf.opt_conf,
             converged: false,
+            best_fitness_history: Vec::new(),
         }
     }
 
     fn check_convergence(&self, current_best: T, previous_best: T) -> bool {
-        let converged = num_traits::Float::exp(-current_best)
-            <= T::from_f64(self.conf.atol).unwrap()
-            || (num_traits::Float::abs(current_best - previous_best)
-                <= T::from_f64(self.conf.rtol).unwrap()
-                && self.alg.state().iter
-                    > (self.conf.max_iter as f64 * self.conf.rtol_max_iter_fraction).floor()
-                        as usize);
+        let atol = T::from_f64(self.conf.atol).unwrap();
+        let rtol = T::from_f64(self.conf.rtol).unwrap();
+        let min_iter_for_rtol =
+            (self.conf.max_iter as f64 * self.conf.rtol_max_iter_fraction).floor() as usize;
+
+        let improvement = current_best - previous_best;
+        let abs_improvement = num_traits::Float::abs(improvement);
+
+        let abs_converged = abs_improvement <= atol;
+
+        let rel_converged = if num_traits::Float::abs(current_best) > T::from_f64(1e-10).unwrap() {
+            abs_improvement / num_traits::Float::abs(current_best) <= rtol
+        } else {
+            abs_improvement <= atol
+        };
+
+        // Check for stagnation: no significant improvement over a window of iterations
+        let stagnation_converged = if self.best_fitness_history.len() >= self.conf.stagnation_window
+        {
+            let window_start = self.best_fitness_history.len() - self.conf.stagnation_window;
+            let oldest_in_window = self.best_fitness_history[window_start];
+            let stagnation_improvement = current_best - oldest_in_window;
+            let abs_stagnation_improvement = num_traits::Float::abs(stagnation_improvement);
+
+            abs_stagnation_improvement <= atol
+                || (num_traits::Float::abs(current_best) > T::from_f64(1e-10).unwrap()
+                    && abs_stagnation_improvement / num_traits::Float::abs(current_best) <= rtol)
+        } else {
+            false
+        };
+
+        let converged = abs_converged
+            || (rel_converged && self.alg.state().iter > min_iter_for_rtol)
+            || stagnation_converged;
+
         if converged {
-            println!("Converged in {} iterations", self.alg.state().iter);
+            let reason = if abs_converged {
+                "absolute tolerance"
+            } else if rel_converged && self.alg.state().iter > min_iter_for_rtol {
+                "relative tolerance"
+            } else if stagnation_converged {
+                "stagnation"
+            } else {
+                "unknown"
+            };
+
+            println!(
+                "Converged in {} iterations due to {} (improvement: {:.2e})",
+                self.alg.state().iter,
+                reason,
+                improvement.to_f64().unwrap_or(0.0)
+            );
         }
 
         converged
@@ -169,6 +214,16 @@ where
         let previous_best_fitness = self.alg.state().best_f;
         self.alg.step();
         let current_best_fitness = self.alg.state().best_f;
+
+        // Track fitness history for stagnation detection
+        self.best_fitness_history.push(current_best_fitness);
+
+        // Keep history bounded to avoid unbounded memory growth
+        let max_history = self.conf.stagnation_window * 2;
+        if self.best_fitness_history.len() > max_history {
+            let excess = self.best_fitness_history.len() - max_history;
+            self.best_fitness_history.drain(0..excess);
+        }
 
         self.converged = self.check_convergence(current_best_fitness, previous_best_fitness);
     }
