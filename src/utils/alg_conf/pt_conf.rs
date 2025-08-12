@@ -50,6 +50,8 @@ pub struct MetropolisHastingsConf {
 pub struct MALAConf {
     #[serde(default = "default_mala_step_size")]
     pub step_size: f64,
+    #[serde(default = "default_use_preconditioning")]
+    pub use_preconditioning: bool,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
@@ -149,4 +151,7 @@ fn default_pcn_step_size() -> f64 {
 }
 fn default_pcn_preconditioner() -> f64 {
     1.0
+}
+fn default_use_preconditioning() -> bool {
+    false
 }

@@ -27,6 +27,7 @@ where
     pub move_type: MoveType,
     pub prob: OptProb<T, D>,
     pub mala_step_size: T,
+    pub mala_use_preconditioning: bool,
     pub pcn_step_size: T,
     pub pcn_preconditioner: T,
 }
@@ -42,13 +43,20 @@ where
         let k = T::from_f64(1.0).unwrap(); // Boltzmann constant
 
         // MALA needs gradients, PCN and Metropolis-Hastings don't
-        let (move_type, mala_step_size, pcn_step_size, pcn_preconditioner) = match update_conf {
+        let (
+            move_type,
+            mala_step_size,
+            mala_use_preconditioning,
+            pcn_step_size,
+            pcn_preconditioner,
+        ) = match update_conf {
             UpdateConf::MetropolisHastings(conf) => {
                 if prob.objective.gradient(&generic_x).is_some() {
                     let step_size = T::from_f64(0.01).unwrap();
                     (
                         MoveType::MALA,
                         step_size,
+                        false, // No preconditioning for MH fallback to MALA
                         step_size,
                         T::from_f64(1.0).unwrap(),
                     )
@@ -57,6 +65,7 @@ where
                     (
                         MoveType::RandomDrift,
                         step_size,
+                        false,
                         step_size,
                         T::from_f64(1.0).unwrap(),
                     )
@@ -68,6 +77,7 @@ where
                     (
                         MoveType::MALA,
                         step_size,
+                        conf.use_preconditioning, // Can choose preconditioning or not for MALA
                         step_size,
                         T::from_f64(1.0).unwrap(),
                     )
@@ -77,6 +87,7 @@ where
                     (
                         MoveType::RandomDrift,
                         step_size,
+                        false,
                         step_size,
                         T::from_f64(1.0).unwrap(),
                     )
@@ -88,13 +99,14 @@ where
                     (
                         MoveType::MALA,
                         step_size,
+                        false,
                         step_size,
                         T::from_f64(1.0).unwrap(),
                     )
                 } else {
                     let step_size = T::from_f64(conf.step_size).unwrap();
                     let preconditioner = T::from_f64(conf.preconditioner).unwrap();
-                    (MoveType::PCN, step_size, step_size, preconditioner)
+                    (MoveType::PCN, step_size, false, step_size, preconditioner)
                 }
             }
             UpdateConf::Auto(_) => {
@@ -103,6 +115,7 @@ where
                     (
                         MoveType::MALA,
                         step_size,
+                        false,
                         step_size,
                         T::from_f64(1.0).unwrap(),
                     )
@@ -111,6 +124,7 @@ where
                     (
                         MoveType::RandomDrift,
                         step_size,
+                        false,
                         step_size,
                         T::from_f64(1.0).unwrap(),
                     )
@@ -123,6 +137,7 @@ where
             move_type,
             prob,
             mala_step_size,
+            mala_use_preconditioning,
             pcn_step_size,
             pcn_preconditioner,
         }
@@ -144,6 +159,31 @@ where
                 self.local_move_mala(x_old, &grad, t)
             }
             MoveType::PCN => self.local_move_pcn(x_old, step_size),
+            MoveType::RandomDrift => self.local_move_random_drift(x_old, step_size),
+        }
+    }
+
+    pub fn local_move_with_covariance(
+        &self,
+        x_old: &OVector<T, D>,
+        step_size: &OMatrix<T, D, D>,
+        covariance_matrix: &OMatrix<T, D, D>,
+        t: T,
+    ) -> OVector<T, D> {
+        match self.move_type {
+            MoveType::MALA => {
+                let grad = self
+                    .prob
+                    .objective
+                    .gradient(x_old)
+                    .expect("Gradient should be available for MALA");
+                if self.mala_use_preconditioning {
+                    self.local_move_mala_preconditioned(x_old, &grad, covariance_matrix, t)
+                } else {
+                    self.local_move_mala(x_old, &grad, t)
+                }
+            }
+            MoveType::PCN => self.local_move_pcn(x_old, covariance_matrix),
             MoveType::RandomDrift => self.local_move_random_drift(x_old, step_size),
         }
     }
@@ -170,6 +210,46 @@ where
         let noise = OVector::<T, D>::from_fn_generic(D::from_usize(x_old.len()), U1, |_, _| {
             T::from_f64(rand::rng().sample::<f64, _>(StandardNormal)).unwrap()
         }) * ComplexField::sqrt(step * T::from_f64(2.0).unwrap());
+
+        x_old + drift + noise
+    }
+
+    fn local_move_mala_preconditioned(
+        &self,
+        x_old: &OVector<T, D>,
+        grad: &OVector<T, D>,
+        covariance_matrix: &OMatrix<T, D, D>,
+        t: T,
+    ) -> OVector<T, D> {
+        let t_for_step = T::from_f64(1.0).unwrap() - t;
+        let step = self.mala_step_size * RealField::max(t_for_step, T::from_f64(0.01).unwrap());
+
+        // Preconditioned drift: τ A ∇log π(X_k)
+        let drift = covariance_matrix * grad * step;
+
+        // Preconditioned noise: √(2τA) ξ_k
+        let xi = OVector::<T, D>::from_fn_generic(D::from_usize(x_old.len()), U1, |_, _| {
+            T::from_f64(rand::rng().sample::<f64, _>(StandardNormal)).unwrap()
+        });
+
+        let scaled_covariance = covariance_matrix * (step * T::from_f64(2.0).unwrap());
+
+        // Use Cholesky decomposition or fallback to eigendecomposition
+        let noise = if let Some(cholesky) = scaled_covariance.clone().cholesky() {
+            cholesky.l() * xi
+        } else {
+            let eigen = scaled_covariance.symmetric_eigen();
+            let eigenvalues = eigen.eigenvalues;
+            let eigenvectors = eigen.eigenvectors;
+
+            let sqrt_eigenvalues =
+                OVector::<T, D>::from_fn_generic(D::from_usize(eigenvalues.len()), U1, |i, _| {
+                    ComplexField::sqrt(RealField::max(eigenvalues[i], T::from_f64(1e-12).unwrap()))
+                });
+
+            let scaled_xi = xi.component_mul(&sqrt_eigenvalues);
+            eigenvectors * scaled_xi
+        };
 
         x_old + drift + noise
     }

@@ -1,0 +1,26 @@
+{
+    "opt_conf": {
+        "max_iter": 100,
+        "rtol": "1e-6",
+        "atol": "1e-6"
+    },
+    "alg_conf": {
+        "PT": {
+            "common": {
+                "num_replicas": 10,
+                "power_law_init": 2.0,
+                "power_law_final": 0.5,
+                "power_law_cycles": 1
+            },
+            "swap_conf": {
+                "Always": {}
+            },
+            "update_conf": {
+                "MALA": {
+                    "step_size": 0.01,
+                    "use_preconditioning": true
+                }
+            }
+        }
+    }
+}

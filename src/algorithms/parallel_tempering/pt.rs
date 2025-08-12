@@ -273,23 +273,16 @@ where
     }
 
     pub fn update_covariance_matrices(&mut self) {
-        self.covariance_matrices.clear();
-        for i in 0..self.conf.common.num_replicas {
-            let cov = self.preconditioner.compute_covariance(
-                &self.population[i],
-                &self.fitness[i],
-                &self.constraints[i],
-            );
-            self.covariance_matrices.push(cov);
-        }
-    }
-
-    pub fn set_preconditioner(
-        &mut self,
-        preconditioner: Box<dyn Preconditioner<T, N, D> + Send + Sync>,
-    ) {
-        self.preconditioner = preconditioner;
-        self.update_covariance_matrices();
+        self.covariance_matrices = (0..self.conf.common.num_replicas)
+            .into_par_iter()
+            .map(|i| {
+                self.preconditioner.compute_covariance(
+                    &self.population[i],
+                    &self.fitness[i],
+                    &self.constraints[i],
+                )
+            })
+            .collect();
     }
 }
 
@@ -341,6 +334,13 @@ where
                                 &x_old,
                                 &self.covariance_matrices[i],
                                 variance_param,
+                            )
+                        } else if matches!(local_metropolis_hastings.move_type, crate::algorithms::parallel_tempering::metropolis_hastings::MoveType::MALA) && local_metropolis_hastings.mala_use_preconditioning {
+                            local_metropolis_hastings.local_move_with_covariance(
+                                &x_old,
+                                &local_step_sizes[j],
+                                &self.covariance_matrices[i],
+                                temperatures[i],
                             )
                         } else {
                             local_metropolis_hastings.local_move(

@@ -64,7 +64,8 @@ Fully-defined:
                 }
                 // or
                 "MALA": {
-                    "step_size": 0.1
+                    "step_size": 0.1,
+                    "use_preconditioning": false
                 }
                 // or
                 "PCN": {
