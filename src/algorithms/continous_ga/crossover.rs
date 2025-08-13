@@ -1,5 +1,6 @@
 use nalgebra::{allocator::Allocator, DefaultAllocator, Dim, Dyn, OMatrix, OVector, U1};
 use rand::Rng;
+use rayon::prelude::*;
 
 use crate::utils::opt_prob::FloatNumber as FloatNum;
 
@@ -32,9 +33,9 @@ impl Random {
 
 impl<T: FloatNum, N: Dim, D: Dim> CrossoverOperator<T, N, D> for Random
 where
-    T: FloatNum,
-    N: Dim,
-    D: Dim,
+    T: FloatNum + Send + Sync,
+    N: Dim + Send + Sync,
+    D: Dim + Send + Sync,
     OVector<T, D>: Send + Sync,
     OVector<T, N>: Send + Sync,
     OMatrix<T, Dyn, D>: Send + Sync,
@@ -43,40 +44,48 @@ where
         Allocator<Dyn, D> + Allocator<N, D> + Allocator<N> + Allocator<D> + Allocator<U1, D>,
 {
     fn crossover(&self, parents: &OMatrix<T, Dyn, D>) -> OMatrix<T, N, D> {
-        let mut rng = rand::rng();
+        let num_parents = parents.nrows();
+        let crossover_prob = self.crossover_prob;
+        
+        let offspring_rows: Vec<_> = (0..self.population_size)
+            .into_par_iter()
+            .map(|_| {
+                let mut rng = rand::rng();
+                let i = rng.random_range(0..num_parents);
+                let mut j = rng.random_range(0..num_parents);
+                
+                while j == i && num_parents > 1 {
+                    j = rng.random_range(0..num_parents);
+                }
+
+                if rng.random::<f64>() < crossover_prob {
+                    let parent1 = parents.row(i);
+                    let parent2 = parents.row(j);
+                    let alpha = T::from_f64(rng.random::<f64>()).unwrap();
+                    
+                    let mut child = OVector::<T, D>::zeros_generic(D::from_usize(parents.ncols()), U1);
+                    for k in 0..parents.ncols() {
+                        child[k] = alpha * parent1[k] + (T::one() - alpha) * parent2[k];
+                    }
+                    child
+                } else {
+                    let mut child = OVector::<T, D>::zeros_generic(D::from_usize(parents.ncols()), U1);
+                    let parent_row = parents.row(i);
+                    for k in 0..parents.ncols() {
+                        child[k] = parent_row[k];
+                    }
+                    child
+                }
+            })
+            .collect();
+
         let mut offspring = OMatrix::<T, N, D>::zeros_generic(
             N::from_usize(self.population_size),
             D::from_usize(parents.ncols()),
         );
-
-        let num_parents = parents.nrows();
-        let mut offspring_count = 0;
-
-        // Pre-allocate
-        let mut child: OVector<T, D> = OVector::zeros_generic(D::from_usize(parents.ncols()), U1);
-
-        while offspring_count < self.population_size {
-            let i = rng.random_range(0..num_parents);
-            let mut j = rng.random_range(0..num_parents);
-            
-            while j == i && num_parents > 1 {
-                j = rng.random_range(0..num_parents);
-            }
-
-            if rng.random::<f64>() < self.crossover_prob {
-                let parent1 = parents.row(i);
-                let parent2 = parents.row(j);
-
-                let alpha = T::from_f64(rng.random::<f64>()).unwrap();
-                for k in 0..parents.ncols() {
-                    child[k] = alpha * parent1[k] + (T::one() - alpha) * parent2[k];
-                }
-                offspring.set_row(offspring_count, &child.transpose());
-                offspring_count += 1;
-            } else if offspring_count < self.population_size {
-                offspring.set_row(offspring_count, &parents.row(i));
-                offspring_count += 1;
-            }
+        
+        for (i, child) in offspring_rows.into_iter().enumerate() {
+            offspring.set_row(i, &child.transpose());
         }
 
         offspring
@@ -99,9 +108,9 @@ impl Heuristic {
 
 impl<T, N, D> CrossoverOperator<T, N, D> for Heuristic
 where
-    T: FloatNum,
-    N: Dim,
-    D: Dim,
+    T: FloatNum + Send + Sync,
+    N: Dim + Send + Sync,
+    D: Dim + Send + Sync,
     OVector<T, D>: Send + Sync,
     OVector<T, N>: Send + Sync,
     OMatrix<T, Dyn, D>: Send + Sync,
@@ -110,41 +119,48 @@ where
         Allocator<Dyn, D> + Allocator<N, D> + Allocator<N> + Allocator<D> + Allocator<U1, D>,
 {
     fn crossover(&self, parents: &OMatrix<T, Dyn, D>) -> OMatrix<T, N, D> {
-        let mut rng = rand::rng();
+        let num_parents = parents.nrows();
+        let crossover_prob = self.crossover_prob;
+        
+        let offspring_rows: Vec<_> = (0..self.population_size)
+            .into_par_iter()
+            .map(|_| {
+                let mut rng = rand::rng();
+                let i = rng.random_range(0..num_parents);
+                let mut j = rng.random_range(0..num_parents);
+                
+                while j == i && num_parents > 1 {
+                    j = rng.random_range(0..num_parents);
+                }
+
+                if rng.random::<f64>() < crossover_prob {
+                    let parent1 = parents.row(i);
+                    let parent2 = parents.row(j);
+                    let b = T::from_f64(rng.random::<f64>()).unwrap();
+                    
+                    let mut child = OVector::<T, D>::zeros_generic(D::from_usize(parents.ncols()), U1);
+                    for k in 0..parents.ncols() {
+                        child[k] = b * (parent1[k] - parent2[k]) + parent2[k];
+                    }
+                    child
+                } else {
+                    let mut child = OVector::<T, D>::zeros_generic(D::from_usize(parents.ncols()), U1);
+                    let parent_row = parents.row(i);
+                    for k in 0..parents.ncols() {
+                        child[k] = parent_row[k];
+                    }
+                    child
+                }
+            })
+            .collect();
+
         let mut offspring = OMatrix::<T, N, D>::zeros_generic(
             N::from_usize(self.population_size),
             D::from_usize(parents.ncols()),
         );
-
-        let num_parents = parents.nrows();
-        let mut offspring_count = 0;
-
-        // Pre-allocate
-        let mut child: OVector<T, D> = OVector::zeros_generic(D::from_usize(parents.ncols()), U1);
-
-        while offspring_count < self.population_size {
-            let i = rng.random_range(0..num_parents);
-            let mut j = rng.random_range(0..num_parents);
-            
-            while j == i && num_parents > 1 {
-                j = rng.random_range(0..num_parents);
-            }
-
-            if rng.random::<f64>() < self.crossover_prob {
-                let parent1 = parents.row(i);
-                let parent2 = parents.row(j);
-
-                let b = T::from_f64(rng.random::<f64>()).unwrap(); // Random factor between 0 and 1
-                for k in 0..parents.ncols() {
-                    child[k] = b * (parent1[k] - parent2[k]) + parent2[k]; // p_new = b * (p1 - p2) + p2
-                }
-
-                offspring.set_row(offspring_count, &child.transpose());
-                offspring_count += 1;
-            } else if offspring_count < self.population_size {
-                offspring.set_row(offspring_count, &parents.row(i));
-                offspring_count += 1;
-            }
+        
+        for (i, child) in offspring_rows.into_iter().enumerate() {
+            offspring.set_row(i, &child.transpose());
         }
 
         offspring

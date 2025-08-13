@@ -27,13 +27,16 @@ where
     pub selector: Box<dyn SelectionOperator<T, N, D> + Send + Sync>,
     pub crossover: Box<dyn CrossoverOperator<T, N, D> + Send + Sync>,
     pub mutation: Box<dyn MutationOperator<T, D> + Send + Sync>,
+    cached_bounds_lower: OVector<T, D>,
+    cached_bounds_upper: OVector<T, D>,
+    bounds_cached: bool,
 }
 
 impl<T, N, D> CGA<T, N, D>
 where
-    T: FloatNum,
-    N: Dim,
-    D: Dim,
+    T: FloatNum + Send + Sync,
+    N: Dim + Send + Sync,
+    D: Dim + Send + Sync,
     OVector<T, D>: Send + Sync,
     OVector<T, N>: Send + Sync,
     OVector<bool, N>: Send + Sync,
@@ -112,6 +115,7 @@ where
         }
         let best_individual = init_pop.row(best_idx).transpose();
 
+        let n = init_pop.ncols();
         Self {
             conf,
             st: State {
@@ -126,15 +130,26 @@ where
             selector,
             crossover,
             mutation,
+            cached_bounds_lower: OVector::<T, D>::from_element_generic(
+                D::from_usize(n),
+                U1,
+                T::from_f64(-10.0).unwrap(),
+            ),
+            cached_bounds_upper: OVector::<T, D>::from_element_generic(
+                D::from_usize(n),
+                U1,
+                T::from_f64(10.0).unwrap(),
+            ),
+            bounds_cached: false,
         }
     }
 }
 
 impl<T, N, D> OptimizationAlgorithm<T, N, D> for CGA<T, N, D>
 where
-    T: FloatNum,
-    D: Dim,
-    N: Dim,
+    T: FloatNum + Send + Sync,
+    D: Dim + Send + Sync,
+    N: Dim + Send + Sync,
     OVector<T, D>: Send + Sync,
     OVector<T, N>: Send + Sync,
     OVector<bool, N>: Send + Sync,
@@ -148,41 +163,38 @@ where
             .select(&self.st.pop, &self.st.fitness, &self.st.constraints);
         let mut offspring = self.crossover.crossover(&selected);
 
-        // Apply mutation
-        let fallback_vec_lower = OVector::<T, D>::from_element_generic(
-            D::from_usize(offspring.ncols()),
-            U1,
-            T::from_f64(-10.0).unwrap(),
-        );
-        let fallback_vec_upper = OVector::<T, D>::from_element_generic(
-            D::from_usize(offspring.ncols()),
-            U1,
-            T::from_f64(10.0).unwrap(),
-        );
-
-        // Get bounds once using first individual as representative
-        let sample_individual = offspring.row(0).transpose();
-        let lower_bounds = self.opt_prob
-            .objective
-            .x_lower_bound(&sample_individual)
-            .unwrap_or(fallback_vec_lower);
-        let upper_bounds = self.opt_prob
-            .objective
-            .x_upper_bound(&sample_individual)
-            .unwrap_or(fallback_vec_upper);
-
-        // TODO: Extend mutation operators to handle per-dimension bounds
-        let bounds = (lower_bounds[0], upper_bounds[0]);
-
-        // Pre-allocate
-        let mut individual = OVector::<T, D>::zeros_generic(D::from_usize(offspring.ncols()), U1);
-
-        for i in 0..offspring.nrows() {
-            for j in 0..offspring.ncols() {
-                individual[j] = offspring[(i, j)];
-            }
+        let bounds = if !self.bounds_cached {
+            let sample_individual = offspring.row(0).transpose();
+            let lower_bounds = self.opt_prob
+                .objective
+                .x_lower_bound(&sample_individual)
+                .unwrap_or_else(|| self.cached_bounds_lower.clone());
+            let upper_bounds = self.opt_prob
+                .objective
+                .x_upper_bound(&sample_individual)
+                .unwrap_or_else(|| self.cached_bounds_upper.clone());
             
-            let mutated = self.mutation.mutate(&individual, bounds, self.st.iter);
+            (lower_bounds[0], upper_bounds[0])
+        } else {
+            (self.cached_bounds_lower[0], self.cached_bounds_upper[0])
+        };
+        
+        let mutation_op = &self.mutation;
+        let generation = self.st.iter;
+        
+        let mutated_rows: Vec<_> = (0..offspring.nrows())
+            .into_par_iter()
+            .map(|i| {
+                let mut individual = OVector::<T, D>::zeros_generic(D::from_usize(offspring.ncols()), U1);
+                for j in 0..offspring.ncols() {
+                    individual[j] = offspring[(i, j)];
+                }
+                
+                mutation_op.mutate(&individual, bounds, generation)
+            })
+            .collect();
+        
+        for (i, mutated) in mutated_rows.into_iter().enumerate() {
             offspring.set_row(i, &mutated.transpose());
         }
 
@@ -205,21 +217,18 @@ where
         );
 
         // Elitism: Keep the best individual from previous generation
-        let (best_old_idx, best_old_fitness) = self.st.fitness
-            .iter()
-            .zip(self.st.constraints.iter())
-            .enumerate()
-            .filter(|(_, (_, &constraint))| constraint)
-            .max_by(|(_, (&fit_a, _)), (_, (&fit_b, _))| fit_a.partial_cmp(&fit_b).unwrap_or(std::cmp::Ordering::Equal))
-            .map(|(idx, (&fitness, _))| (idx, fitness))
+        let (best_old_idx, best_old_fitness) = (0..self.st.fitness.len())
+            .into_par_iter()
+            .filter(|&i| self.st.constraints[i])
+            .max_by(|&i, &j| self.st.fitness[i].partial_cmp(&self.st.fitness[j]).unwrap_or(std::cmp::Ordering::Equal))
+            .map(|idx| (idx, self.st.fitness[idx]))
             .unwrap_or((0, self.st.fitness[0]));
 
         // Replace worst offspring with best old individual if better
-        let (worst_new_idx, worst_new_fitness) = new_fitness
-            .iter()
-            .enumerate()
-            .min_by(|(_, &fit_a), (_, &fit_b)| fit_a.partial_cmp(&fit_b).unwrap_or(std::cmp::Ordering::Equal))
-            .map(|(idx, &fitness)| (idx, fitness))
+        let (worst_new_idx, worst_new_fitness) = (0..new_fitness.len())
+            .into_par_iter()
+            .min_by(|&i, &j| new_fitness[i].partial_cmp(&new_fitness[j]).unwrap_or(std::cmp::Ordering::Equal))
+            .map(|idx| (idx, new_fitness[idx]))
             .unwrap_or((0, new_fitness[0]));
 
         if best_old_fitness > worst_new_fitness {
@@ -232,13 +241,11 @@ where
         self.st.fitness = new_fitness;
         self.st.constraints = new_constraints;
 
-        let (new_best_idx, new_best_fitness) = self.st.fitness
-            .iter()
-            .zip(self.st.constraints.iter())
-            .enumerate()
-            .filter(|(_, (_, &constraint))| constraint)
-            .max_by(|(_, (&fit_a, _)), (_, (&fit_b, _))| fit_a.partial_cmp(&fit_b).unwrap_or(std::cmp::Ordering::Equal))
-            .map(|(idx, (&fitness, _))| (idx, fitness))
+        let (new_best_idx, new_best_fitness) = (0..self.st.fitness.len())
+            .into_par_iter()
+            .filter(|&i| self.st.constraints[i])
+            .max_by(|&i, &j| self.st.fitness[i].partial_cmp(&self.st.fitness[j]).unwrap_or(std::cmp::Ordering::Equal))
+            .map(|idx| (idx, self.st.fitness[idx]))
             .unwrap_or((0, self.st.fitness[0]));
 
         if new_best_fitness > self.st.best_f {

@@ -1,5 +1,6 @@
 use nalgebra::{allocator::Allocator, DefaultAllocator, Dim, Dyn, OMatrix, OVector, U1};
 use rand::Rng;
+use rayon::prelude::*;
 
 use crate::utils::opt_prob::FloatNumber as FloatNum;
 
@@ -37,9 +38,9 @@ impl RouletteWheel {
 
 impl<T, N, D> SelectionOperator<T, N, D> for RouletteWheel
 where
-    T: FloatNum,
-    N: Dim,
-    D: Dim,
+    T: FloatNum + Send + Sync,
+    N: Dim + Send + Sync,
+    D: Dim + Send + Sync,
     OVector<T, N>: Send + Sync,
     OMatrix<T, Dyn, D>: Send + Sync,
     OMatrix<T, N, D>: Send + Sync,
@@ -121,9 +122,9 @@ impl Tournament {
 
 impl<T, N, D> SelectionOperator<T, N, D> for Tournament
 where
-    T: FloatNum,
-    N: Dim,
-    D: Dim,
+    T: FloatNum + Send + Sync,
+    N: Dim + Send + Sync,
+    D: Dim + Send + Sync,
     OVector<T, N>: Send + Sync,
     OMatrix<T, Dyn, D>: Send + Sync,
     OMatrix<T, N, D>: Send + Sync,
@@ -139,36 +140,45 @@ where
             Dyn::from_usize(self.num_parents),
             D::from_usize(population.ncols()),
         );
-        let mut rng = rand::rng();
 
-        for i in 0..self.num_parents {
-            let mut tournament_indices = Vec::new();
+        let valid_indices: Vec<usize> = (0..population.nrows())
+            .filter(|&idx| constraints[idx])
+            .collect();
             
-            let valid_indices: Vec<usize> = (0..population.nrows())
-                .filter(|&idx| constraints[idx])
-                .collect();
-                
-            if valid_indices.is_empty() {
+        if valid_indices.is_empty() {
+            for i in 0..self.num_parents {
                 selected.set_row(i, &population.row(0));
-                continue;
             }
+            return selected;
+        }
 
-            let effective_tournament_size = self.tournament_size.min(valid_indices.len());
-            for _ in 0..effective_tournament_size {
-                let random_idx = rng.random_range(0..valid_indices.len());
-                tournament_indices.push(valid_indices[random_idx]);
-            }
-
-            let mut best_idx = tournament_indices[0];
-            let mut best_fitness = fitness[best_idx];
-
-            for &idx in &tournament_indices[1..] {
-                if fitness[idx] > best_fitness {
-                    best_idx = idx;
-                    best_fitness = fitness[idx];
+        let selected_indices: Vec<usize> = (0..self.num_parents)
+            .into_par_iter()
+            .map(|_| {
+                let mut local_rng = rand::rng();
+                let mut tournament_indices = Vec::new();
+                
+                let effective_tournament_size = self.tournament_size.min(valid_indices.len());
+                for _ in 0..effective_tournament_size {
+                    let random_idx = local_rng.random_range(0..valid_indices.len());
+                    tournament_indices.push(valid_indices[random_idx]);
                 }
-            }
 
+                let mut best_idx = tournament_indices[0];
+                let mut best_fitness = fitness[best_idx];
+
+                for &idx in &tournament_indices[1..] {
+                    if fitness[idx] > best_fitness {
+                        best_idx = idx;
+                        best_fitness = fitness[idx];
+                    }
+                }
+                best_idx
+            })
+            .collect();
+
+        // Copy selected individuals to result matrix
+        for (i, &best_idx) in selected_indices.iter().enumerate() {
             selected.set_row(i, &population.row(best_idx));
         }
 
@@ -192,9 +202,9 @@ impl Residual {
 
 impl<T, N, D> SelectionOperator<T, N, D> for Residual
 where
-    T: FloatNum,
-    N: Dim,
-    D: Dim,
+    T: FloatNum + Send + Sync,
+    N: Dim + Send + Sync,
+    D: Dim + Send + Sync,
     OVector<T, N>: Send + Sync,
     OMatrix<T, Dyn, D>: Send + Sync,
     OMatrix<T, N, D>: Send + Sync,
@@ -212,20 +222,21 @@ where
         );
         let mut rng = rand::rng();
 
-        // Calculate expected values
-        let sum = fitness
-            .iter()
-            .zip(constraints.iter())
+        let fitness_vec: Vec<T> = (0..fitness.len()).map(|i| fitness[i]).collect();
+        let constraints_vec: Vec<bool> = (0..constraints.len()).map(|i| constraints[i]).collect();
+        
+        let sum = fitness_vec
+            .par_iter()
+            .zip(constraints_vec.par_iter())
             .filter(|(_, &valid)| valid)
-            .fold(T::zero(), |acc, (&x, _)| acc + x);
+            .map(|(&x, _)| x)
+            .reduce(|| T::zero(), |acc, x| acc + x);
 
-        // Normalize and scale fitness to prevent very small residuals
         let scale = T::from_f64(self.num_parents as f64).unwrap();
         let mut expected_values = vec![T::zero(); fitness.len()];
         let mut residual_probabilities = vec![T::zero(); fitness.len()];
         let mut remaining_indices = Vec::new();
 
-        // Calculate expected values and residuals
         for (j, (&fit, &valid)) in fitness.iter().zip(constraints.iter()).enumerate() {
             if valid {
                 let expected = (fit / sum) * scale;
