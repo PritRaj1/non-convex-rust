@@ -150,9 +150,9 @@ fn test_pt_swap() {
 
     pt.swap();
 
-    assert_eq!(pt.population.len(), 10);
-    assert_eq!(pt.population[0].nrows(), 2);
-    assert_eq!(pt.population[0].ncols(), 2);
+    assert_eq!(pt.get_num_replicas(), 10);
+    assert_eq!(pt.get_replica_population(0).unwrap().nrows(), 2);
+    assert_eq!(pt.get_replica_population(0).unwrap().ncols(), 2);
 }
 
 #[test]
@@ -212,13 +212,13 @@ fn test_different_update_configurations() {
     let opt_prob_mh = OptProb::new(Box::new(obj_f_mh), Some(Box::new(constraints_mh)));
     let pt_mh = PT::new(pt_conf_mh, init_pop, opt_prob_mh, 5);
 
-    assert_eq!(pt_pcn.population.len(), 10);
-    assert_eq!(pt_mala.population.len(), 10);
-    assert_eq!(pt_mh.population.len(), 10);
+    assert_eq!(pt_pcn.get_num_replicas(), 10);
+    assert_eq!(pt_mala.get_num_replicas(), 10);
+    assert_eq!(pt_mh.get_num_replicas(), 10);
 
-    assert_eq!(pt_pcn.population[0].nrows(), 2);
-    assert_eq!(pt_mala.population[0].nrows(), 2);
-    assert_eq!(pt_mh.population[0].nrows(), 2);
+    assert_eq!(pt_pcn.get_replica_population(0).unwrap().nrows(), 2);
+    assert_eq!(pt_mala.get_replica_population(0).unwrap().nrows(), 2);
+    assert_eq!(pt_mh.get_replica_population(0).unwrap().nrows(), 2);
 }
 
 fn create_test_pt_pcn() -> PT<f64, nalgebra::Dyn, nalgebra::Dyn> {
@@ -441,9 +441,9 @@ fn test_preconditioner_with_infeasible_individuals() {
     let mut pt = create_test_pt_pcn();
 
     for replica_idx in 0..pt.get_num_replicas() {
-        pt.population[replica_idx][(0, 0)] = -1.0; // Outside QuadraticConstraints bounds
-        pt.population[replica_idx][(0, 1)] = 2.0; // Outside QuadraticConstraints bounds
-        pt.constraints[replica_idx][0] = false;
+        pt.replicas[replica_idx].population[(0, 0)] = -1.0; // Outside QuadraticConstraints bounds
+        pt.replicas[replica_idx].population[(0, 1)] = 2.0; // Outside QuadraticConstraints bounds
+        pt.replicas[replica_idx].constraints[0] = false;
     }
 
     let preconditioner: Box<dyn Preconditioner<f64, nalgebra::Dyn, nalgebra::Dyn> + Send + Sync> =
