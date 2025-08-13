@@ -77,8 +77,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     }
                 },
                 "update_conf": {
-                    "Auto": {}
+                "PCN": {
+                    "step_size": 0.2,
+                    "preconditioner": 1.0
                 }
+            }
             }
         }
     }

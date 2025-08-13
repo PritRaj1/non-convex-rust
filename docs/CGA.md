@@ -4,7 +4,7 @@
 
 <img src="../examples/gifs/cga_kbf.gif" width="200" alt="CGA Example">
 
-<p><b>Figure:</b> The Continous Genetic Algorithm (CGA) adapts the classic genetic algorithm for optimization in continuous (floating-point) search spaces.</p>
+<p><b>Figure:</b> The Continous Genetic Algorithm (CGA) adapts the classic genetic algorithm for optimization in continuous (floating-point) search spaces. Increase mutation or crossover to increase exploration. Decrease for exploitation. Use adaptive to handle this auto-magically.</p>
 
 </div>
 
