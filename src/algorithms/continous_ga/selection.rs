@@ -76,7 +76,7 @@ where
             let r = T::from_f64(rng.random_range(0.0..1.0)).unwrap();
             let mut cumsum = T::zero();
             let mut selected_individual = false;
-            
+
             for j in 0..population.nrows() {
                 if !constraints[j] {
                     continue; // Skip individuals that don't satisfy constraints
@@ -89,7 +89,7 @@ where
                     break;
                 }
             }
-            
+
             // Fallback - never called
             if !selected_individual {
                 for j in 0..population.nrows() {
@@ -144,7 +144,7 @@ where
         let valid_indices: Vec<usize> = (0..population.nrows())
             .filter(|&idx| constraints[idx])
             .collect();
-            
+
         if valid_indices.is_empty() {
             for i in 0..self.num_parents {
                 selected.set_row(i, &population.row(0));
@@ -157,7 +157,7 @@ where
             .map(|_| {
                 let mut local_rng = rand::rng();
                 let mut tournament_indices = Vec::new();
-                
+
                 let effective_tournament_size = self.tournament_size.min(valid_indices.len());
                 for _ in 0..effective_tournament_size {
                     let random_idx = local_rng.random_range(0..valid_indices.len());
@@ -224,7 +224,7 @@ where
 
         let fitness_vec: Vec<T> = (0..fitness.len()).map(|i| fitness[i]).collect();
         let constraints_vec: Vec<bool> = (0..constraints.len()).map(|i| constraints[i]).collect();
-        
+
         let sum = fitness_vec
             .par_iter()
             .zip(constraints_vec.par_iter())

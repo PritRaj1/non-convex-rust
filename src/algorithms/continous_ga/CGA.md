@@ -115,3 +115,4 @@ Default values, (only choices of selection and crossover must be specified):
 - [CGA is more akin to Evolutionary Strategies](https://arxiv.org/abs/1703.03864)
 - [However, it is still a GA](https://doi.org/10.1007/BFb0029787)
 - [Heuristic or blend crossover](https://doi.org/10.1007/978-3-662-03315-9)
+- [SBX crossover](https://content.wolfram.com/sites/13/2018/02/09-2-2.pdf)

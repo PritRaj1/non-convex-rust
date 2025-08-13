@@ -2,12 +2,16 @@
     "opt_conf": {
         "max_iter": 100,
         "rtol": "1e-6",
-        "atol": "1e-6"
+        "atol": "1e-6",
+        "stagnation_window": 50
     },
     "alg_conf": {
         "CGA": {
             "common": {
-                "num_parents": 5
+                "num_parents": 5,
+                "adaptive_parameters": true,
+                "success_history_size": 20,
+                "adaptation_rate": 0.1
             },
             "crossover": {
                 "Heuristic": {

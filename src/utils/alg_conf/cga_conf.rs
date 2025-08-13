@@ -12,12 +12,19 @@ pub struct CGAConf {
 pub struct CommonConf {
     #[serde(default = "default_num_parents")]
     pub num_parents: usize,
+    #[serde(default = "default_adaptive_parameters")]
+    pub adaptive_parameters: bool,
+    #[serde(default = "default_success_history_size")]
+    pub success_history_size: usize,
+    #[serde(default = "default_adaptation_rate")]
+    pub adaptation_rate: f64,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub enum CrossoverConf {
     Random(RandomCrossoverConf),
     Heuristic(HeuristicCrossoverConf),
+    SimulatedBinary(SimulatedBinaryCrossoverConf),
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
@@ -30,6 +37,14 @@ pub struct RandomCrossoverConf {
 pub struct HeuristicCrossoverConf {
     #[serde(default = "default_crossover_prob")]
     pub crossover_prob: f64,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct SimulatedBinaryCrossoverConf {
+    #[serde(default = "default_crossover_prob")]
+    pub crossover_prob: f64,
+    #[serde(default = "default_eta_c")]
+    pub eta_c: f64,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
@@ -109,4 +124,16 @@ fn default_b() -> f64 {
 }
 fn default_eta_m() -> f64 {
     20.0
+}
+fn default_eta_c() -> f64 {
+    15.0
+}
+fn default_adaptive_parameters() -> bool {
+    true
+}
+fn default_success_history_size() -> usize {
+    50
+}
+fn default_adaptation_rate() -> f64 {
+    0.1
 }
