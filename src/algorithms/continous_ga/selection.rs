@@ -72,16 +72,30 @@ where
         let mut rng = rand::rng();
 
         for i in 0..self.num_parents {
-            let mut r = T::from_f64(rng.random_range(0.0..1.0));
+            let r = T::from_f64(rng.random_range(0.0..1.0)).unwrap();
+            let mut cumsum = T::zero();
+            let mut selected_individual = false;
+            
             for j in 0..population.nrows() {
                 if !constraints[j] {
                     continue; // Skip individuals that don't satisfy constraints
                 }
 
-                r = Some(r.unwrap_or(T::zero()) - llhoods[j]);
-                if r <= Some(T::zero()) {
+                cumsum += llhoods[j];
+                if r <= cumsum {
                     selected.set_row(i, &population.row(j));
+                    selected_individual = true;
                     break;
+                }
+            }
+            
+            // Fallback - never called
+            if !selected_individual {
+                for j in 0..population.nrows() {
+                    if constraints[j] {
+                        selected.set_row(i, &population.row(j));
+                        break;
+                    }
                 }
             }
         }
@@ -129,17 +143,22 @@ where
 
         for i in 0..self.num_parents {
             let mut tournament_indices = Vec::new();
-
-            // Randomly select `tournament_size` valid individuals
-            while tournament_indices.len() < self.tournament_size {
-                let index = rng.random_range(0..population.nrows());
-                if constraints[index] {
-                    // Only add if it satisfies the constraint
-                    tournament_indices.push(index);
-                }
+            
+            let valid_indices: Vec<usize> = (0..population.nrows())
+                .filter(|&idx| constraints[idx])
+                .collect();
+                
+            if valid_indices.is_empty() {
+                selected.set_row(i, &population.row(0));
+                continue;
             }
 
-            // Find the best individual from the tournament
+            let effective_tournament_size = self.tournament_size.min(valid_indices.len());
+            for _ in 0..effective_tournament_size {
+                let random_idx = rng.random_range(0..valid_indices.len());
+                tournament_indices.push(valid_indices[random_idx]);
+            }
+
             let mut best_idx = tournament_indices[0];
             let mut best_fitness = fitness[best_idx];
 

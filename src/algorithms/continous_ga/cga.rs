@@ -160,19 +160,28 @@ where
             T::from_f64(10.0).unwrap(),
         );
 
-        let bounds = (
-            self.opt_prob
-                .objective
-                .x_lower_bound(&offspring.row(0).transpose())
-                .unwrap_or(fallback_vec_lower)[0],
-            self.opt_prob
-                .objective
-                .x_upper_bound(&offspring.row(0).transpose())
-                .unwrap_or(fallback_vec_upper)[0],
-        );
+        // Get bounds once using first individual as representative
+        let sample_individual = offspring.row(0).transpose();
+        let lower_bounds = self.opt_prob
+            .objective
+            .x_lower_bound(&sample_individual)
+            .unwrap_or(fallback_vec_lower);
+        let upper_bounds = self.opt_prob
+            .objective
+            .x_upper_bound(&sample_individual)
+            .unwrap_or(fallback_vec_upper);
+
+        // TODO: Extend mutation operators to handle per-dimension bounds
+        let bounds = (lower_bounds[0], upper_bounds[0]);
+
+        // Pre-allocate
+        let mut individual = OVector::<T, D>::zeros_generic(D::from_usize(offspring.ncols()), U1);
 
         for i in 0..offspring.nrows() {
-            let individual = offspring.row(i).transpose();
+            for j in 0..offspring.ncols() {
+                individual[j] = offspring[(i, j)];
+            }
+            
             let mutated = self.mutation.mutate(&individual, bounds, self.st.iter);
             offspring.set_row(i, &mutated.transpose());
         }
@@ -196,24 +205,22 @@ where
         );
 
         // Elitism: Keep the best individual from previous generation
-        let mut best_old_idx = 0;
-        let mut best_old_fitness = self.st.fitness[0];
-        for i in 1..self.st.fitness.len() {
-            if self.st.fitness[i] > best_old_fitness && self.st.constraints[i] {
-                best_old_idx = i;
-                best_old_fitness = self.st.fitness[i];
-            }
-        }
+        let (best_old_idx, best_old_fitness) = self.st.fitness
+            .iter()
+            .zip(self.st.constraints.iter())
+            .enumerate()
+            .filter(|(_, (_, &constraint))| constraint)
+            .max_by(|(_, (&fit_a, _)), (_, (&fit_b, _))| fit_a.partial_cmp(&fit_b).unwrap_or(std::cmp::Ordering::Equal))
+            .map(|(idx, (&fitness, _))| (idx, fitness))
+            .unwrap_or((0, self.st.fitness[0]));
 
         // Replace worst offspring with best old individual if better
-        let mut worst_new_idx = 0;
-        let mut worst_new_fitness = new_fitness[0];
-        for i in 1..new_fitness.len() {
-            if new_fitness[i] < worst_new_fitness {
-                worst_new_idx = i;
-                worst_new_fitness = new_fitness[i];
-            }
-        }
+        let (worst_new_idx, worst_new_fitness) = new_fitness
+            .iter()
+            .enumerate()
+            .min_by(|(_, &fit_a), (_, &fit_b)| fit_a.partial_cmp(&fit_b).unwrap_or(std::cmp::Ordering::Equal))
+            .map(|(idx, &fitness)| (idx, fitness))
+            .unwrap_or((0, new_fitness[0]));
 
         if best_old_fitness > worst_new_fitness {
             offspring.set_row(worst_new_idx, &self.st.pop.row(best_old_idx));
@@ -225,11 +232,18 @@ where
         self.st.fitness = new_fitness;
         self.st.constraints = new_constraints;
 
-        for i in 0..self.st.fitness.len() {
-            if self.st.fitness[i] > self.st.best_f && self.st.constraints[i] {
-                self.st.best_f = self.st.fitness[i];
-                self.st.best_x = self.st.pop.row(i).transpose();
-            }
+        let (new_best_idx, new_best_fitness) = self.st.fitness
+            .iter()
+            .zip(self.st.constraints.iter())
+            .enumerate()
+            .filter(|(_, (_, &constraint))| constraint)
+            .max_by(|(_, (&fit_a, _)), (_, (&fit_b, _))| fit_a.partial_cmp(&fit_b).unwrap_or(std::cmp::Ordering::Equal))
+            .map(|(idx, (&fitness, _))| (idx, fitness))
+            .unwrap_or((0, self.st.fitness[0]));
+
+        if new_best_fitness > self.st.best_f {
+            self.st.best_f = new_best_fitness;
+            self.st.best_x = self.st.pop.row(new_best_idx).transpose();
         }
 
         self.st.iter += 1;

@@ -4,7 +4,7 @@
 
 <img src="../examples/gifs/cmaes_kbf.gif" width="200" alt="CMA-ES Example">
 
-<p><b>Figure:</b> CMA-ES is a stochastic, derivative-free algorithm for difficult non-linear non-convex problems in continuous domains. It is particularly well suited for ill-conditioned and non-separable problems.</p>
+<p><b>Figure:</b> CMA-ES is a stochastic, derivative-free algorithm for difficult non-linear non-convex problems in continuous domains. It's good for ill-conditioned and non-separable problems.</p>
 
 </div>
 
