@@ -49,7 +49,7 @@ Fully-defined:
         "CGA": {
             "common": {
                 "num_parents": 2,
-                "adaptive_parameters": true,
+                "adaptive_parameters": true, // adjusts mutation and crossover to balance exploration vs exploitation
                 "success_history_size": 50,
                 "adaptation_rate": 0.1
             },

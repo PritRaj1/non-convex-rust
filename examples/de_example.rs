@@ -19,7 +19,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "opt_conf": {
             "max_iter": 50,
             "rtol": "1e-6",
-            "atol": "1e-6",
+            "atol": "0.0",
             "rtol_max_iter_fraction": 1.0
         },
         "alg_conf": {
@@ -34,7 +34,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         "f_min": 0.4,
                         "f_max": 0.9,
                         "cr_min": 0.1,
-                        "cr_max": 0.9
+                        "cr_max": 0.9,
+                        "use_jade": false,
+                        "memory_size": 5,
+                        "learning_rate": 0.1
                     }
                 }
             }

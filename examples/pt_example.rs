@@ -58,7 +58,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "opt_conf": {
             "max_iter": 100,
             "rtol": "1e-6",
-            "atol": "1e-6"
+            "atol": "0.0"
         },
         "alg_conf": {
             "PT": {
@@ -67,13 +67,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     "power_law_init": 2.0,
                     "power_law_final": 0.5,
                     "power_law_cycles": 0,
-                    "alpha": 0.2,
+                    "alpha": 0.3,
                     "omega": 2.1,
                     "mala_step_size": 0.1
                 },
                 "swap_conf": {
                     "Periodic": {
-                        "swap_frequency": 0.2
+                        "swap_frequency": 0.3
                     }
                 },
                 "update_conf": {

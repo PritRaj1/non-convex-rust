@@ -42,6 +42,12 @@ pub struct AdaptiveConf {
     pub cr_min: f64,
     #[serde(default = "default_cr_max")]
     pub cr_max: f64,
+    #[serde(default = "default_use_jade")]
+    pub use_jade: bool,
+    #[serde(default = "default_memory_size")]
+    pub memory_size: usize,
+    #[serde(default = "default_learning_rate")]
+    pub learning_rate: f64,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
@@ -79,4 +85,13 @@ fn default_cr_max() -> f64 {
 }
 fn default_success_history_size() -> usize {
     50
+}
+fn default_use_jade() -> bool {
+    true
+}
+fn default_memory_size() -> usize {
+    5
+}
+fn default_learning_rate() -> f64 {
+    0.1
 }

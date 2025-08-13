@@ -58,6 +58,9 @@ fn test_adaptive_de() {
             f_max: 0.9,
             cr_min: 0.1,
             cr_max: 0.9,
+            use_jade: false,
+            memory_size: 5,
+            learning_rate: 0.1,
         }),
     };
 
