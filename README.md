@@ -10,7 +10,7 @@ Sources/links to more information in the respective algorithm .md files.
 | Algorithm | Status |
 |-----------|---------------|
 | [Continuous Genetic Algorithm (CGA)](./src/algorithms/continous_ga/CGA.md) | [✘] |
-| [Parallel Tempering (PT)](./src/algorithms/parallel_tempering/PT.md) | [✘] |
+| [Parallel Tempering (PT)](./docs/PT.md) | [✓] |
 | [Tabu Search (TS)](./src/algorithms/tabu_search/TS.md) | [✘] |
 | [Greedy Randomized Adaptive Search Procedure (GRASP)](./src/algorithms/grasp/GRASP.md) | [✘] |
 | [Adam](./src/algorithms/adam/ADAM.md) | [✘] |
@@ -20,7 +20,7 @@ Sources/links to more information in the respective algorithm .md files.
 | [Multi-Swarm Particle Optimization (MSPO)](./src/algorithms/multi_swarm/MSPO.md) | [✘] |
 | [Simulated Annealing (SA)](./src/algorithms/simulated_annealing/SA.md) | [✘] |
 | [Differential Evolution (DE)](./src/algorithms/differential_evolution/DE.md) | [✘] |
-| [Covariance Matrix Adaptation Evolution Strategy (CMA-ES)](./src/algorithms/cma_es/CMA_ES.md) | [✘] |
+| [Covariance Matrix Adaptation Evolution Strategy (CMA-ES)](./docs/CMA_ES.md) | [✓] |
 
 ## Installation
 

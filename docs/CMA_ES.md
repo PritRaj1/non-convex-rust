@@ -2,7 +2,7 @@
 
 <div align="center">
 
-<img src="../../../examples/gifs/cmaes_kbf.gif" width="200" alt="CMA-ES Example">
+<img src="../examples/gifs/cmaes_kbf.gif" width="200" alt="CMA-ES Example">
 
 <p><b>Figure:</b> CMA-ES is a stochastic, derivative-free algorithm for difficult non-linear non-convex problems in continuous domains. It is particularly well suited for ill-conditioned and non-separable problems.</p>
 
@@ -132,4 +132,5 @@ Default values:
 ## Sources and more information
 
 - [CMA-ES + great bibliography](https://cma-es.github.io/)
-- [Power iteration eigen decomposition](https://en.wikipedia.org/wiki/Power_iteration)
+- [Power iteration eigen decomposition, (not used, but potential FPGA avenue)](https://en.wikipedia.org/wiki/Power_iteration)
+- [Active cov adaption, (negative weights)](https://ieeexplore.ieee.org/document/1688662)

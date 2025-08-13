@@ -2,7 +2,7 @@
 
 <div align="center">
 
-<img src="../../../examples/gifs/pt_kbf.gif" width="1000" alt="PT Example">
+<img src="../examples/gifs/pt_kbf.gif" width="1000" alt="PT Example">
 
 <p><b>Figure:</b> Parallel Tempering (Replica Exchange Monte Carlo) runs multiple copies ("replicas") of the system at different temperatures in parallel. Replicas periodically attempt to swap states, allowing high-temperature replicas to explore broadly and low-temperature replicas to refine solutions. Each replica can use different updates depending on the problem/conf setup.</p>
 

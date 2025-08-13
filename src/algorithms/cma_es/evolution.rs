@@ -83,12 +83,15 @@ where
     pub old_mean: &'a OVector<T, D>,
     pub c1: T,
     pub cmu: T,
+    pub cmu_neg: T,
     pub cc: T,
     pub mueff: T,
     pub population: &'a OMatrix<T, N, D>,
     pub weights: &'a OVector<T, Dyn>,
+    pub weights_negative: &'a Option<OVector<T, Dyn>>,
     pub sigma: T,
     pub mu: usize,
+    pub mu_neg: usize,
     pub n: usize,
 }
 
@@ -134,7 +137,7 @@ pub fn update_covariance<T: FloatNum + RealField, N: Dim, D>(
         }
     }
 
-    // Rank-mu update
+    // Rank-mu update (positive weights)
     for k in 0..params.mu {
         if k >= params.indices.len() || k >= params.weights.len() {
             continue;
@@ -159,6 +162,39 @@ pub fn update_covariance<T: FloatNum + RealField, N: Dim, D>(
                 c_mat_new[(i, j)] += val;
                 if i != j {
                     c_mat_new[(j, i)] += val;
+                }
+            }
+        }
+    }
+
+    // Active CMA-ES: Rank-mu update with negative weights
+    if let Some(ref weights_neg) = params.weights_negative {
+        for k in 0..params.mu_neg {
+            let neg_idx = params.mu + k;
+            if neg_idx >= params.indices.len() || k >= weights_neg.len() {
+                continue;
+            }
+            let idx = params.indices[neg_idx];
+            if idx >= params.population.nrows() {
+                continue;
+            }
+            let w_neg = weights_neg[k]; // This is already negative
+
+            let mut y_k: OVector<T, D> = OVector::zeros_generic(D::from_usize(params.n), U1);
+            for i in 0..params.n {
+                if i < params.population.ncols() {
+                    y_k[i] = (params.population[(idx, i)] - params.old_mean[i]) / params.sigma;
+                }
+            }
+
+            // Negative push away from bad solutions
+            for i in 0..params.n {
+                for j in i..params.n {
+                    let val = params.cmu_neg * w_neg * y_k[i] * y_k[j];
+                    c_mat_new[(i, j)] += val;
+                    if i != j {
+                        c_mat_new[(j, i)] += val;
+                    }
                 }
             }
         }

@@ -11,13 +11,17 @@ where
     DefaultAllocator: Allocator<Dyn>,
 {
     pub weights: OVector<T, Dyn>,
+    pub weights_negative: Option<OVector<T, Dyn>>,
     pub mu: usize,
     pub lambda: usize,
+    pub mu_neg: usize,
     pub mueff: T,
+    pub mueff_neg: T,
     pub cc: T,
     pub cs: T,
     pub c1: T,
     pub cmu: T,
+    pub cmu_neg: T,
     pub damps: T,
     pub chi_n: T,
 }
@@ -38,6 +42,25 @@ impl<T: FloatNum> Parameters<T> {
         let mueff = T::one() / weights.map(|w| w * w).sum();
         let n_f = T::from_f64(n as f64).unwrap();
 
+        let (weights_negative, mu_neg, mueff_neg, cmu_neg) = if conf.use_active_cma {
+            let mu_neg = (T::from_f64(conf.active_cma_ratio).unwrap()
+                * T::from_f64(lambda as f64).unwrap())
+            .floor()
+            .to_usize()
+            .unwrap()
+            .min(lambda - mu);
+            if mu_neg > 0 {
+                let weights_neg = Self::compute_negative_weights(mu, mu_neg, lambda);
+                let mueff_neg = T::one() / weights_neg.map(|w| w * w).sum();
+                let cmu_neg = Self::compute_negative_learning_rate(mueff_neg, n_f);
+                (Some(weights_neg), mu_neg, mueff_neg, cmu_neg)
+            } else {
+                (None, 0, T::zero(), T::zero())
+            }
+        } else {
+            (None, 0, T::zero(), T::zero())
+        };
+
         let (cc, cs) = Self::compute_time_constants(mueff, n_f);
         let (c1, cmu) = Self::compute_learning_rates(mueff, n_f);
         let damps = Self::compute_damping(mueff, n_f, cs);
@@ -45,13 +68,17 @@ impl<T: FloatNum> Parameters<T> {
 
         Self {
             weights,
+            weights_negative,
             mu,
             lambda,
+            mu_neg,
             mueff,
+            mueff_neg,
             cc,
             cs,
             c1,
             cmu,
+            cmu_neg,
             damps,
             chi_n,
         }
@@ -106,5 +133,36 @@ impl<T: FloatNum> Parameters<T> {
         T::sqrt(n_f)
             * (T::one() - T::one() / (T::from_f64(4.0).unwrap() * n_f)
                 + T::one() / (T::from_f64(21.0).unwrap() * n_f.powi(2)))
+    }
+
+    fn compute_negative_weights(mu: usize, mu_neg: usize, lambda: usize) -> OVector<T, Dyn>
+    where
+        DefaultAllocator: Allocator<Dyn>,
+    {
+        let mut weights_neg: OVector<T, Dyn> =
+            OVector::from_element_generic(Dyn::from_usize(mu_neg), U1, T::zero());
+
+        // Starting from rank mu+1 (0-indexed: mu) to rank mu+mu_neg
+        for i in 0..mu_neg {
+            let rank = mu + i + 1; // 1-indexed rank
+            weights_neg[i] = -T::ln(T::from_f64((lambda as f64 + 1.0) / 2.0).unwrap())
+                + T::ln(T::from_f64(rank as f64).unwrap());
+        }
+
+        let sum_neg = -weights_neg.sum();
+        if sum_neg > T::zero() {
+            weights_neg /= sum_neg;
+            weights_neg *= -T::one(); // Ensure negative
+        }
+
+        weights_neg
+    }
+
+    /// Ssmaller than the positive lr to avoid instability
+    fn compute_negative_learning_rate(mueff_neg: T, n_f: T) -> T {
+        let alpha_neg = T::from_f64(0.4).unwrap(); // Damping
+        let cmu_neg_base = T::from_f64(2.0).unwrap() * mueff_neg
+            / ((n_f + T::from_f64(2.0).unwrap()).powi(2) + mueff_neg);
+        T::min(alpha_neg, cmu_neg_base)
     }
 }

@@ -44,15 +44,19 @@ where
     pub weights: OVector<T, Dyn>, // Recombination weights
 
     // Derived values
-    pub mu: usize,     // Number of parents < λ
-    pub lambda: usize, // Population size
-    pub mueff: T,      // Variance effective selection mass
-    pub cc: T,         // Time constant for cumulation for c_mat
-    pub cs: T,         // Time constant for cumulation for sigma
-    pub c1: T,         // Learning rate for rank-one update
-    pub cmu: T,        // Learning rate for rank-mu update
-    pub damps: T,      // Damping for sigma
-    pub chi_n: T,      // Expected norm of N(0,I)
+    pub mu: usize,                                 // Number of parents < λ
+    pub lambda: usize,                             // Population size
+    pub mu_neg: usize,                             // Number of negative weights for Active CMA-ES
+    pub mueff: T,                                  // Variance effective selection mass
+    pub mueff_neg: T,                              // Effective mass for negative weights
+    pub cc: T,                                     // Time constant for cumulation for c_mat
+    pub cs: T,                                     // Time constant for cumulation for sigma
+    pub c1: T,                                     // Learning rate for rank-one update
+    pub cmu: T,                                    // Learning rate for rank-mu update
+    pub cmu_neg: T,                                // Learning rate for negative weights
+    pub damps: T,                                  // Damping for sigma
+    pub chi_n: T,                                  // Expected norm of N(0,I)
+    pub weights_negative: Option<OVector<T, Dyn>>, // Negative weights for Active CMA-ES
 }
 
 impl<T, N, D> CMAES<T, N, D>
@@ -141,13 +145,17 @@ where
             d_vec: OVector::from_element_generic(D::from_usize(n), U1, T::one()),
             sigma: T::from_f64(conf.initial_sigma).unwrap(),
             weights: params.weights,
+            weights_negative: params.weights_negative,
             mu: params.mu,
             lambda: params.lambda,
+            mu_neg: params.mu_neg,
             mueff: params.mueff,
+            mueff_neg: params.mueff_neg,
             cc: params.cc,
             cs: params.cs,
             c1: params.c1,
             cmu: params.cmu,
+            cmu_neg: params.cmu_neg,
             damps: params.damps,
             chi_n: params.chi_n,
         }
@@ -242,12 +250,15 @@ where
             old_mean: &old_mean,
             c1: self.c1,
             cmu: self.cmu,
+            cmu_neg: self.cmu_neg,
             cc: self.cc,
             mueff: self.mueff,
             population: &self.st.pop,
             weights: &self.weights,
+            weights_negative: &self.weights_negative,
             sigma: self.sigma,
             mu: self.mu,
+            mu_neg: self.mu_neg,
             n,
         };
         update_covariance(&mut cov_params);
