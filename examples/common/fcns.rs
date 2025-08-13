@@ -20,6 +20,14 @@ where
 
         (sum_cos4 - 2.0 * prod_cos2).abs() / sum_ix2.sqrt()
     }
+
+    fn x_lower_bound(&self, _x: &SVector<f64, 2>) -> Option<SVector<f64, 2>> {
+        Some(SVector::from_vec(vec![0.0, 0.0]))
+    }
+
+    fn x_upper_bound(&self, _x: &SVector<f64, 2>) -> Option<SVector<f64, 2>> {
+        Some(SVector::from_vec(vec![10.0, 10.0]))
+    }
 }
 
 #[allow(dead_code)]

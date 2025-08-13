@@ -201,18 +201,18 @@ where
 
         let adaptation_rate = self.conf.common.adaptation_rate;
 
-        if success_rate < 0.1 && avg_improvement < 1e-6 {
-            self.current_mutation_rate *= 1.0 + adaptation_rate; // Low success - increase exploration
-        } else if success_rate > 0.4 && avg_improvement > 1e-4 {
-            self.current_mutation_rate *= 1.0 - adaptation_rate * 0.5; // High success - fine-tune
+        if success_rate < 0.2 || avg_improvement < 1e-6 {
+            self.current_mutation_rate *= 1.0 + adaptation_rate; // Low success or stagnation - increase exploration
+        } else if success_rate > 0.6 && avg_improvement > 1e-4 {
+            self.current_mutation_rate *= 1.0 - adaptation_rate * 0.3; // High success - fine-tune
         }
 
         self.current_mutation_rate = self.current_mutation_rate.clamp(0.001, 0.5);
 
-        if success_rate < 0.15 {
-            self.current_crossover_prob *= 1.0 - adaptation_rate * 0.5; // Low success - reduce crossover
-        } else if success_rate > 0.3 {
-            self.current_crossover_prob *= 1.0 + adaptation_rate * 0.3; // Hight success - increase crossover
+        if success_rate < 0.2 {
+            self.current_crossover_prob *= 1.0 - adaptation_rate * 0.3; // Low success - reduce crossover slightly
+        } else if success_rate > 0.5 {
+            self.current_crossover_prob *= 1.0 + adaptation_rate * 0.2; // High success - increase crossover
         }
 
         self.current_crossover_prob = self.current_crossover_prob.clamp(0.1, 0.95);
@@ -268,6 +268,10 @@ where
                 .objective
                 .x_upper_bound(&sample_individual)
                 .unwrap_or_else(|| self.cached_bounds_upper.clone());
+
+            self.cached_bounds_lower = lower_bounds.clone();
+            self.cached_bounds_upper = upper_bounds.clone();
+            self.bounds_cached = true;
 
             (lower_bounds[0], upper_bounds[0])
         } else {
@@ -363,6 +367,7 @@ where
 
         self.track_success(previous_best, self.st.best_f);
         let generation_improvement = (self.st.best_f - previous_best).to_f64().unwrap_or(0.0);
+
         self.adapt_parameters(generation_improvement);
 
         self.st.iter += 1;

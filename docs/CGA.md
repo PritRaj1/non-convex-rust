@@ -2,7 +2,7 @@
 
 <div align="center">
 
-<img src="../../../examples/gifs/cga_kbf.gif" width="200" alt="CGA Example">
+<img src="../examples/gifs/cga_kbf.gif" width="200" alt="CGA Example">
 
 <p><b>Figure:</b> The Continous Genetic Algorithm (CGA) adapts the classic genetic algorithm for optimization in continuous (floating-point) search spaces.</p>
 
@@ -48,7 +48,10 @@ Fully-defined:
     "alg_conf": {
         "CGA": {
             "common": {
-                "num_parents": 2
+                "num_parents": 2,
+                "adaptive_parameters": true,
+                "success_history_size": 50,
+                "adaptation_rate": 0.1
             },
             "selection": {
                 "Tournament": { 
@@ -64,7 +67,14 @@ Fully-defined:
                     "crossover_prob": 0.8
                 }
                 // or
-                "Random": {}
+                "Random": {
+                    "crossover_prob": 0.8
+                }
+                // or
+                "SimulatedBinary": {
+                    "crossover_prob": 0.8,
+                    "eta_c": 15.0
+                }
             },
             "mutation": {
                 "NonUniform": {

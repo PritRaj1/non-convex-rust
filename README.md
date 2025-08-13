@@ -9,7 +9,7 @@ Sources/links to more information in the respective algorithm .md files.
 
 | Algorithm | Status |
 |-----------|---------------|
-| [Continuous Genetic Algorithm (CGA)](./src/algorithms/continous_ga/CGA.md) | [✘] |
+| [Continuous Genetic Algorithm (CGA)](./docs/CGA.md) | [✓] |
 | [Parallel Tempering (PT)](./docs/PT.md) | [✓] |
 | [Tabu Search (TS)](./src/algorithms/tabu_search/TS.md) | [✘] |
 | [Greedy Randomized Adaptive Search Procedure (GRASP)](./src/algorithms/grasp/GRASP.md) | [✘] |

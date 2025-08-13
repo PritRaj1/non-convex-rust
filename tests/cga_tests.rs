@@ -109,15 +109,13 @@ fn test_adaptive_parameters() {
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
     let mut cga = CGA::new(cga_conf, init_pop, opt_prob, 10);
 
-    let (initial_mut_rate, initial_cross_prob) = cga.get_current_parameters();
-    
     // Run some steps to trigger adaptation
     for _ in 0..10 {
         cga.step();
     }
 
     let (final_mut_rate, final_cross_prob) = cga.get_current_parameters();
-    
+
     // Parameters should be finite and within reasonable bounds
     assert!(final_mut_rate.is_finite());
     assert!(final_cross_prob.is_finite());

@@ -18,16 +18,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config_json = r#"
     {
         "opt_conf": {
-            "max_iter": 100,
-            "rtol": "1e-6",
-            "atol": "1e-6",
-            "rtol_max_iter_fraction": 1.0
+            "max_iter": 50,
+            "rtol": "1e-8",
+            "atol": "0",
+            "rtol_max_iter_fraction": 1.0,
+            "stagnation_window": 100
         },
         "alg_conf": {
             "CGA": {
-                "common": {
-                    "num_parents": 40
-                },
+                            "common": {
+                "num_parents": 40,
+                "adaptive_parameters": true,
+                "success_history_size": 20,
+                "adaptation_rate": 0.1
+            },
                 "crossover": {
                     "Heuristic": {
                         "crossover_prob": 0.5
@@ -38,7 +42,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 },
                 "mutation": {
                     "NonUniform": {
-                        "mutation_rate": 0.1,
+                        "mutation_rate": 0.3,
                         "b": 5.0
                     }
                 }
@@ -66,7 +70,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let color_palette = get_color_palette();
     let mut encoder = setup_gif("examples/gifs/cga_kbf.gif")?;
 
-    for frame in 0..10 {
+    for frame in 0..50 {
         let mut chart = setup_chart(
             frame,
             "CGA",
@@ -110,7 +114,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let mut frame = Frame::default();
         frame.width = 800;
         frame.height = 800;
-        frame.delay = 40;
+        frame.delay = 8;
         frame.buffer = std::borrow::Cow::from(indexed_pixels);
         encoder.write_frame(&frame)?;
 

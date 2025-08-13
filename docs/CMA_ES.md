@@ -113,7 +113,9 @@ Fully-defined:
     "alg_conf": {
         "CMAES": {
             "num_parents": 50,
-            "initial_sigma": 1.5
+            "initial_sigma": 1.5,
+            "use_active_cma": true,
+            "active_cma_ratio": 0.25
         }
     }
 }

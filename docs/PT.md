@@ -45,7 +45,10 @@ Fully-defined:
                 "power_law_cycles": 1,
                 "alpha": 0.1,
                 "omega": 2.1,
-                "mala_step_size": 0.1
+                "mala_step_size": 0.1,
+                "acceptance_rate_smoothing": 0.1,
+                "swap_rate_smoothing": 0.1,
+                "random_swap_probability": 0.05
             },
             "swap_conf": {
                 "Always": {}

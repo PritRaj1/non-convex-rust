@@ -157,7 +157,7 @@ where
         let improvement = current_best - previous_best;
         let abs_improvement = num_traits::Float::abs(improvement);
 
-        let abs_converged = abs_improvement <= atol;
+        let abs_converged = abs_improvement < atol;
 
         let rel_converged = if num_traits::Float::abs(current_best) > T::from_f64(1e-10).unwrap() {
             abs_improvement / num_traits::Float::abs(current_best) <= rtol
@@ -173,7 +173,7 @@ where
             let stagnation_improvement = current_best - oldest_in_window;
             let abs_stagnation_improvement = num_traits::Float::abs(stagnation_improvement);
 
-            abs_stagnation_improvement <= atol
+            abs_stagnation_improvement < atol
                 || (num_traits::Float::abs(current_best) > T::from_f64(1e-10).unwrap()
                     && abs_stagnation_improvement / num_traits::Float::abs(current_best) <= rtol)
         } else {
