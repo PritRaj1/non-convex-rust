@@ -22,6 +22,10 @@ pub struct MSPOConf {
     pub exchange_ratio: f64, // Fraction of particles to exchange information
     #[serde(default = "default_improvement_threshold")]
     pub improvement_threshold: f64, // Minimum relative improvement needed for exchange
+    #[serde(default = "default_inertia_start")]
+    pub inertia_start: f64, // Starting inertia weight for adaptive calculation
+    #[serde(default = "default_inertia_end")]
+    pub inertia_end: f64, // Ending inertia weight for adaptive calculation
 }
 
 fn default_num_swarms() -> usize {
@@ -54,3 +58,11 @@ fn default_exchange_ratio() -> f64 {
 fn default_improvement_threshold() -> f64 {
     0.1
 } // 10% improvement needed by default
+
+fn default_inertia_start() -> f64 {
+    0.9
+}
+
+fn default_inertia_end() -> f64 {
+    0.4
+}

@@ -130,7 +130,12 @@ where
                 init_pop.row(0).into_owned(),
                 opt_prob,
             )),
-            AlgConf::MSPO(mspo_conf) => Box::new(MSPO::new(mspo_conf, init_pop, opt_prob)),
+            AlgConf::MSPO(mspo_conf) => Box::new(MSPO::new(
+                mspo_conf,
+                init_pop,
+                opt_prob,
+                conf.opt_conf.max_iter,
+            )),
             AlgConf::SA(sa_conf) => Box::new(SimulatedAnnealing::new(
                 sa_conf,
                 init_pop.row(0).into_owned(),

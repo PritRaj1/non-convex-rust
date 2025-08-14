@@ -12,6 +12,8 @@ where
     pub velocity: OVector<T, D>,
     pub best_position: OVector<T, D>,
     pub best_fitness: T,
+    pub improvement_counter: usize,
+    pub stagnation_counter: usize,
 }
 
 impl<T: FloatNum, D: Dim> Particle<T, D>
@@ -24,6 +26,8 @@ where
             velocity,
             best_position: position,
             best_fitness: fitness,
+            improvement_counter: 0,
+            stagnation_counter: 0,
         }
     }
 
@@ -46,19 +50,29 @@ where
             let cognitive = c1 * r1 * (self.best_position[i] - self.position[i]);
             let social = c2 * r2 * (global_best[i] - self.position[i]);
 
-            // Add velocity clamping
-            let v_max = (bounds.1 - bounds.0) * T::from_f64(0.1).unwrap();
+            // Clamp based on search space size
+            let search_space_size = bounds.1 - bounds.0;
+            let v_max = search_space_size * T::from_f64(0.2).unwrap(); // More aggressive clamping
+
             self.velocity[i] = (w * self.velocity[i] + cognitive + social).clamp(-v_max, v_max);
         }
 
-        // Update position with bounds checking only
+        // Reflective boundary
         let new_positions: Vec<T> = self
             .position
             .iter()
             .zip(self.velocity.iter())
             .map(|(&p, &v)| {
                 let new_pos = p + v;
-                new_pos.clamp(bounds.0, bounds.1)
+                if new_pos < bounds.0 {
+                    let reflected_pos = bounds.0 + (bounds.0 - new_pos);
+                    reflected_pos.clamp(bounds.0, bounds.1)
+                } else if new_pos > bounds.1 {
+                    let reflected_pos = bounds.1 - (new_pos - bounds.1);
+                    reflected_pos.clamp(bounds.0, bounds.1)
+                } else {
+                    new_pos
+                }
             })
             .collect();
 
@@ -74,6 +88,23 @@ where
         if new_fitness > self.best_fitness && opt_prob.is_feasible(&self.position) {
             self.best_fitness = new_fitness;
             self.best_position = self.position.clone();
+            self.improvement_counter += 1;
+            self.stagnation_counter = 0;
+        } else {
+            self.stagnation_counter += 1;
         }
+    }
+
+    pub fn is_stagnated(&self, threshold: usize) -> bool {
+        self.stagnation_counter > threshold
+    }
+
+    // Iterations since last improvement
+    pub fn age(&self) -> usize {
+        self.stagnation_counter
+    }
+
+    pub fn reset_stagnation(&mut self) {
+        self.stagnation_counter = 0;
     }
 }

@@ -55,6 +55,9 @@ fn test_swarm_initialization() {
         bounds: (-10.0, 10.0),
         opt_prob: &opt_prob,
         init_pop,
+        inertia_start: 0.9,
+        inertia_end: 0.4,
+        max_iterations: 100,
     });
 
     assert_eq!(swarm.particles.len(), 10);
@@ -83,6 +86,9 @@ fn test_swarm_update() {
         bounds: (-10.0, 10.0),
         opt_prob: &opt_prob,
         init_pop,
+        inertia_start: 0.9,
+        inertia_end: 0.4,
+        max_iterations: 100,
     });
 
     let initial_best = swarm.global_best_fitness;
@@ -140,7 +146,7 @@ fn test_mspo() {
     let constraints = RosenbrockConstraints {};
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
 
-    let mut mspo = MSPO::new(mspo_conf, init_pop, opt_prob);
+    let mut mspo = MSPO::new(mspo_conf, init_pop, opt_prob, 100);
     let initial_fitness = mspo.st.best_f;
 
     for _ in 0..20 {
