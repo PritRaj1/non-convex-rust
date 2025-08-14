@@ -6,8 +6,6 @@ pub struct MSPOConf {
     pub num_swarms: usize,
     #[serde(default = "default_swarm_size")]
     pub swarm_size: usize,
-    #[serde(default = "default_w")]
-    pub w: f64, // Inertia weight
     #[serde(default = "default_c1")]
     pub c1: f64, // Cognitive coefficient
     #[serde(default = "default_c2")]
@@ -34,9 +32,7 @@ fn default_num_swarms() -> usize {
 fn default_swarm_size() -> usize {
     50
 }
-fn default_w() -> f64 {
-    0.729
-} // Clerc's constriction coefficient
+
 fn default_c1() -> f64 {
     2.05
 }

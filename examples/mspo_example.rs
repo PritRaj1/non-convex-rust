@@ -25,9 +25,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         },
         "alg_conf": {
             "MSPO": {
-                "num_swarms": 20,
-                "swarm_size": 5,
-                "w": 0.729,
+                "num_swarms": 10,
+                "swarm_size": 10,
                 "c1": 1.5,
                 "c2": 1.5,
                 "x_min": 0.0,
@@ -35,7 +34,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 "exchange_interval": 20,
                 "exchange_ratio": 0.05,
                 "inertia_start": 0.9,
-                "inertia_end": 0.4
+                "inertia_end": 0.7
             }
         }
     }"#;

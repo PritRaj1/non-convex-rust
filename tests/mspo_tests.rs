@@ -49,7 +49,6 @@ fn test_swarm_initialization() {
     let swarm = Swarm::new(SwarmConfig {
         num_particles: 10,
         dim: 2,
-        w: 0.729f64,
         c1: 2.05,
         c2: 2.05,
         bounds: (-10.0, 10.0),
@@ -80,7 +79,6 @@ fn test_swarm_update() {
     let mut swarm = Swarm::new(SwarmConfig {
         num_particles: 10,
         dim: 2,
-        w: 0.729f64,
         c1: 2.05,
         c2: 2.05,
         bounds: (-10.0, 10.0),
@@ -116,7 +114,6 @@ fn test_mspo() {
             "MSPO": {
                 "num_swarms": 5,
                 "swarm_size": 10,
-                "w": 0.729,
                 "c1": 2.05,
                 "c2": 2.05,
                 "x_min": -10.0,

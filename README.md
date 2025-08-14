@@ -17,7 +17,7 @@ Sources/links to more information in the respective algorithm .md files.
 | [Stochastic Gradient Ascent (SGA)](./src/algorithms/sg_ascent/SGA.md) | [✘] |
 | [Nelder-Mead](./src/algorithms/nelder_mead/NM.md) | [✘] |
 | [Limited Memory BFGS (L-BFGS)](./src/algorithms/limited_memory_bfgs/LBFGS.md) | [✘] |
-| [Multi-Swarm Particle Optimization (MSPO)](./src/algorithms/multi_swarm/MSPO.md) | [✘] |
+| [Multi-Swarm Particle Optimization (MSPO)](./docs/MSPO.md) | [✘] |
 | [Simulated Annealing (SA)](./src/algorithms/simulated_annealing/SA.md) | [✘] |
 | [Differential Evolution (DE)](./docs/differential_evolution/DE.md) | [✘] |
 | [Covariance Matrix Adaptation Evolution Strategy (CMA-ES)](./docs/CMA_ES.md) | [✓] |

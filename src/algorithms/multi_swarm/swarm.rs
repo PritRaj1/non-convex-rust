@@ -16,7 +16,6 @@ where
 {
     pub num_particles: usize,
     pub dim: usize,
-    pub w: T,
     pub c1: T,
     pub c2: T,
     pub bounds: (T, T),
@@ -36,7 +35,6 @@ where
     pub particles: Vec<Particle<T, D>>,
     pub global_best_position: OVector<T, D>,
     pub global_best_fitness: T,
-    pub w: T,
     pub c1: T,
     pub c2: T,
     pub x_min: f64,
@@ -114,7 +112,6 @@ where
             particles,
             global_best_position: best_position,
             global_best_fitness: best_fitness,
-            w: config.w,
             c1: config.c1,
             c2: config.c2,
             x_min: config.bounds.0.to_f64().unwrap(),
@@ -374,7 +371,6 @@ where
             Swarm::new(SwarmConfig {
                 num_particles: particles_per_swarm,
                 dim,
-                w: T::from_f64(conf.w).unwrap(),
                 c1: T::from_f64(conf.c1).unwrap(),
                 c2: T::from_f64(conf.c2).unwrap(),
                 bounds: (
