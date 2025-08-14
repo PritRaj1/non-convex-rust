@@ -4,8 +4,8 @@ use rand::Rng;
 
 pub struct Particle<T, D>
 where
-    T: FloatNum,
-    D: Dim,
+    T: FloatNum + Send + Sync,
+    D: Dim + Send + Sync,
     DefaultAllocator: Allocator<D> + Allocator<U1, D> + Allocator<U1>,
 {
     pub position: OVector<T, D>,
@@ -16,8 +16,10 @@ where
     pub stagnation_counter: usize,
 }
 
-impl<T: FloatNum, D: Dim> Particle<T, D>
+impl<T, D> Particle<T, D>
 where
+    T: FloatNum + Send + Sync,
+    D: Dim + Send + Sync,
     DefaultAllocator: Allocator<D> + Allocator<U1, D> + Allocator<U1>,
 {
     pub fn new(position: OVector<T, D>, velocity: OVector<T, D>, fitness: T) -> Self {
@@ -42,7 +44,6 @@ where
     ) {
         let mut rng = rand::rng();
 
-        // Update velocity
         for i in 0..self.velocity.len() {
             let r1 = T::from_f64(rng.random::<f64>()).unwrap();
             let r2 = T::from_f64(rng.random::<f64>()).unwrap();

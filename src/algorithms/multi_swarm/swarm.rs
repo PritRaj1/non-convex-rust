@@ -28,8 +28,8 @@ where
 
 pub struct Swarm<T, D>
 where
-    T: FloatNum,
-    D: Dim,
+    T: FloatNum + Send + Sync,
+    D: Dim + Send + Sync,
     DefaultAllocator: Allocator<D> + Allocator<U1, D>,
 {
     pub particles: Vec<Particle<T, D>>,
@@ -49,8 +49,8 @@ where
 
 impl<T, D> Swarm<T, D>
 where
-    T: FloatNum,
-    D: Dim,
+    T: FloatNum + Send + Sync,
+    D: Dim + Send + Sync,
     OVector<T, D>: Send + Sync,
     OMatrix<T, Dyn, D>: Send + Sync,
     DefaultAllocator: Allocator<D> + Allocator<U1, D> + Allocator<Dyn, D>,
@@ -64,11 +64,9 @@ where
                 let fitness;
 
                 if i < config.init_pop.nrows() {
-                    // Use initial population if available
                     position = config.init_pop.row(i).transpose();
                     fitness = config.opt_prob.evaluate(&position);
                 } else {
-                    // Generate random position if needed
                     loop {
                         let values = (0..config.dim).map(|_| {
                             let r = T::from_f64(rng.random::<f64>()).unwrap();
@@ -131,7 +129,7 @@ where
             T::from_f64(self.x_max).unwrap(),
         );
 
-        // Adaptive inertia weight based on iteration progress
+        // Adaptive weight based on stagnation and diversity
         let adaptive_w = self.compute_adaptive_inertia();
 
         self.particles.par_iter_mut().for_each(|particle| {
@@ -171,7 +169,7 @@ where
         self.iteration_count += 1;
     }
 
-    // Linear decrease from w_start to w_end over total run
+    // Linearly decrease from w_start to w_end over total run
     fn compute_adaptive_inertia(&self) -> T {
         let progress = (self.iteration_count as f64 / self.max_iterations as f64).min(1.0);
 
@@ -179,7 +177,7 @@ where
             + (self.inertia_end - self.inertia_start) * T::from_f64(progress).unwrap()
     }
 
-    // Average distance between particles
+    // Avg distance between particles
     fn compute_diversity(&self) -> f64 {
         if self.particles.len() < 2 {
             return 0.0;

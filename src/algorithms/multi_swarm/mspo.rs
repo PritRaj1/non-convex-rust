@@ -1,7 +1,11 @@
 use nalgebra::{allocator::Allocator, DefaultAllocator, Dim, OMatrix, OVector, U1};
 use rayon::prelude::*;
-use std::collections::VecDeque;
 
+use crate::algorithms::multi_swarm::information_exchange::InformationExchange;
+use crate::algorithms::multi_swarm::population::{
+    find_best_solution, get_population, update_population_state,
+};
+use crate::algorithms::multi_swarm::stagnation_monitor::StagnationMonitor;
 use crate::algorithms::multi_swarm::swarm::{initialize_swarms, Swarm};
 use crate::utils::config::MSPOConf;
 use crate::utils::opt_prob::{FloatNumber as FloatNum, OptProb, OptimizationAlgorithm, State};
@@ -11,6 +15,8 @@ where
     T: FloatNum + Send + Sync,
     D: Dim + Send + Sync,
     N: Dim + Send + Sync,
+    OVector<T, D>: Send + Sync,
+    OMatrix<T, N, D>: Send + Sync,
     DefaultAllocator:
         Allocator<D> + Allocator<N, D> + Allocator<N> + Allocator<U1, D> + Allocator<U1>,
 {
@@ -18,11 +24,8 @@ where
     pub st: State<T, N, D>,
     pub swarms: Vec<Swarm<T, D>>,
     pub opt_prob: OptProb<T, D>,
-    stagnation_counter: usize,
-    last_best_fitness: T,
-    improvement_threshold: T,
-    generation_improvements: VecDeque<f64>,
-    success_history: VecDeque<bool>,
+    stagnation_monitor: StagnationMonitor<T>,
+    information_exchange: InformationExchange<T, D>,
 }
 
 impl<T, N, D> MSPO<T, N, D>
@@ -52,7 +55,7 @@ where
             "Initial population size must be at least num_swarms * swarm_size"
         );
 
-        let (best_x, best_fitness) = Self::find_best_solution(&init_pop, &opt_prob);
+        let (best_x, best_fitness) = find_best_solution(&init_pop, &opt_prob);
 
         let swarms = initialize_swarms(&conf, dim, &init_pop, &opt_prob, max_iter);
         let (fitness, constraints): (Vec<T>, Vec<bool>) = (0..init_pop.nrows())
@@ -79,151 +82,26 @@ where
             iter: 1,
         };
 
-        // Extract values before moving conf
         let improvement_threshold = T::from_f64(conf.improvement_threshold).unwrap();
+        let stagnation_monitor = StagnationMonitor::new(improvement_threshold, best_fitness);
+        let information_exchange = InformationExchange::new(conf.clone(), opt_prob.clone());
 
         Self {
             conf,
             st,
             swarms,
             opt_prob,
-            stagnation_counter: 0,
-            last_best_fitness: best_fitness,
-            improvement_threshold,
-            generation_improvements: VecDeque::with_capacity(20),
-            success_history: VecDeque::with_capacity(20),
+            stagnation_monitor,
+            information_exchange,
         }
-    }
-
-    fn find_best_solution(
-        population: &OMatrix<T, N, D>,
-        opt_prob: &OptProb<T, D>,
-    ) -> (OVector<T, D>, T) {
-        (0..population.nrows())
-            .filter_map(|i| {
-                let x = population.row(i).transpose();
-                if opt_prob.is_feasible(&x) {
-                    Some((x.clone(), opt_prob.evaluate(&x)))
-                } else {
-                    None
-                }
-            })
-            .max_by(|(_, f1), (_, f2)| f1.partial_cmp(f2).unwrap())
-            .unwrap_or_else(|| {
-                let x = population.row(0).transpose();
-                (x.clone(), opt_prob.evaluate(&x))
-            })
-    }
-
-    fn exchange_information(&mut self) {
-        let best_positions: Vec<_> = self
-            .swarms
-            .iter()
-            .map(|swarm| {
-                (
-                    swarm.global_best_position.clone(),
-                    swarm.global_best_fitness,
-                )
-            })
-            .collect();
-
-        let mut swarm_indices: Vec<_> = (0..self.swarms.len()).collect();
-        swarm_indices.sort_by(|&i, &j| {
-            best_positions[i]
-                .1
-                .partial_cmp(&best_positions[j].1)
-                .unwrap()
-        });
-
-        let exchange_ratio = self.compute_adaptive_exchange_ratio();
-
-        self.swarms
-            .par_iter_mut()
-            .enumerate()
-            .for_each(|(_swarm_idx, swarm)| {
-                let better_swarms: Vec<_> = swarm_indices
-                    .iter()
-                    .filter(|&&idx| {
-                        best_positions[idx].1 > swarm.global_best_fitness
-                            && best_positions[idx].1
-                                > swarm.global_best_fitness
-                                    * (T::one() + self.improvement_threshold)
-                    })
-                    .collect();
-
-                if !better_swarms.is_empty() {
-                    let num_exchange = (self.conf.swarm_size as f64 * exchange_ratio) as usize;
-                    let mut particles: Vec<_> = swarm.particles.iter_mut().enumerate().collect();
-
-                    // Exchange worst particles first
-                    particles.sort_by(|(_, p1), (_, p2)| {
-                        p1.best_fitness.partial_cmp(&p2.best_fitness).unwrap()
-                    });
-
-                    // Take information from better swarms
-                    for (_, particle) in particles.iter_mut().take(num_exchange) {
-                        for &better_idx in &better_swarms {
-                            let (better_pos, better_fitness) = &best_positions[*better_idx];
-
-                            // Only update if better and feasible
-                            if *better_fitness
-                                > particle.best_fitness * (T::one() + self.improvement_threshold)
-                                && self.opt_prob.is_feasible(better_pos)
-                            {
-                                particle.best_position = better_pos.clone();
-                                particle.best_fitness = *better_fitness;
-                                break; // Only use the first better solution
-                            }
-                        }
-                    }
-                }
-            });
-    }
-
-    fn compute_adaptive_exchange_ratio(&self) -> f64 {
-        let base_ratio = self.conf.exchange_ratio;
-
-        // Increase exchange when stagnated
-        if self.stagnation_counter > 10 {
-            (base_ratio * 1.5).min(0.3)
-        } else if self.stagnation_counter > 5 {
-            (base_ratio * 1.2).min(0.25)
-        } else {
-            base_ratio
-        }
-    }
-
-    fn check_stagnation(&mut self) {
-        let current_fitness = self.st.best_f;
-        let improvement = current_fitness - self.last_best_fitness;
-
-        let improvement_f64 = improvement.to_f64().unwrap_or(0.0);
-        self.generation_improvements.push_back(improvement_f64);
-        if self.generation_improvements.len() > 20 {
-            self.generation_improvements.pop_front();
-        }
-
-        let success = improvement > self.improvement_threshold;
-        self.success_history.push_back(success);
-        if self.success_history.len() > 20 {
-            self.success_history.pop_front();
-        }
-
-        if improvement < self.improvement_threshold {
-            self.stagnation_counter += 1;
-        } else {
-            self.stagnation_counter = 0;
-        }
-
-        self.last_best_fitness = current_fitness;
     }
 
     pub fn stagnation_counter(&self) -> usize {
-        self.stagnation_counter
+        self.stagnation_monitor.stagnation_counter()
     }
 
     pub fn is_stagnated(&self) -> bool {
-        self.stagnation_counter > 20
+        self.stagnation_monitor.is_stagnated()
     }
 
     pub fn get_swarm_diversity(&self) -> Vec<f64> {
@@ -238,45 +116,11 @@ where
     }
 
     pub fn get_performance_stats(&self) -> (f64, f64, f64) {
-        let avg_improvement = if self.generation_improvements.len() > 5 {
-            self.generation_improvements.iter().sum::<f64>()
-                / self.generation_improvements.len() as f64
-        } else {
-            0.0
-        };
-
-        let success_rate = if !self.success_history.is_empty() {
-            self.success_history.iter().filter(|&&x| x).count() as f64
-                / self.success_history.len() as f64
-        } else {
-            0.0
-        };
-
-        let stagnation_level = self.stagnation_counter as f64;
-
-        (avg_improvement, success_rate, stagnation_level)
+        self.stagnation_monitor.get_performance_stats()
     }
 
     pub fn get_population(&self) -> OMatrix<T, N, D> {
-        let total_particles = self.swarms.len() * self.conf.swarm_size;
-        let dim = self.st.best_x.len();
-        let mut population =
-            OMatrix::<T, N, D>::zeros_generic(N::from_usize(total_particles), D::from_usize(dim));
-
-        let mut positions = Vec::with_capacity(total_particles);
-
-        for (swarm_idx, swarm) in self.swarms.iter().enumerate() {
-            for (particle_idx, particle) in swarm.particles.iter().enumerate() {
-                let row = swarm_idx * self.conf.swarm_size + particle_idx;
-                positions.push((row, particle.position.clone()));
-            }
-        }
-
-        for (row, position) in positions {
-            population.set_row(row, &position.transpose());
-        }
-
-        population
+        get_population(&self.swarms)
     }
 }
 
@@ -314,37 +158,22 @@ where
             }
         }
 
-        self.check_stagnation();
+        self.stagnation_monitor.check_stagnation(self.st.best_f);
 
-        let exchange_interval = if self.stagnation_counter > 10 {
+        let exchange_interval = if self.stagnation_monitor.stagnation_counter() > 10 {
             self.conf.exchange_interval / 2 // More frequent exchange when stagnated
         } else {
             self.conf.exchange_interval
         };
 
         if self.st.iter % exchange_interval == 0 {
-            self.exchange_information(); // Periodically exchange info
+            self.information_exchange.exchange_information(
+                &mut self.swarms,
+                self.stagnation_monitor.stagnation_counter(),
+            );
         }
 
-        self.st.pop = self.get_population();
-
-        let (fitness, constraints): (Vec<T>, Vec<bool>) = (0..self.st.pop.nrows())
-            .into_par_iter()
-            .map(|i| {
-                let x = self.st.pop.row(i).transpose();
-                let fit = self.opt_prob.evaluate(&x);
-                let constr = self.opt_prob.is_feasible(&x);
-                (fit, constr)
-            })
-            .unzip();
-
-        self.st.fitness =
-            OVector::<T, N>::from_vec_generic(N::from_usize(self.st.pop.nrows()), U1, fitness);
-        self.st.constraints = OVector::<bool, N>::from_vec_generic(
-            N::from_usize(self.st.pop.nrows()),
-            U1,
-            constraints,
-        );
+        update_population_state(&mut self.st, &self.swarms, &self.opt_prob);
         self.st.iter += 1;
     }
 
