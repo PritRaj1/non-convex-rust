@@ -20,6 +20,9 @@ fn bench_sga_unconstrained(c: &mut Criterion) {
         alg_conf: AlgConf::SGA(SGAConf {
             learning_rate: 0.01,
             momentum: 0.9,
+            gradient_clip: 1.0,
+            noise_decay: 0.99,
+            adaptive_noise: false,
         }),
     };
 

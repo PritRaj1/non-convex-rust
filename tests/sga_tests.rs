@@ -14,6 +14,9 @@ fn test_sga() {
     let conf = SGAConf {
         learning_rate: 0.01,
         momentum: 0.9,
+        gradient_clip: 1.0,
+        noise_decay: 0.99,
+        adaptive_noise: false,
     };
 
     let init_x = SMatrix::<f64, 1, 2>::from_row_slice(&[0.5, 0.5]);

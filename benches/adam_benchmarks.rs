@@ -22,6 +22,9 @@ fn bench_adam_unconstrained(c: &mut Criterion) {
             beta1: 0.9,
             beta2: 0.999,
             epsilon: 1e-8,
+            weight_decay: 0.0,
+            gradient_clip: 1.0,
+            amsgrad: false,
         }),
     };
 
@@ -53,6 +56,9 @@ fn bench_adam_constrained(c: &mut Criterion) {
             beta1: 0.9,
             beta2: 0.999,
             epsilon: 1e-8,
+            weight_decay: 0.0,
+            gradient_clip: 1.0,
+            amsgrad: false,
         }),
     };
 

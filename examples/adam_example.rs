@@ -26,6 +26,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             beta1: 0.9,
             beta2: 0.999,
             epsilon: 1e-8,
+            weight_decay: 0.0,
+            gradient_clip: 1.0,
+            amsgrad: false,
         }),
     };
 

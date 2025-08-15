@@ -15,8 +15,9 @@ where
     pub conf: AdamConf,
     pub st: State<T, N, D>,
     pub opt_prob: OptProb<T, D>,
-    m: OVector<T, D>, // First moment estimate
-    v: OVector<T, D>, // Second moment estimate
+    m: OVector<T, D>,     // First moment estimate
+    v: OVector<T, D>,     // Second moment estimate
+    v_hat: OVector<T, D>, // Max of second moment estimate (for AMSGrad)
 }
 
 impl<T, N, D> Adam<T, N, D>
@@ -54,6 +55,7 @@ where
             opt_prob,
             m: OVector::zeros_generic(D::from_usize(n), U1),
             v: OVector::zeros_generic(D::from_usize(n), U1),
+            v_hat: OVector::zeros_generic(D::from_usize(n), U1),
         }
     }
 }
@@ -68,11 +70,26 @@ where
     DefaultAllocator: Allocator<D> + Allocator<N> + Allocator<N, D> + Allocator<U1, D>,
 {
     fn step(&mut self) {
-        let grad = self
+        let mut grad = self
             .opt_prob
             .objective
             .gradient(&self.st.best_x)
             .expect("ADAM requires gradient information");
+
+        // Weight decay
+        if self.conf.weight_decay > 0.0 {
+            let weight_decay = T::from_f64(self.conf.weight_decay).unwrap();
+            grad += &self.st.best_x * weight_decay;
+        }
+
+        // Grad clip
+        if self.conf.gradient_clip > 0.0 {
+            let clip_norm = T::from_f64(self.conf.gradient_clip).unwrap();
+            let grad_norm = grad.dot(&grad).sqrt();
+            if grad_norm > clip_norm {
+                grad *= clip_norm / grad_norm;
+            }
+        }
 
         // Biased moment estimates
         self.m = self.m.clone() * T::from_f64(self.conf.beta1).unwrap()
@@ -86,10 +103,22 @@ where
         let v_hat = self.v.clone()
             / (T::one() - T::from_f64(self.conf.beta2.powi(self.st.iter as i32)).unwrap());
 
+        // AMSGrad: use max of v_hat
+        if self.conf.amsgrad {
+            for i in 0..self.v_hat.len() {
+                self.v_hat[i] = self.v_hat[i].max(v_hat[i]);
+            }
+        }
+
         let step_size = T::from_f64(self.conf.learning_rate).unwrap();
         let epsilon = T::from_f64(self.conf.epsilon).unwrap();
 
-        let update = m_hat.component_div(&v_hat.map(|x| x.sqrt() + epsilon)) * step_size;
+        let v_denom = if self.conf.amsgrad {
+            &self.v_hat
+        } else {
+            &v_hat
+        };
+        let update = m_hat.component_div(&v_denom.map(|x| x.sqrt() + epsilon)) * step_size;
         self.st.best_x += update;
 
         // Clamp onto feasible set

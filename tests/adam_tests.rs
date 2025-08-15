@@ -15,6 +15,9 @@ fn test_adam() {
         beta1: 0.9,
         beta2: 0.999,
         epsilon: 1e-8,
+        weight_decay: 0.0,
+        gradient_clip: 1.0,
+        amsgrad: false,
     };
 
     let init_x = SMatrix::<f64, 1, 2>::from_row_slice(&[0.5, 0.5]);

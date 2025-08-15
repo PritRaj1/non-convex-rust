@@ -2,9 +2,9 @@
 
 <div align="center">
 
-<img src="../../../examples/gifs/adam_kbf.gif" width="200" alt="Adam Example">
+<img src="../examples/gifs/adam_kbf.gif" width="200" alt="Adam Example">
 
-<p><b>Figure:</b> The Adam (Adaptive Moment Estimation) algorithm computes adaptive learning rates for each parameter, combining the advantages of <b>AdaGrad</b> and <b>RMSProp</b>.</p>
+<p><b>Figure:</b> Adam (Adaptive Moment Estimation) uses adaptive learning rates for each parameter, combining the advantages of <b>AdaGrad</b> and <b>RMSProp</b>.</p>
 
 </div>
 
@@ -52,7 +52,10 @@ Fully-defined:
             "learning_rate": 0.001,
             "beta1": 0.9,
             "beta2": 0.999,
-            "epsilon": 1e-8
+            "epsilon": 1e-8,
+            "weight_decay": 0.0,
+            "gradient_clip": 1.0,
+            "amsgrad": false,
         }
     }
 }
