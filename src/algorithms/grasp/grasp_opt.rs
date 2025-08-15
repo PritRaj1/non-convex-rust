@@ -95,7 +95,7 @@ where
         }
     }
 
-    // Greedy randomized construction phase
+    // Greedy randomized construction
     pub fn construct_solution(&self) -> OVector<T, D> {
         let candidates: Vec<OVector<T, D>> = (0..self.conf.num_candidates)
             .into_par_iter()
@@ -106,14 +106,28 @@ where
                 
                 let (lb, ub) = self.get_bounds(&candidate);
                 
+                // Generate value within restricted candidate list (RCL)
                 for i in 0..self.st.best_x.len() {
-                    // Generate value within restricted candidate list (RCL)
                     let alpha = T::from_f64(self.conf.alpha).unwrap();
                     let rcl_min = lb[i] * (T::one() - alpha) + ub[i] * alpha;
                     let rcl_max = lb[i] * alpha + ub[i] * (T::one() - alpha);
 
+                    // The range must be (rcl_min < rcl_max)
+                    let (min_val, max_val) = if rcl_min < rcl_max {
+                        (rcl_min, rcl_max)
+                    } else if rcl_min == rcl_max {
+                        // If equal, use small range around the value
+                        let epsilon = T::from_f64(1e-6).unwrap();
+                        (rcl_min - epsilon, rcl_max + epsilon)
+                    } else {
+                        // If rcl_min > rcl_max, just swap
+                        eprintln!("Warning: Invalid RCL bounds for dimension {}: lb[{}]={:?}, ub[{}]={:?}, alpha={}, rcl_min={:?}, rcl_max={:?}", 
+                                 i, i, lb[i], i, ub[i], self.conf.alpha, rcl_min, rcl_max);
+                        (rcl_max, rcl_min)
+                    };
+
                     candidate[i] = T::from_f64(
-                        rng.random_range(rcl_min.to_f64().unwrap()..rcl_max.to_f64().unwrap()),
+                        rng.random_range(min_val.to_f64().unwrap()..max_val.to_f64().unwrap()),
                     )
                     .unwrap();
                 }

@@ -65,7 +65,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // Draw current solution in red
         let population = opt.get_population();
-        let current_x = population.column(0);
+        let current_x = population.row(0);
         chart.draw_series(std::iter::once(Circle::new(
             (current_x[0], current_x[1]),
             6,
