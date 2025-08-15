@@ -119,8 +119,9 @@ where
                     };
                     
                     let alpha = T::from_f64(adaptive_alpha).unwrap();
-                    let rcl_min = lb[i] * (T::one() - alpha) + ub[i] * alpha;
-                    let rcl_max = lb[i] * alpha + ub[i] * (T::one() - alpha);
+                    let range = ub[i] - lb[i];
+                    let rcl_min = lb[i] + (T::one() - alpha) * range;
+                    let rcl_max = ub[i] - (T::one() - alpha) * range;
 
                     let (min_val, max_val) = if rcl_min < rcl_max {
                         (rcl_min, rcl_max)
