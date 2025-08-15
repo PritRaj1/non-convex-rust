@@ -23,7 +23,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             stagnation_window: 50,
         },
         alg_conf: AlgConf::SGA(SGAConf {
-            learning_rate: 0.5,
+            learning_rate: 0.01,
             momentum: 0.9,
             gradient_clip: 0.0,
             noise_decay: 0.99,
