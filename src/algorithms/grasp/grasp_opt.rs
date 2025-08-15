@@ -19,6 +19,8 @@ where
     pub opt_prob: OptProb<T, D>,
     cached_lower_bounds: Option<OVector<T, D>>,
     cached_upper_bounds: Option<OVector<T, D>>,
+    stagnation_count: usize,
+    last_improvement: usize,
 }
 
 impl<T, N, D> GRASP<T, N, D>
@@ -66,6 +68,8 @@ where
             opt_prob,
             cached_lower_bounds,
             cached_upper_bounds,
+            stagnation_count: 0,
+            last_improvement: 0,
         }
     }
 
@@ -108,7 +112,13 @@ where
                 
                 // Generate value within restricted candidate list (RCL)
                 for i in 0..self.st.best_x.len() {
-                    let alpha = T::from_f64(self.conf.alpha).unwrap();
+                    let adaptive_alpha = if self.stagnation_count > 10 {
+                        (self.conf.alpha * 1.5).min(0.8) // Bigger alpha when stuck for more exploration
+                    } else {
+                        self.conf.alpha
+                    };
+                    
+                    let alpha = T::from_f64(adaptive_alpha).unwrap();
                     let rcl_min = lb[i] * (T::one() - alpha) + ub[i] * alpha;
                     let rcl_max = lb[i] * alpha + ub[i] * (T::one() - alpha);
 
@@ -122,7 +132,7 @@ where
                     } else {
                         // If rcl_min > rcl_max, just swap
                         eprintln!("Warning: Invalid RCL bounds for dimension {}: lb[{}]={:?}, ub[{}]={:?}, alpha={}, rcl_min={:?}, rcl_max={:?}", 
-                                 i, i, lb[i], i, ub[i], self.conf.alpha, rcl_min, rcl_max);
+                                 i, i, lb[i], i, ub[i], adaptive_alpha, rcl_min, rcl_max);
                         (rcl_max, rcl_min)
                     };
 
@@ -154,6 +164,18 @@ where
         let mut improved = true;
         let mut local_iter = 0;
 
+        let adaptive_step_size = if self.stagnation_count > 10 {
+            self.conf.step_size * 2.0 // Bigger step size when stuck
+        } else {
+            self.conf.step_size
+        };
+        
+        let adaptive_perturbation_prob = if self.stagnation_count > 10 {
+            (self.conf.perturbation_prob * 1.5).min(0.8) // Bigger perturbation when stuck
+        } else {
+            self.conf.perturbation_prob
+        };
+
         while improved && local_iter < self.conf.max_local_iter {
             improved = false;
             local_iter += 1;
@@ -167,9 +189,9 @@ where
 
                     // Perturb random dimensions
                     for i in 0..neighbor.len() {
-                        if rng.random_bool(self.conf.perturbation_prob) {
+                        if rng.random_bool(adaptive_perturbation_prob) {
                             neighbor[i] += T::from_f64(
-                                rng.random_range(-self.conf.step_size..self.conf.step_size),
+                                rng.random_range(-adaptive_step_size..adaptive_step_size),
                             )
                             .unwrap();
                         }
@@ -220,6 +242,10 @@ where
         if fitness > self.st.best_f && self.opt_prob.is_feasible(&improved_solution) {
             self.st.best_f = fitness;
             self.st.best_x = improved_solution.clone();
+            self.last_improvement = self.st.iter;
+            self.stagnation_count = 0;
+        } else {
+            self.stagnation_count += 1;
         }
 
         self.st

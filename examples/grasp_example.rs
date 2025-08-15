@@ -23,12 +23,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             stagnation_window: 50,
         },
         alg_conf: AlgConf::GRASP(GRASPConf {
-            num_candidates: 50,
-            alpha: 0.3,
-            num_neighbors: 20,
-            step_size: 0.1,
-            perturbation_prob: 0.3,
-            max_local_iter: 1000,
+            num_candidates: 100,
+            alpha: 0.5,
+            num_neighbors: 50,
+            step_size: 0.2,
+            perturbation_prob: 0.5,
+            max_local_iter: 100,
             cache_bounds: true,
         }),
     };

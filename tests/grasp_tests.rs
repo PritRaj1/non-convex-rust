@@ -12,11 +12,11 @@ use non_convex_opt::utils::{
 #[test]
 fn test_grasp_unconstrained() {
     let conf = GRASPConf {
-        num_candidates: 50,
-        alpha: 0.3,
-        num_neighbors: 20,
-        step_size: 0.1,
-        perturbation_prob: 0.3,
+        num_candidates: 100,
+        alpha: 0.5,
+        num_neighbors: 50,
+        step_size: 0.2,
+        perturbation_prob: 0.5,
         max_local_iter: 100,
         cache_bounds: true,
     };
@@ -42,11 +42,11 @@ fn test_grasp_unconstrained() {
 #[test]
 fn test_grasp_constrained() {
     let conf = GRASPConf {
-        num_candidates: 50,
-        alpha: 0.3,
-        num_neighbors: 20,
-        step_size: 0.1,
-        perturbation_prob: 0.3,
+        num_candidates: 100,    
+        alpha: 0.5,
+        num_neighbors: 50,
+        step_size: 0.2,
+        perturbation_prob: 0.5,
         max_local_iter: 100,
         cache_bounds: true,
     };
@@ -71,11 +71,11 @@ fn test_grasp_constrained() {
 #[test]
 fn test_grasp_construction_and_local_search() {
     let conf = GRASPConf {
-        num_candidates: 50,
-        alpha: 0.3,
-        num_neighbors: 20,
-        step_size: 0.1,
-        perturbation_prob: 0.3,
+        num_candidates: 100,
+        alpha: 0.5,
+        num_neighbors: 50,
+        step_size: 0.2,
+        perturbation_prob: 0.5,
         max_local_iter: 100,
         cache_bounds: true,
     };
@@ -97,11 +97,11 @@ fn test_grasp_construction_and_local_search() {
 #[test]
 fn test_grasp_bounds() {
     let conf = GRASPConf {
-        num_candidates: 50,
-        alpha: 0.3,
-        num_neighbors: 20,
-        step_size: 0.1,
-        perturbation_prob: 0.3,
+        num_candidates: 100,
+        alpha: 0.5,
+        num_neighbors: 50,
+        step_size: 0.2,
+        perturbation_prob: 0.5,
         max_local_iter: 100,
         cache_bounds: true,
     };
