@@ -113,7 +113,7 @@ where
                 // Generate value within restricted candidate list (RCL)
                 for i in 0..self.st.best_x.len() {
                     let adaptive_alpha = if self.stagnation_count > 5 {
-                        (self.conf.alpha * 2.0).min(0.9) // Bigger alpha when stuck for more exploration
+                        (self.conf.alpha * 1.5).min(0.8)
                     } else {
                         self.conf.alpha
                     };
@@ -122,18 +122,17 @@ where
                     let rcl_min = lb[i] * (T::one() - alpha) + ub[i] * alpha;
                     let rcl_max = lb[i] * alpha + ub[i] * (T::one() - alpha);
 
-                    // The range must be (rcl_min < rcl_max)
                     let (min_val, max_val) = if rcl_min < rcl_max {
                         (rcl_min, rcl_max)
-                    } else if rcl_min == rcl_max {
-                        // If equal, use small range around the value
+                    } else if (rcl_min - rcl_max).abs() < T::from_f64(1e-10).unwrap() {
+                        // If very close, use small range around the value
                         let epsilon = T::from_f64(1e-6).unwrap();
                         (rcl_min - epsilon, rcl_max + epsilon)
                     } else {
-                        // If rcl_min > rcl_max, just swap
+                        // If rcl_min > rcl_max, use full bounds
                         eprintln!("Warning: Invalid RCL bounds for dimension {}: lb[{}]={:?}, ub[{}]={:?}, alpha={}, rcl_min={:?}, rcl_max={:?}", 
                                  i, i, lb[i], i, ub[i], adaptive_alpha, rcl_min, rcl_max);
-                        (rcl_max, rcl_min)
+                        (lb[i], ub[i])
                     };
 
                     candidate[i] = T::from_f64(
