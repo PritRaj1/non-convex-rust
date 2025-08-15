@@ -58,12 +58,36 @@ where
     DefaultAllocator: Allocator<U2>,
 {
     fn f(&self, x: &SVector<f64, 2>) -> f64 {
-        let n = x.len();
-        let mut sum = 0.0;
-        for i in 0..n {
-            sum += x[i].sin() * x[i].cos() + 0.1 * x[i].powi(2);
-        }
-        sum
+        let x1 = x[0];
+        let x2 = x[1];
+        
+        10.0 * (-((x1 - 3.0).powi(2) + (x2 - 3.0).powi(2)) / 0.5).exp() +
+        5.0 * (-((x1 - 7.0).powi(2) + (x2 - 7.0).powi(2)) / 0.3).exp() +
+        5.0 * (-((x1 - 7.0).powi(2) + (x2 - 3.0).powi(2)) / 0.2).exp()
+    }
+
+    fn gradient(&self, x: &SVector<f64, 2>) -> Option<SVector<f64, 2>> {
+        let x1 = x[0];
+        let x2 = x[1];
+        let mut grad = SVector::<f64, 2>::zeros();
+        
+        grad[0] = 10.0 * (-2.0 * (x1 - 3.0) / 0.5) * (-((x1 - 3.0).powi(2) + (x2 - 3.0).powi(2)) / 0.5).exp() +
+                  5.0 * (-2.0 * (x1 - 7.0) / 0.3) * (-((x1 - 7.0).powi(2) + (x2 - 7.0).powi(2)) / 0.3).exp() +
+                  5.0 * (-2.0 * (x1 - 7.0) / 0.2) * (-((x1 - 7.0).powi(2) + (x2 - 3.0).powi(2)) / 0.2).exp();
+        
+        grad[1] = 10.0 * (-2.0 * (x2 - 3.0) / 0.5) * (-((x1 - 3.0).powi(2) + (x2 - 3.0).powi(2)) / 0.5).exp() +
+                  5.0 * (-2.0 * (x2 - 7.0) / 0.3) * (-((x1 - 7.0).powi(2) + (x2 - 7.0).powi(2)) / 0.3).exp() +
+                  5.0 * (-2.0 * (x2 - 3.0) / 0.2) * (-((x1 - 7.0).powi(2) + (x2 - 3.0).powi(2)) / 0.2).exp();
+        
+        Some(grad)
+    }
+
+    fn x_lower_bound(&self, _x: &SVector<f64, 2>) -> Option<SVector<f64, 2>> {
+        Some(SVector::from_vec(vec![0.0, 0.0]))
+    }
+
+    fn x_upper_bound(&self, _x: &SVector<f64, 2>) -> Option<SVector<f64, 2>> {
+        Some(SVector::from_vec(vec![10.0, 10.0]))
     }
 }
 
@@ -76,6 +100,6 @@ where
     DefaultAllocator: Allocator<U2>,
 {
     fn g(&self, x: &SVector<f64, 2>) -> bool {
-        x.iter().all(|&xi| xi >= -5.0 && xi <= 5.0)
+        x.iter().all(|&xi| xi >= 0.0 && xi <= 10.0)
     }
 }

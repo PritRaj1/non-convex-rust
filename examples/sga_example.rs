@@ -18,14 +18,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         opt_conf: OptConf {
             max_iter: 100,
             rtol: 1e-6,
-            atol: 1e-6,
+            atol: 0.0,
             rtol_max_iter_fraction: 1.0,
             stagnation_window: 50,
         },
         alg_conf: AlgConf::SGA(SGAConf {
-            learning_rate: 0.05,
+            learning_rate: 0.1,
             momentum: 0.9,
-            gradient_clip: 1.0,
+            gradient_clip: 10000.0,
             noise_decay: 0.99,
             adaptive_noise: false,
         }),
@@ -57,15 +57,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             &constraints,
             "examples/sga_frame.png",
         )?;
-
-        // Draw current individual
-        let population = opt.get_population();
-        let current_x = population.column(0);
-        chart.draw_series(std::iter::once(Circle::new(
-            (current_x[0], current_x[1]),
-            6,
-            RGBColor(255, 0, 0).filled(),
-        )))?;
 
         // Draw best individual
         let best_x = opt.get_best_individual();

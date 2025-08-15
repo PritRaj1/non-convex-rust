@@ -17,17 +17,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         opt_conf: OptConf {
             max_iter: 100,
             rtol: 1e-6,
-            atol: 1e-6,
+            atol: 0.0,
             rtol_max_iter_fraction: 1.0,
             stagnation_window: 50,
         },
         alg_conf: AlgConf::Adam(AdamConf {
-            learning_rate: 0.05,
+            learning_rate: 0.1,
             beta1: 0.9,
             beta2: 0.999,
             epsilon: 1e-8,
             weight_decay: 0.0,
-            gradient_clip: 1.0,
+            gradient_clip: 10000.0,
             amsgrad: false,
         }),
     };
@@ -64,7 +64,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         chart.draw_series(std::iter::once(Circle::new(
             (best_x[0], best_x[1]),
             6,
-            RGBColor(255, 0, 0).filled(),
+            RGBColor(255, 255, 0).filled(),
         )))?;
 
         // Save frame and convert to GIF
