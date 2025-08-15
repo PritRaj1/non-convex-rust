@@ -19,6 +19,9 @@ fn test_grasp_unconstrained() {
         perturbation_prob: 0.5,
         max_local_iter: 100,
         cache_bounds: true,
+        diversity_prob: 0.7,
+        restart_threshold: 15,
+        diversity_strength: 10.0,
     };
 
     let init_x = SMatrix::<f64, 1, 2>::from_row_slice(&[0.5, 0.5]);
@@ -42,13 +45,16 @@ fn test_grasp_unconstrained() {
 #[test]
 fn test_grasp_constrained() {
     let conf = GRASPConf {
-        num_candidates: 100,    
+        num_candidates: 100,
         alpha: 0.5,
         num_neighbors: 50,
         step_size: 0.2,
         perturbation_prob: 0.5,
         max_local_iter: 100,
         cache_bounds: true,
+        diversity_prob: 0.7,
+        restart_threshold: 15,
+        diversity_strength: 10.0,
     };
 
     let init_x = SMatrix::<f64, 1, 2>::from_row_slice(&[0.5, 0.5]);
@@ -78,6 +84,9 @@ fn test_grasp_construction_and_local_search() {
         perturbation_prob: 0.5,
         max_local_iter: 100,
         cache_bounds: true,
+        diversity_prob: 0.7,
+        restart_threshold: 15,
+        diversity_strength: 10.0,
     };
 
     let init_x = SMatrix::<f64, 1, 2>::from_row_slice(&[0.5, 0.5]);
@@ -104,6 +113,9 @@ fn test_grasp_bounds() {
         perturbation_prob: 0.5,
         max_local_iter: 100,
         cache_bounds: true,
+        diversity_prob: 0.7,
+        restart_threshold: 15,
+        diversity_strength: 10.0,
     };
 
     let init_x = SMatrix::<f64, 1, 2>::from_row_slice(&[0.5, 0.5]);

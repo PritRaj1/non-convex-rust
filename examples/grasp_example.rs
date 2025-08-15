@@ -30,6 +30,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             perturbation_prob: 0.5,
             max_local_iter: 100,
             cache_bounds: true,
+            diversity_prob: 0.7,
+            restart_threshold: 15,
+            diversity_strength: 10.0,
         }),
     };
 

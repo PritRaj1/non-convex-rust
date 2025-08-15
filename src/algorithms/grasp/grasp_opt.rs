@@ -112,8 +112,8 @@ where
                 
                 // Generate value within restricted candidate list (RCL)
                 for i in 0..self.st.best_x.len() {
-                    let adaptive_alpha = if self.stagnation_count > 10 {
-                        (self.conf.alpha * 1.5).min(0.8) // Bigger alpha when stuck for more exploration
+                    let adaptive_alpha = if self.stagnation_count > 5 {
+                        (self.conf.alpha * 2.0).min(0.9) // Bigger alpha when stuck for more exploration
                     } else {
                         self.conf.alpha
                     };
@@ -164,14 +164,14 @@ where
         let mut improved = true;
         let mut local_iter = 0;
 
-        let adaptive_step_size = if self.stagnation_count > 10 {
-            self.conf.step_size * 2.0 // Bigger step size when stuck
+        let adaptive_step_size = if self.stagnation_count > 5 {
+            self.conf.step_size * 3.0 // Much bigger step size when stuck
         } else {
             self.conf.step_size
         };
         
-        let adaptive_perturbation_prob = if self.stagnation_count > 10 {
-            (self.conf.perturbation_prob * 1.5).min(0.8) // Bigger perturbation when stuck
+        let adaptive_perturbation_prob = if self.stagnation_count > 5 {
+            (self.conf.perturbation_prob * 2.0).min(0.9) // Much bigger perturbation when stuck
         } else {
             self.conf.perturbation_prob
         };
@@ -221,6 +221,61 @@ where
 
         current
     }
+
+    // Inject diversity to escape local optima
+    fn add_diversity(&self, solution: &OVector<T, D>) -> OVector<T, D> {
+        if self.stagnation_count > 5 {
+            let mut rng = rand::rng();
+            let mut diverse_solution = solution.clone();
+            
+            for i in 0..diverse_solution.len() {
+                if rng.random_bool(self.conf.diversity_prob) {
+                    let perturbation = T::from_f64(
+                        rng.random_range(-3.0..3.0) * self.conf.step_size * self.conf.diversity_strength
+                    ).unwrap();
+                    diverse_solution[i] += perturbation;
+                }
+            }
+            
+            let (lb, ub) = self.get_bounds(&diverse_solution);
+            for i in 0..diverse_solution.len() {
+                diverse_solution[i] = diverse_solution[i].max(lb[i]).min(ub[i]);
+            }
+            
+            diverse_solution
+        } else {
+            solution.clone()
+        }
+    }
+
+    fn should_restart(&self) -> bool {
+        self.stagnation_count > self.conf.restart_threshold
+    }
+
+    fn restart(&mut self) {
+        let mut rng = rand::rng();
+        let (lb, ub) = self.get_bounds(&self.st.best_x);
+        
+        // Generate a completely new random solution
+        let mut new_solution = OVector::<T, D>::zeros_generic(
+            D::from_usize(self.st.best_x.len()), 
+            U1
+        );
+        
+        for i in 0..new_solution.len() {
+            new_solution[i] = T::from_f64(
+                rng.random_range(lb[i].to_f64().unwrap()..ub[i].to_f64().unwrap())
+            ).unwrap();
+        }
+        
+        self.st.pop.row_mut(0).copy_from(&new_solution.transpose());
+        self.st.fitness[0] = self.opt_prob.evaluate(&new_solution);
+        self.st.constraints[0] = self.opt_prob.is_feasible(&new_solution);
+        
+        self.stagnation_count = 0;
+        
+        eprintln!("GRASP restart triggered after {} iterations without improvement", self.st.iter - self.last_improvement);
+    }
 }
 
 impl<T, N, D> OptimizationAlgorithm<T, N, D> for GRASP<T, N, D>
@@ -235,8 +290,14 @@ where
     DefaultAllocator: Allocator<D> + Allocator<N> + Allocator<N, D> + Allocator<U1, D>,
 {
     fn step(&mut self) {
+        if self.should_restart() {
+            self.restart();
+            return;
+        }
+        
         let solution = self.construct_solution();
-        let improved_solution = self.local_search(&solution);
+        let diverse_solution = self.add_diversity(&solution);
+        let improved_solution = self.local_search(&diverse_solution);
 
         let fitness = self.opt_prob.evaluate(&improved_solution);
         if fitness > self.st.best_f && self.opt_prob.is_feasible(&improved_solution) {

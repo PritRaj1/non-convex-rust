@@ -16,6 +16,12 @@ pub struct GRASPConf {
     pub max_local_iter: usize,
     #[serde(default = "default_grasp_cache_bounds")]
     pub cache_bounds: bool,
+    #[serde(default = "default_grasp_diversity_prob")]
+    pub diversity_prob: f64,
+    #[serde(default = "default_grasp_restart_threshold")]
+    pub restart_threshold: usize,
+    #[serde(default = "default_grasp_diversity_strength")]
+    pub diversity_strength: f64,
 }
 
 fn default_grasp_num_candidates() -> usize {
@@ -38,4 +44,13 @@ fn default_grasp_max_local_iter() -> usize {
 }
 fn default_grasp_cache_bounds() -> bool {
     true
+}
+fn default_grasp_diversity_prob() -> f64 {
+    0.7
+}
+fn default_grasp_restart_threshold() -> usize {
+    15
+}
+fn default_grasp_diversity_strength() -> f64 {
+    10.0
 }
