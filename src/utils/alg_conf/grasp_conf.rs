@@ -12,6 +12,10 @@ pub struct GRASPConf {
     pub step_size: f64,
     #[serde(default = "default_grasp_perturbation_prob")]
     pub perturbation_prob: f64,
+    #[serde(default = "default_grasp_max_local_iter")]
+    pub max_local_iter: usize,
+    #[serde(default = "default_grasp_cache_bounds")]
+    pub cache_bounds: bool,
 }
 
 fn default_grasp_num_candidates() -> usize {
@@ -28,4 +32,10 @@ fn default_grasp_step_size() -> f64 {
 }
 fn default_grasp_perturbation_prob() -> f64 {
     0.3
+}
+fn default_grasp_max_local_iter() -> usize {
+    100
+}
+fn default_grasp_cache_bounds() -> bool {
+    true
 }

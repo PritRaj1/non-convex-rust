@@ -17,6 +17,8 @@ where
     pub conf: GRASPConf,
     pub st: State<T, N, D>,
     pub opt_prob: OptProb<T, D>,
+    cached_lower_bounds: Option<OVector<T, D>>,
+    cached_upper_bounds: Option<OVector<T, D>>,
 }
 
 impl<T, N, D> GRASP<T, N, D>
@@ -34,6 +36,14 @@ where
         let init_x = init_pop.row(0).transpose();
         let best_f = opt_prob.evaluate(&init_x);
         let n = init_x.len();
+
+        let (cached_lower_bounds, cached_upper_bounds) = if conf.cache_bounds {
+            let lb = opt_prob.objective.x_lower_bound(&init_x);
+            let ub = opt_prob.objective.x_upper_bound(&init_x);
+            (lb, ub)
+        } else {
+            (None, None)
+        };
 
         Self {
             conf,
@@ -54,6 +64,34 @@ where
                 iter: 1,
             },
             opt_prob,
+            cached_lower_bounds,
+            cached_upper_bounds,
+        }
+    }
+
+    fn get_bounds(&self, candidate: &OVector<T, D>) -> (OVector<T, D>, OVector<T, D>) {
+        if let (Some(lb), Some(ub)) = (&self.cached_lower_bounds, &self.cached_upper_bounds) {
+            (lb.clone(), ub.clone())
+        } else {
+            let lb = self
+                .opt_prob
+                .objective
+                .x_lower_bound(candidate)
+                .unwrap_or_else(|| OVector::<T, D>::from_element_generic(
+                    D::from_usize(candidate.len()),
+                    U1,
+                    T::from_f64(-10.0).unwrap()
+                ));
+            let ub = self
+                .opt_prob
+                .objective
+                .x_upper_bound(candidate)
+                .unwrap_or_else(|| OVector::<T, D>::from_element_generic(
+                    D::from_usize(candidate.len()),
+                    U1,
+                    T::from_f64(10.0).unwrap()
+                ));
+            (lb, ub)
         }
     }
 
@@ -65,23 +103,14 @@ where
                 let mut rng = rand::rng(); // Create new RNG for each thread
                 let mut candidate =
                     OVector::<T, D>::zeros_generic(D::from_usize(self.st.best_x.len()), U1);
+                
+                let (lb, ub) = self.get_bounds(&candidate);
+                
                 for i in 0..self.st.best_x.len() {
-                    // Get bounds if they exist
-                    let lb = self
-                        .opt_prob
-                        .objective
-                        .x_lower_bound(&candidate)
-                        .map_or(T::from_f64(-10.0).unwrap(), |v| v[i]);
-                    let ub = self
-                        .opt_prob
-                        .objective
-                        .x_upper_bound(&candidate)
-                        .map_or(T::from_f64(10.0).unwrap(), |v| v[i]);
-
                     // Generate value within restricted candidate list (RCL)
                     let alpha = T::from_f64(self.conf.alpha).unwrap();
-                    let rcl_min = lb * (T::one() - alpha) + ub * alpha;
-                    let rcl_max = lb * alpha + ub * (T::one() - alpha);
+                    let rcl_min = lb[i] * (T::one() - alpha) + ub[i] * alpha;
+                    let rcl_max = lb[i] * alpha + ub[i] * (T::one() - alpha);
 
                     candidate[i] = T::from_f64(
                         rng.random_range(rcl_min.to_f64().unwrap()..rcl_max.to_f64().unwrap()),
@@ -109,9 +138,11 @@ where
         let mut current = solution.clone();
         let mut current_fitness = self.opt_prob.evaluate(&current);
         let mut improved = true;
+        let mut local_iter = 0;
 
-        while improved {
+        while improved && local_iter < self.conf.max_local_iter {
             improved = false;
+            local_iter += 1;
 
             // Generate and evaluate neighborhood in parallel
             let neighbors: Vec<OVector<T, D>> = (0..self.conf.num_neighbors)

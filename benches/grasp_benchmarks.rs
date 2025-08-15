@@ -23,6 +23,8 @@ fn bench_grasp_unconstrained(c: &mut Criterion) {
             num_neighbors: 20,
             step_size: 0.1,
             perturbation_prob: 0.3,
+            max_local_iter: 100,
+            cache_bounds: true,
         }),
     };
 
@@ -55,6 +57,8 @@ fn bench_grasp_constrained(c: &mut Criterion) {
             num_neighbors: 20,
             step_size: 0.1,
             perturbation_prob: 0.3,
+            max_local_iter: 100,
+            cache_bounds: true,
         }),
     };
 

@@ -17,6 +17,8 @@ fn test_grasp_unconstrained() {
         num_neighbors: 20,
         step_size: 0.1,
         perturbation_prob: 0.3,
+        max_local_iter: 100,
+        cache_bounds: true,
     };
 
     let init_x = SMatrix::<f64, 1, 2>::from_row_slice(&[0.5, 0.5]);
@@ -45,6 +47,8 @@ fn test_grasp_constrained() {
         num_neighbors: 20,
         step_size: 0.1,
         perturbation_prob: 0.3,
+        max_local_iter: 100,
+        cache_bounds: true,
     };
 
     let init_x = SMatrix::<f64, 1, 2>::from_row_slice(&[0.5, 0.5]);
@@ -72,6 +76,8 @@ fn test_grasp_construction_and_local_search() {
         num_neighbors: 20,
         step_size: 0.1,
         perturbation_prob: 0.3,
+        max_local_iter: 100,
+        cache_bounds: true,
     };
 
     let init_x = SMatrix::<f64, 1, 2>::from_row_slice(&[0.5, 0.5]);
@@ -96,6 +102,8 @@ fn test_grasp_bounds() {
         num_neighbors: 20,
         step_size: 0.1,
         perturbation_prob: 0.3,
+        max_local_iter: 100,
+        cache_bounds: true,
     };
 
     let init_x = SMatrix::<f64, 1, 2>::from_row_slice(&[0.5, 0.5]);

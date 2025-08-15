@@ -18,7 +18,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         opt_conf: OptConf {
             max_iter: 50,
             rtol: 1e-6,
-            atol: 1e-6,
+            atol: 0.0,
             rtol_max_iter_fraction: 1.0,
             stagnation_window: 50,
         },
@@ -28,6 +28,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             num_neighbors: 20,
             step_size: 0.1,
             perturbation_prob: 0.3,
+            max_local_iter: 1000,
+            cache_bounds: true,
         }),
     };
 

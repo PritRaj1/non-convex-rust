@@ -2,7 +2,7 @@
 
 <div align="center">
 
-<img src="../../../examples/gifs/grasp_kbf.gif" width="200" alt="GRASP Example">
+<img src="../examples/gifs/grasp_kbf.gif" width="200" alt="GRASP Example">
 
 <p><b>Figure:</b> The Greedy Randomized Adaptive Search Procedure (GRASP) is a multi-start metaheuristic for combinatorial optimization. Each iteration constructs a solution using a randomized greedy approach, then applies local search to refine it.</p>
 
@@ -26,7 +26,9 @@ Fully-defined:
             "alpha": 0.1,
             "num_neighbors": 50,
             "step_size": 0.1,
-            "perturbation_prob": 0.1
+            "perturbation_prob": 0.1,
+            "max_local_iter": 100,
+            "cache_bounds": true,
         }
     }
 }   
