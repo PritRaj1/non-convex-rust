@@ -22,12 +22,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             stagnation_window: 50,
         },
         alg_conf: AlgConf::Adam(AdamConf {
-            learning_rate: 0.1,
+            learning_rate: 1.0,
             beta1: 0.9,
             beta2: 0.999,
             epsilon: 1e-8,
             weight_decay: 0.0,
-            gradient_clip: 10000.0,
+            gradient_clip: 0.0,
             amsgrad: false,
         }),
     };
