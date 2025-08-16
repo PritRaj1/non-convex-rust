@@ -1,2 +1,3 @@
+pub mod neighborhood;
 pub mod tabu;
 pub mod tabu_list;

@@ -18,7 +18,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "opt_conf": {
             "max_iter": 80,
             "rtol": "1e-6",
-            "atol": "1e-6"
+            "atol": "0.0"
         },
         "alg_conf": {
             "TS": {
@@ -36,6 +36,26 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         "increase_factor": 1.1,
                         "decrease_factor": 0.9
                     }
+                },
+                "advanced": {
+                    "adaptive_parameters": true,
+                    "aspiration_criteria": true,
+                    "neighborhood_strategy": {
+                        "Adaptive": {
+                            "base_step": 1.5,
+                            "adaptation_rate": 0.1
+                        }
+                    },
+                    "restart_strategy": {
+                        "Stagnation": {
+                            "max_iterations": 40,
+                            "threshold": 1e-6
+                        }
+                    },
+                    "intensification_cycles": 4,
+                    "diversification_threshold": 0.1,
+                    "success_history_size": 20,
+                    "adaptation_rate": 0.1
                 }
             }
         }
@@ -75,7 +95,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // Draw current individual
         let population = opt.get_population();
-        let current_x = population.column(0);
+        let current_x = population.row(0);
         chart.draw_series(std::iter::once(Circle::new(
             (current_x[0], current_x[1]),
             6,

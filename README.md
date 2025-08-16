@@ -11,7 +11,7 @@ Sources/links to more information in the respective algorithm .md files.
 |-----------|---------------|
 | [Continuous Genetic Algorithm (CGA)](./docs/CGA.md) | [✓] |
 | [Parallel Tempering (PT)](./docs/PT.md) | [✓] |
-| [Tabu Search (TS)](./src/algorithms/tabu_search/TS.md) | [✘] |
+| [Tabu Search (TS)](./docs/TS.md) | [✘] |
 | [Greedy Randomized Adaptive Search Procedure (GRASP)](./docs/GRASP.md) | [✓] |
 | [Adam](./docs/ADAM.md) | [✓] |
 | [Stochastic Gradient Ascent (SGA)](./docs/SGA.md) | [✓] |
