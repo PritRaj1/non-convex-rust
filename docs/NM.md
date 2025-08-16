@@ -4,7 +4,15 @@
 
 <img src="../examples/gifs/nm_kbf.gif" width="200" alt="NM Example">
 
-<p><b>Figure:</b> The Nelder-Mead method uses Simplex (a geometric figure with N+1 vertices in N-dimensional space) to search for the maximum of a function. The most important part of setting up this method is the choice of the initial Simplex.</p>
+<p><b>Figure:</b>Nelder-Mead (NM) is a derivative-free optimizer that uses Simplex (a geometric figure with N+1 vertices in N-dimensional space) to search for the maximum of a function. The most important part of setting up this method is the choice of the initial Simplex.</p>
+
+|    Simplex operations     | What                                 | Why                        |
+|--------------|---------------------------------------------|--------------------------------|
+| Reflection   | Reflect worst point over centroid          | Explore new region             |
+| Expansion    | Extend further past reflection             | Seek larger improvement        |
+| Contraction  | Move worst point towards centroid          | Try smaller, safer step        |
+| Shrink       | Pull all points towards best point         | Reset simplex, escape stagnation|
+
 
 </div>
 
