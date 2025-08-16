@@ -4,7 +4,7 @@
 
 <img src="../examples/gifs/nm_kbf.gif" width="200" alt="NM Example">
 
-<p><b>Figure:</b>Nelder-Mead (NM) is a derivative-free optimizer that uses Simplex (a geometric figure with N+1 vertices in N-dimensional space) to search for the maximum of a function. The most important part of setting up this method is the choice of the initial Simplex.</p>
+<p><b>Figure:</b> Nelder-Mead (NM) is a derivative-free optimizer that uses a Simplex (geometric figure with N+1 vertices in N-dimensional space) to crawl around the space. The most important part of setting up this method is the choice of the initial Simplex imo.</p>
 
 |    Simplex operations     | What                                 | Why                        |
 |--------------|---------------------------------------------|--------------------------------|
