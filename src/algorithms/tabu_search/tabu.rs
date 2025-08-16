@@ -158,7 +158,8 @@ where
         if success_rate < 0.2 {
             self.current_step_size *= 1.0 + self.conf.advanced.adaptation_rate; // Low success - increase exploration
         } else if success_rate > 0.6 && avg_improvement > 1e-4 {
-            self.current_step_size *= 1.0 - self.conf.advanced.adaptation_rate * 0.3; // High success - fine-tune
+            self.current_step_size *= 1.0 - self.conf.advanced.adaptation_rate * 0.3;
+            // High success - fine-tune
         }
 
         if success_rate < 0.2 {
@@ -234,7 +235,8 @@ where
         if self.phase_iterations >= self.conf.advanced.intensification_cycles {
             match self.phase {
                 SearchPhase::Intensification => {
-                    if self.iterations_since_improvement > 5 { // harcoded at 5
+                    if self.iterations_since_improvement > 5 {
+                        // harcoded at 5
                         self.phase = SearchPhase::Diversification;
                         self.phase_iterations = 0;
                     }

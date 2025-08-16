@@ -83,8 +83,7 @@ impl UniformNeighborhood {
     }
 
     // No adaption in uniform
-    fn update_parameters(&mut self, _success_rate: f64, _improvement_rate: f64) {
-    }
+    fn update_parameters(&mut self, _success_rate: f64, _improvement_rate: f64) {}
 }
 
 pub struct GaussianNeighborhood {
@@ -117,8 +116,7 @@ impl GaussianNeighborhood {
     }
 
     // No adaption in Gaussian
-    fn update_parameters(&mut self, _success_rate: f64, _improvement_rate: f64) {
-    }
+    fn update_parameters(&mut self, _success_rate: f64, _improvement_rate: f64) {}
 }
 
 pub struct CauchyNeighborhood {
@@ -151,8 +149,7 @@ impl CauchyNeighborhood {
     }
 
     // No adaption in Cauchy
-    fn update_parameters(&mut self, _success_rate: f64, _improvement_rate: f64) {
-    }
+    fn update_parameters(&mut self, _success_rate: f64, _improvement_rate: f64) {}
 }
 
 pub struct AdaptiveNeighborhood {

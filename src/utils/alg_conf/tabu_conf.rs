@@ -103,9 +103,17 @@ pub enum NeighborhoodStrategy {
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub enum RestartStrategy {
     None,
-    Periodic { frequency: usize },
-    Stagnation { max_iterations: usize, threshold: f64 },
-    Adaptive { base_frequency: usize, adaptation_rate: f64 },
+    Periodic {
+        frequency: usize,
+    },
+    Stagnation {
+        max_iterations: usize,
+        threshold: f64,
+    },
+    Adaptive {
+        base_frequency: usize,
+        adaptation_rate: f64,
+    },
 }
 
 fn default_tabu_list_size() -> usize {

@@ -146,7 +146,7 @@ fn test_mspo() {
     let mut mspo = MSPO::new(mspo_conf, init_pop, opt_prob, 100);
     let initial_fitness = mspo.st.best_f;
 
-    for _ in 0..20 {
+    for _ in 0..50 {
         mspo.step();
     }
 
