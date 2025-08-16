@@ -16,10 +16,33 @@ fn bench_nm_unconstrained(c: &mut Criterion) {
             stagnation_window: 50,
         },
         alg_conf: AlgConf::NM(NelderMeadConf {
-            alpha: 1.0,
-            gamma: 2.0,
-            rho: 0.5,
-            sigma: 0.5,
+            common: non_convex_opt::utils::config::CommonConf {
+                alpha: 1.0,
+                gamma: 2.0,
+                rho: 0.5,
+                sigma: 0.5,
+            },
+            advanced: non_convex_opt::utils::config::AdvancedConf {
+                adaptive_parameters: true,
+                restart_strategy: non_convex_opt::utils::config::RestartStrategy::Stagnation {
+                    max_iterations: 30,
+                    threshold: 1e-6,
+                },
+                stagnation_detection: non_convex_opt::utils::config::StagnationDetection {
+                    stagnation_window: 20,
+                    improvement_threshold: 1e-6,
+                    diversity_threshold: 1e-3,
+                },
+                coefficient_bounds: non_convex_opt::utils::config::CoefficientBounds {
+                    alpha_bounds: (0.1, 3.0),
+                    gamma_bounds: (1.0, 5.0),
+                    rho_bounds: (0.1, 1.0),
+                    sigma_bounds: (0.1, 1.0),
+                },
+                adaptation_rate: 0.1,
+                success_history_size: 20,
+                improvement_history_size: 30,
+            },
         }),
     };
 
@@ -51,10 +74,33 @@ fn bench_nm_constrained(c: &mut Criterion) {
             stagnation_window: 50,
         },
         alg_conf: AlgConf::NM(NelderMeadConf {
-            alpha: 1.0,
-            gamma: 2.0,
-            rho: 0.5,
-            sigma: 0.5,
+            common: non_convex_opt::utils::config::CommonConf {
+                alpha: 1.0,
+                gamma: 2.0,
+                rho: 0.5,
+                sigma: 0.5,
+            },
+            advanced: non_convex_opt::utils::config::AdvancedConf {
+                adaptive_parameters: true,
+                restart_strategy: non_convex_opt::utils::config::RestartStrategy::Stagnation {
+                    max_iterations: 30,
+                    threshold: 1e-6,
+                },
+                stagnation_detection: non_convex_opt::utils::config::StagnationDetection {
+                    stagnation_window: 20,
+                    improvement_threshold: 1e-6,
+                    diversity_threshold: 1e-3,
+                },
+                coefficient_bounds: non_convex_opt::utils::config::CoefficientBounds {
+                    alpha_bounds: (0.1, 3.0),
+                    gamma_bounds: (1.0, 5.0),
+                    rho_bounds: (0.1, 1.0),
+                    sigma_bounds: (0.1, 1.0),
+                },
+                adaptation_rate: 0.1,
+                success_history_size: 20,
+                improvement_history_size: 30,
+            },
         }),
     };
 

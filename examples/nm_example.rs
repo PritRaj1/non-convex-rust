@@ -10,7 +10,8 @@ use common::img::{
     create_contour_data, find_closest_color, get_color_palette, setup_chart, setup_gif,
 };
 
-use non_convex_opt::utils::config::{AlgConf, Config, NelderMeadConf, OptConf};
+use non_convex_opt::utils::config::{AlgConf, Config, OptConf};
+use non_convex_opt::utils::alg_conf::nm_conf::{NelderMeadConf, CommonConf, AdvancedConf, RestartStrategy, StagnationDetection, CoefficientBounds};
 use non_convex_opt::NonConvexOpt;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -18,15 +19,38 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         opt_conf: OptConf {
             max_iter: 100,
             rtol: 1e-6,
-            atol: 1e-6,
+            atol: 0.0,
             rtol_max_iter_fraction: 1.0,
             stagnation_window: 50,
         },
         alg_conf: AlgConf::NM(NelderMeadConf {
-            alpha: 1.0,
-            gamma: 2.0,
-            rho: 0.5,
-            sigma: 0.5,
+            common: CommonConf {
+                alpha: 1.0,
+                gamma: 2.0,
+                rho: 0.5,
+                sigma: 0.5,
+            },
+            advanced: AdvancedConf {
+                adaptive_parameters: true,
+                restart_strategy: RestartStrategy::Stagnation {
+                    max_iterations: 30,
+                    threshold: 1e-6,
+                },
+                stagnation_detection: StagnationDetection {
+                    stagnation_window: 20,
+                    improvement_threshold: 1e-6,
+                    diversity_threshold: 1e-3,
+                },
+                coefficient_bounds: CoefficientBounds {
+                    alpha_bounds: (0.1, 3.0),
+                    gamma_bounds: (1.0, 5.0),
+                    rho_bounds: (0.1, 1.0),
+                    sigma_bounds: (0.1, 1.0),
+                },
+                adaptation_rate: 0.1,
+                success_history_size: 20,
+                improvement_history_size: 30,
+            },
         }),
     };
 
