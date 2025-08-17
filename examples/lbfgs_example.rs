@@ -30,9 +30,32 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 "line_search": {
                     "Backtracking": {
                         "c1": 0.0001,
-                        "c2": 0.9,
-                        "max_iters": 100
+                        "rho": 0.5
                     }
+                },
+                "advanced": {
+                    "adaptive_parameters": false,
+                    "adaptation_rate": 0.1,
+                    "restart_strategy": "None",
+                    "stagnation_detection": {
+                        "stagnation_window": 50,
+                        "improvement_threshold": 1e-6,
+                        "gradient_threshold": 1e-6
+                    },
+                    "memory_adaptation": {
+                        "adaptive_memory": false,
+                        "min_memory_size": 5,
+                        "max_memory_size": 20,
+                        "memory_adaptation_rate": 0.1
+                    },
+                    "numerical_safeguards": {
+                        "conditioning_threshold": 1e-12,
+                        "curvature_threshold": 1e-8,
+                        "use_scaling": false,
+                        "scaling_factor": 1.0
+                    },
+                    "success_history_size": 20,
+                    "improvement_history_size": 20
                 }
             }
         }
