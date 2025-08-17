@@ -10,8 +10,11 @@ use common::img::{
     create_contour_data, find_closest_color, get_color_palette, setup_chart, setup_gif,
 };
 
+use non_convex_opt::utils::alg_conf::nm_conf::{
+    AdvancedConf, CoefficientBounds, CommonConf, NelderMeadConf, RestartStrategy,
+    StagnationDetection,
+};
 use non_convex_opt::utils::config::{AlgConf, Config, OptConf};
-use non_convex_opt::utils::alg_conf::nm_conf::{NelderMeadConf, CommonConf, AdvancedConf, RestartStrategy, StagnationDetection, CoefficientBounds};
 use non_convex_opt::NonConvexOpt;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -59,9 +62,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Create initial simplex directly
     let init_simplex = SMatrix::<f64, 3, 2>::from_rows(&[
-        SMatrix::<f64, 1, 2>::from_row_slice(&[1.8, 1.0]),
-        SMatrix::<f64, 1, 2>::from_row_slice(&[0.5, 4.0]),
-        SMatrix::<f64, 1, 2>::from_row_slice(&[3.0, 3.0]),
+        SMatrix::<f64, 1, 2>::from_row_slice(&[1.0, 1.0]),
+        SMatrix::<f64, 1, 2>::from_row_slice(&[0.1, 10.0]),
+        SMatrix::<f64, 1, 2>::from_row_slice(&[10.0, 0.1]),
     ]);
 
     let mut opt = NonConvexOpt::new(

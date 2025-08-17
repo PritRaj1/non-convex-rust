@@ -6,8 +6,9 @@ use nalgebra::{SMatrix, U1, U2};
 use non_convex_opt::algorithms::limited_memory_bfgs::lbfgs::LBFGS;
 use non_convex_opt::utils::{
     alg_conf::lbfgs_conf::{
-        BacktrackingConf, CommonConf, GoldenSectionConf, HagerZhangConf, LBFGSConf, LineSearchConf,
-        MoreThuenteConf, StrongWolfeConf,
+        AdvancedConf, BacktrackingConf, CommonConf, GoldenSectionConf, HagerZhangConf, LBFGSConf,
+        LineSearchConf, MemoryAdaptation, MoreThuenteConf, NumericalSafeguards, RestartStrategy,
+        StagnationDetection, StrongWolfeConf,
     },
     opt_prob::{OptProb, OptimizationAlgorithm},
 };
@@ -16,13 +17,34 @@ use non_convex_opt::utils::{
 fn test_lbfgs() {
     let conf = LBFGSConf {
         common: CommonConf { memory_size: 10 },
-        line_search: LineSearchConf::HagerZhang(HagerZhangConf {
-            c1: 1e-4,
-            c2: 0.9,
-            theta: 0.5,
-            gamma: 0.5,
-            max_iters: 100,
+        line_search: LineSearchConf::Backtracking(BacktrackingConf {
+            c1: 0.0001,
+            rho: 0.5,
         }),
+        advanced: AdvancedConf {
+            adaptive_parameters: false,
+            adaptation_rate: 0.1,
+            restart_strategy: RestartStrategy::None,
+            stagnation_detection: StagnationDetection {
+                stagnation_window: 50,
+                improvement_threshold: 1e-6,
+                gradient_threshold: 1e-6,
+            },
+            memory_adaptation: MemoryAdaptation {
+                adaptive_memory: false,
+                min_memory_size: 5,
+                max_memory_size: 20,
+                memory_adaptation_rate: 0.1,
+            },
+            numerical_safeguards: NumericalSafeguards {
+                conditioning_threshold: 1e-12,
+                curvature_threshold: 1e-8,
+                use_scaling: false,
+                scaling_factor: 1.0,
+            },
+            success_history_size: 20,
+            improvement_history_size: 20,
+        },
     };
 
     let init_x = SMatrix::<f64, 1, 2>::from_row_slice(&[0.5, 0.5]);
@@ -44,8 +66,34 @@ fn test_lbfgs() {
 #[test]
 fn test_backtracking_line_search() {
     let conf = LBFGSConf {
-        common: CommonConf { memory_size: 10 },
+        common: CommonConf {
+            memory_size: 10,
+        },
         line_search: LineSearchConf::Backtracking(BacktrackingConf { c1: 1e-4, rho: 0.5 }),
+        advanced: AdvancedConf {
+            adaptive_parameters: false,
+            adaptation_rate: 0.1,
+            restart_strategy: RestartStrategy::None,
+            stagnation_detection: StagnationDetection {
+                stagnation_window: 50,
+                improvement_threshold: 1e-6,
+                gradient_threshold: 1e-6,
+            },
+            memory_adaptation: MemoryAdaptation {
+                adaptive_memory: false,
+                min_memory_size: 5,
+                max_memory_size: 20,
+                memory_adaptation_rate: 0.1,
+            },
+            numerical_safeguards: NumericalSafeguards {
+                conditioning_threshold: 1e-12,
+                curvature_threshold: 1e-8,
+                use_scaling: false,
+                scaling_factor: 1.0,
+            },
+            success_history_size: 20,
+            improvement_history_size: 20,
+        },
     };
 
     let init_x = SMatrix::<f64, 1, 2>::from_row_slice(&[0.5, 0.5]);
@@ -56,7 +104,6 @@ fn test_backtracking_line_search() {
     let mut lbfgs: LBFGS<f64, U1, U2> = LBFGS::new(conf, init_x.clone(), opt_prob);
     let initial_fitness = lbfgs.st.best_f;
 
-    // Run a few iterations
     for _ in 0..5 {
         lbfgs.step();
     }
@@ -73,6 +120,30 @@ fn test_strong_wolfe_line_search() {
             c2: 0.9,
             max_iters: 100,
         }),
+        advanced: AdvancedConf {
+            adaptive_parameters: false,
+            adaptation_rate: 0.1,
+            restart_strategy: RestartStrategy::None,
+            stagnation_detection: StagnationDetection {
+                stagnation_window: 50,
+                improvement_threshold: 1e-6,
+                gradient_threshold: 1e-6,
+            },
+            memory_adaptation: MemoryAdaptation {
+                adaptive_memory: false,
+                min_memory_size: 5,
+                max_memory_size: 20,
+                memory_adaptation_rate: 0.1,
+            },
+            numerical_safeguards: NumericalSafeguards {
+                conditioning_threshold: 1e-12,
+                curvature_threshold: 1e-8,
+                use_scaling: false,
+                scaling_factor: 1.0,
+            },
+            success_history_size: 20,
+            improvement_history_size: 20,
+        },
     };
 
     let init_x = SMatrix::<f64, 1, 2>::from_row_slice(&[0.5, 0.5]);
@@ -101,6 +172,30 @@ fn test_hager_zhang_line_search() {
             gamma: 0.5,
             max_iters: 100,
         }),
+        advanced: AdvancedConf {
+            adaptive_parameters: false,
+            adaptation_rate: 0.1,
+            restart_strategy: RestartStrategy::None,
+            stagnation_detection: StagnationDetection {
+                stagnation_window: 50,
+                improvement_threshold: 1e-6,
+                gradient_threshold: 1e-6,
+            },
+            memory_adaptation: MemoryAdaptation {
+                adaptive_memory: false,
+                min_memory_size: 5,
+                max_memory_size: 20,
+                memory_adaptation_rate: 0.1,
+            },
+            numerical_safeguards: NumericalSafeguards {
+                conditioning_threshold: 1e-12,
+                curvature_threshold: 1e-8,
+                use_scaling: false,
+                scaling_factor: 1.0,
+            },
+            success_history_size: 20,
+            improvement_history_size: 20,
+        },
     };
 
     let init_x = SMatrix::<f64, 1, 2>::from_row_slice(&[0.5, 0.5]);
@@ -127,6 +222,30 @@ fn test_more_thuente_line_search() {
             gtol: 0.9,
             max_iters: 100,
         }),
+        advanced: AdvancedConf {
+            adaptive_parameters: false,
+            adaptation_rate: 0.1,
+            restart_strategy: RestartStrategy::None,
+            stagnation_detection: StagnationDetection {
+                stagnation_window: 50,
+                improvement_threshold: 1e-6,
+                gradient_threshold: 1e-6,
+            },
+            memory_adaptation: MemoryAdaptation {
+                adaptive_memory: false,
+                min_memory_size: 5,
+                max_memory_size: 20,
+                memory_adaptation_rate: 0.1,
+            },
+            numerical_safeguards: NumericalSafeguards {
+                conditioning_threshold: 1e-12,
+                curvature_threshold: 1e-8,
+                use_scaling: false,
+                scaling_factor: 1.0,
+            },
+            success_history_size: 20,
+            improvement_history_size: 20,
+        },
     };
 
     let init_x = SMatrix::<f64, 1, 2>::from_row_slice(&[0.5, 0.5]);
@@ -153,6 +272,30 @@ fn test_golden_section_line_search() {
             max_iters: 100,
             bracket_factor: 2.0,
         }),
+        advanced: AdvancedConf {
+            adaptive_parameters: false,
+            adaptation_rate: 0.1,
+            restart_strategy: RestartStrategy::None,
+            stagnation_detection: StagnationDetection {
+                stagnation_window: 50,
+                improvement_threshold: 1e-6,
+                gradient_threshold: 1e-6,
+            },
+            memory_adaptation: MemoryAdaptation {
+                adaptive_memory: false,
+                min_memory_size: 5,
+                max_memory_size: 20,
+                memory_adaptation_rate: 0.1,
+            },
+            numerical_safeguards: NumericalSafeguards {
+                conditioning_threshold: 1e-12,
+                curvature_threshold: 1e-8,
+                use_scaling: false,
+                scaling_factor: 1.0,
+            },
+            success_history_size: 20,
+            improvement_history_size: 20,
+        },
     };
 
     let init_x = SMatrix::<f64, 1, 2>::from_row_slice(&[0.5, 0.5]);

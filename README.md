@@ -15,7 +15,7 @@ Sources/links to more information in the respective algorithm .md files.
 | [Greedy Randomized Adaptive Search Procedure (GRASP)](./docs/GRASP.md) | [✓] |
 | [Adam](./docs/ADAM.md) | [✓] |
 | [Stochastic Gradient Ascent (SGA)](./docs/SGA.md) | [✓] |
-| [Nelder-Mead](./docs/NM.md) | [✘] |
+| [Nelder-Mead](./docs/NM.md) | [✓] |
 | [Limited Memory BFGS (L-BFGS)](./src/algorithms/limited_memory_bfgs/LBFGS.md) | [✘] |
 | [Multi-Swarm Particle Optimization (MSPO)](./docs/MSPO.md) | [✓] |
 | [Simulated Annealing (SA)](./src/algorithms/simulated_annealing/SA.md) | [✘] |

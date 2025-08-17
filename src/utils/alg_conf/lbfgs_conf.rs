@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 pub struct LBFGSConf {
     pub common: CommonConf,
     pub line_search: LineSearchConf,
+    pub advanced: AdvancedConf,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
@@ -73,8 +74,149 @@ pub struct GoldenSectionConf {
     pub bracket_factor: f64, // Factor for initial bracketing
 }
 
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct AdvancedConf {
+    #[serde(default = "default_adaptive_parameters")]
+    pub adaptive_parameters: bool,
+    #[serde(default = "default_adaptation_rate")]
+    pub adaptation_rate: f64,
+    #[serde(default = "default_restart_strategy")]
+    pub restart_strategy: RestartStrategy,
+    #[serde(default = "default_stagnation_detection")]
+    pub stagnation_detection: StagnationDetection,
+    #[serde(default = "default_memory_adaptation")]
+    pub memory_adaptation: MemoryAdaptation,
+    #[serde(default = "default_numerical_safeguards")]
+    pub numerical_safeguards: NumericalSafeguards,
+    #[serde(default = "default_success_history_size")]
+    pub success_history_size: usize,
+    #[serde(default = "default_improvement_history_size")]
+    pub improvement_history_size: usize,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub enum RestartStrategy {
+    None,
+    Periodic {
+        frequency: usize,
+    },
+    Stagnation {
+        max_iterations: usize,
+        threshold: f64,
+    },
+    Adaptive {
+        base_frequency: usize,
+        adaptation_rate: f64,
+    },
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct StagnationDetection {
+    #[serde(default = "default_stagnation_window")]
+    pub stagnation_window: usize,
+    #[serde(default = "default_improvement_threshold")]
+    pub improvement_threshold: f64,
+    #[serde(default = "default_gradient_threshold")]
+    pub gradient_threshold: f64,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct MemoryAdaptation {
+    #[serde(default = "default_adaptive_memory")]
+    pub adaptive_memory: bool,
+    #[serde(default = "default_min_memory_size")]
+    pub min_memory_size: usize,
+    #[serde(default = "default_max_memory_size")]
+    pub max_memory_size: usize,
+    #[serde(default = "default_memory_adaptation_rate")]
+    pub memory_adaptation_rate: f64,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct NumericalSafeguards {
+    #[serde(default = "default_conditioning_threshold")]
+    pub conditioning_threshold: f64,
+    #[serde(default = "default_curvature_threshold")]
+    pub curvature_threshold: f64,
+    #[serde(default = "default_use_scaling")]
+    pub use_scaling: bool,
+    #[serde(default = "default_scaling_factor")]
+    pub scaling_factor: f64,
+}
+
 fn default_memory_size() -> usize {
     10
+}
+fn default_adaptive_parameters() -> bool {
+    false
+}
+fn default_adaptation_rate() -> f64 {
+    0.1
+}
+fn default_restart_strategy() -> RestartStrategy {
+    RestartStrategy::None
+}
+fn default_stagnation_detection() -> StagnationDetection {
+    StagnationDetection {
+        stagnation_window: 50,
+        improvement_threshold: 1e-6,
+        gradient_threshold: 1e-6,
+    }
+}
+fn default_memory_adaptation() -> MemoryAdaptation {
+    MemoryAdaptation {
+        adaptive_memory: false,
+        min_memory_size: 5,
+        max_memory_size: 20,
+        memory_adaptation_rate: 0.1,
+    }
+}
+fn default_numerical_safeguards() -> NumericalSafeguards {
+    NumericalSafeguards {
+        conditioning_threshold: 1e-12,
+        curvature_threshold: 1e-8,
+        use_scaling: false,
+        scaling_factor: 1.0,
+    }
+}
+fn default_success_history_size() -> usize {
+    20
+}
+fn default_improvement_history_size() -> usize {
+    20
+}
+fn default_stagnation_window() -> usize {
+    50
+}
+fn default_improvement_threshold() -> f64 {
+    1e-6
+}
+fn default_gradient_threshold() -> f64 {
+    1e-6
+}
+fn default_adaptive_memory() -> bool {
+    false
+}
+fn default_min_memory_size() -> usize {
+    5
+}
+fn default_max_memory_size() -> usize {
+    20
+}
+fn default_memory_adaptation_rate() -> f64 {
+    0.1
+}
+fn default_conditioning_threshold() -> f64 {
+    1e-12
+}
+fn default_curvature_threshold() -> f64 {
+    1e-8
+}
+fn default_use_scaling() -> bool {
+    false
+}
+fn default_scaling_factor() -> f64 {
+    1.0
 }
 fn default_c1() -> f64 {
     0.0001
@@ -106,3 +248,4 @@ fn default_tol() -> f64 {
 fn default_bracket_factor() -> f64 {
     2.0
 }
+
