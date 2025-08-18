@@ -5,7 +5,8 @@ use nalgebra::{SMatrix, U1, U2};
 
 use non_convex_opt::algorithms::simulated_annealing::sa::SimulatedAnnealing;
 use non_convex_opt::utils::{
-    config::{SAConf, RestartStrategy, StagnationDetection, CoolingScheduleType},
+    alg_conf::sa_conf::{AdvancedConf, CoolingScheduleType, RestartStrategy, StagnationDetection},
+    config::SAConf,
     opt_prob::{OptProb, OptimizationAlgorithm},
 };
 
@@ -19,7 +20,7 @@ fn test_sa_basic() {
         reheat_after: 20,
         x_min: -10.0,
         x_max: 10.0,
-        advanced: non_convex_opt::utils::config::AdvancedConf {
+        advanced: AdvancedConf {
             restart_strategy: RestartStrategy::None,
             stagnation_detection: StagnationDetection {
                 stagnation_window: 20,
@@ -61,7 +62,7 @@ fn test_sa_cooling() {
         reheat_after: 20,
         x_min: -10.0,
         x_max: 10.0,
-        advanced: non_convex_opt::utils::config::AdvancedConf {
+        advanced: AdvancedConf {
             restart_strategy: RestartStrategy::None,
             stagnation_detection: StagnationDetection {
                 stagnation_window: 20,
@@ -106,7 +107,7 @@ fn test_sa_neighbor_generation() {
         reheat_after: 20,
         x_min: -10.0,
         x_max: 10.0,
-        advanced: non_convex_opt::utils::config::AdvancedConf {
+        advanced: AdvancedConf {
             restart_strategy: RestartStrategy::None,
             stagnation_detection: StagnationDetection {
                 stagnation_window: 20,
@@ -143,7 +144,7 @@ fn test_sa_with_constraints() {
         reheat_after: 20,
         x_min: -10.0,
         x_max: 10.0,
-        advanced: non_convex_opt::utils::config::AdvancedConf {
+        advanced: AdvancedConf {
             restart_strategy: RestartStrategy::None,
             stagnation_detection: StagnationDetection {
                 stagnation_window: 20,
@@ -182,7 +183,7 @@ fn test_sa_acceptance() {
         reheat_after: 20,
         x_min: -10.0,
         x_max: 10.0,
-        advanced: non_convex_opt::utils::config::AdvancedConf {
+        advanced: AdvancedConf {
             restart_strategy: RestartStrategy::None,
             stagnation_detection: StagnationDetection {
                 stagnation_window: 20,

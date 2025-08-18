@@ -221,12 +221,12 @@ where
 
         let (temp_factor, step_factor) = self.stagnation_monitor.get_adaptation_suggestions();
 
-        self.temperature *= T::from_f64(temp_factor).unwrap();        
+        self.temperature *= T::from_f64(temp_factor).unwrap();
         self.current_step_size *= T::from_f64(step_factor).unwrap();
-        
+
         let success_rate = self.success_history.iter().filter(|&&x| x).count() as f64
             / self.success_history.len() as f64;
-        
+
         if success_rate < 0.2 {
             self.current_cooling_rate *= T::from_f64(0.99).unwrap();
         } else if success_rate > 0.6 {

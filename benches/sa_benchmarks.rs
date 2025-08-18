@@ -2,7 +2,10 @@ use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use nalgebra::SMatrix;
 use rand::random;
 
-use non_convex_opt::utils::config::{AlgConf, Config, OptConf, SAConf, RestartStrategy, StagnationDetection, CoolingScheduleType};
+use non_convex_opt::utils::alg_conf::sa_conf::{
+    AdvancedConf, CoolingScheduleType, RestartStrategy, StagnationDetection,
+};
+use non_convex_opt::utils::config::{AlgConf, Config, OptConf, SAConf};
 use non_convex_opt::NonConvexOpt;
 
 mod common;
@@ -25,7 +28,7 @@ fn bench_sa_unconstrained(c: &mut Criterion) {
             reheat_after: 50,
             x_min: 0.0,
             x_max: 10.0,
-            advanced: non_convex_opt::utils::config::AdvancedConf {
+            advanced: AdvancedConf {
                 restart_strategy: RestartStrategy::None,
                 stagnation_detection: StagnationDetection {
                     stagnation_window: 20,
@@ -72,7 +75,7 @@ fn bench_sa_constrained(c: &mut Criterion) {
             reheat_after: 50,
             x_min: 0.0,
             x_max: 10.0,
-            advanced: non_convex_opt::utils::config::AdvancedConf {
+            advanced: AdvancedConf {
                 restart_strategy: RestartStrategy::None,
                 stagnation_detection: StagnationDetection {
                     stagnation_window: 20,
