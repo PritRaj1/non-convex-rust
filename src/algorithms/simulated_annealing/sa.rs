@@ -62,7 +62,11 @@ where
 
         let improvement_threshold =
             T::from_f64(conf.advanced.stagnation_detection.improvement_threshold).unwrap();
-        let stagnation_monitor = SAStagnationMonitor::new(improvement_threshold, best_f);
+        let stagnation_monitor = SAStagnationMonitor::new(
+            improvement_threshold,
+            best_f,
+            conf.advanced.stagnation_detection.stagnation_window,
+        );
 
         let cooling_schedule: Box<dyn CoolingSchedule<T> + Send + Sync> =
             match conf.advanced.cooling_schedule {
@@ -99,7 +103,7 @@ where
             improvement_history: VecDeque::with_capacity(conf.advanced.improvement_history_size),
             success_history: VecDeque::with_capacity(conf.advanced.success_history_size),
             restart_counter: 0,
-            last_restart_iter: 0,
+            last_restart_iter: 1,
             current_step_size: T::from_f64(conf.step_size).unwrap(),
             current_cooling_rate: T::from_f64(conf.cooling_rate).unwrap(),
             neighbor_gen: GaussianGenerator::new(
@@ -178,6 +182,7 @@ where
             )
             .unwrap(),
             current_best_f,
+            self.conf.advanced.stagnation_detection.stagnation_window,
         );
 
         self.restart_counter += 1;
@@ -219,10 +224,9 @@ where
             return;
         }
 
-        let (temp_factor, step_factor) = self.stagnation_monitor.get_adaptation_suggestions();
+        let (temp_factor, _) = self.stagnation_monitor.get_adaptation_suggestions();
 
         self.temperature *= T::from_f64(temp_factor).unwrap();
-        self.current_step_size *= T::from_f64(step_factor).unwrap();
 
         let success_rate = self.success_history.iter().filter(|&&x| x).count() as f64
             / self.success_history.len() as f64;
@@ -271,7 +275,6 @@ where
             })
             .collect();
 
-        let mut improved = false;
         let mut accepted_count = 0;
 
         for neighbor in neighbors {
@@ -280,7 +283,6 @@ where
             if neighbor_fitness > self.st.best_f && self.opt_prob.is_feasible(&neighbor) {
                 self.st.best_f = neighbor_fitness;
                 self.st.best_x = neighbor.clone();
-                improved = true;
             }
 
             let feasible = self.opt_prob.is_feasible(&neighbor);
@@ -301,7 +303,7 @@ where
             }
         }
 
-        let _success_rate = accepted_count as f64 / self.conf.num_neighbors as f64;
+        let success_rate = accepted_count as f64 / self.conf.num_neighbors as f64;
         self.stagnation_monitor.check_stagnation(
             self.st.best_f,
             self.temperature,
@@ -315,24 +317,32 @@ where
             self.improvement_history.pop_front();
         }
 
-        self.success_history.push_back(improved);
+        let was_accepted = accepted_count > 0;
+        self.success_history.push_back(was_accepted);
         if self.success_history.len() > self.conf.advanced.success_history_size {
             self.success_history.pop_front();
         }
 
-        let success_rate_for_cooling = if self.success_history.len() >= 5 {
-            self.success_history.iter().filter(|&&x| x).count() as f64
-                / self.success_history.len() as f64
-        } else {
-            0.5
-        };
+        let success_rate_for_cooling = success_rate;
 
-        self.temperature = self.cooling_schedule.adaptive_temperature(
-            T::from_f64(self.conf.initial_temp).unwrap(),
-            self.st.iter,
-            self.current_cooling_rate,
-            success_rate_for_cooling,
-        );
+        if self.conf.use_adaptive_cooling {
+            self.temperature = self.cooling_schedule.adaptive_temperature(
+                T::from_f64(self.conf.initial_temp).unwrap(),
+                self.st.iter,
+                self.current_cooling_rate,
+                success_rate_for_cooling,
+            );
+        } else {
+            self.temperature = self.cooling_schedule.temperature(
+                T::from_f64(self.conf.initial_temp).unwrap(),
+                self.st.iter,
+                self.current_cooling_rate,
+            );
+        }
+
+        let min_temp = T::from_f64(self.conf.initial_temp).unwrap()
+            * T::from_f64(self.conf.min_temp_factor).unwrap();
+        self.temperature = self.temperature.max(min_temp);
 
         self.adapt_parameters();
 

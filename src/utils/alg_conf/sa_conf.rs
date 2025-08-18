@@ -10,12 +10,18 @@ pub struct SAConf {
     pub step_size: f64,
     #[serde(default = "default_num_neighbors")]
     pub num_neighbors: usize,
-    #[serde(default = "default_reheat_after")]
-    pub reheat_after: usize,
     #[serde(default = "default_x_min")]
     pub x_min: f64,
     #[serde(default = "default_x_max")]
     pub x_max: f64,
+    #[serde(default = "default_min_step_size_factor")]
+    pub min_step_size_factor: f64,
+    #[serde(default = "default_step_size_decay_power")]
+    pub step_size_decay_power: f64,
+    #[serde(default = "default_min_temp_factor")]
+    pub min_temp_factor: f64,
+    #[serde(default = "default_use_adaptive_cooling")]
+    pub use_adaptive_cooling: bool,
     #[serde(default = "default_advanced")]
     pub advanced: AdvancedConf,
 }
@@ -63,8 +69,6 @@ pub struct StagnationDetection {
     pub stagnation_window: usize,
     #[serde(default = "default_improvement_threshold")]
     pub improvement_threshold: f64,
-    #[serde(default = "default_diversity_threshold")]
-    pub diversity_threshold: f64,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
@@ -87,14 +91,24 @@ fn default_step_size() -> f64 {
 fn default_num_neighbors() -> usize {
     20
 }
-fn default_reheat_after() -> usize {
-    50
-}
 fn default_x_min() -> f64 {
     -10.0
 }
 fn default_x_max() -> f64 {
     10.0
+}
+fn default_min_step_size_factor() -> f64 {
+    0.1
+}
+fn default_step_size_decay_power() -> f64 {
+    0.5
+}
+fn default_min_temp_factor() -> f64 {
+    0.1
+}
+
+fn default_use_adaptive_cooling() -> bool {
+    true
 }
 
 fn default_advanced() -> AdvancedConf {
@@ -118,9 +132,8 @@ fn default_restart_strategy() -> RestartStrategy {
 
 fn default_stagnation_detection() -> StagnationDetection {
     StagnationDetection {
-        stagnation_window: 20,
+        stagnation_window: 10,
         improvement_threshold: 1e-6,
-        diversity_threshold: 0.1,
     }
 }
 
@@ -145,13 +158,9 @@ fn default_cooling_schedule() -> CoolingScheduleType {
 }
 
 fn default_stagnation_window() -> usize {
-    20
+    10
 }
 
 fn default_improvement_threshold() -> f64 {
     1e-6
-}
-
-fn default_diversity_threshold() -> f64 {
-    0.1
 }

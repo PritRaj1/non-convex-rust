@@ -71,12 +71,10 @@ where
             return true;
         }
 
-        let diff = new_x - current_x;
-        let delta_x = diff.dot(&diff).sqrt();
         let delta_f = new_fitness - current_fitness;
 
         let r = match self.acceptance_type {
-            AcceptanceType::Metropolis => (delta_f / (temperature * delta_x * self.k)).exp(),
+            AcceptanceType::Metropolis => (delta_f / (temperature * self.k)).exp(),
             AcceptanceType::MALA => {
                 let grad = self.prob.objective.gradient(current_x).unwrap();
                 let proposal_grad = self.prob.objective.gradient(new_x).unwrap();
@@ -89,7 +87,7 @@ where
                             .dot(&(current_x - new_x - proposal_grad * step_size * temperature))
                             / (T::from_f64(4.0).unwrap() * step_size * temperature));
 
-                (delta_f / (self.k * temperature * delta_x) + langevin_correction).exp()
+                (delta_f / (self.k * temperature) + langevin_correction).exp()
             }
         };
 

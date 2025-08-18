@@ -19,34 +19,36 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "opt_conf": {
             "max_iter": 100,
             "rtol": "1e-6",
-            "atol": "1e-6",
+            "atol": "0.0",
             "rtol_max_iter_fraction": 1.0
         },
         "alg_conf": {
             "SA": {
-                "initial_temp": 1000.0,
+                "initial_temp": 100.0,
                 "cooling_rate": 0.998,
-                "step_size": 0.5,
-                "num_neighbors": 20,
-                "reheat_after": 50,
+                "step_size": 2.0,
+                "num_neighbors": 30,
                 "x_min": 0.0,
                 "x_max": 10.0,
+                "min_step_size_factor": 0.5,
+                "step_size_decay_power": 0.3,
+                "min_temp_factor": 0.05,
+                "use_adaptive_cooling": false,
                 "advanced": {
                     "restart_strategy": {
                         "Stagnation": {
-                            "max_iterations": 30,
+                            "max_iterations": 50,
                             "threshold": 1e-6
                         }
                     },
                     "stagnation_detection": {
-                        "stagnation_window": 20,
-                        "improvement_threshold": 1e-6,
-                        "diversity_threshold": 0.1
+                        "stagnation_window": 30,
+                        "improvement_threshold": 1e-6
                     },
                     "adaptive_parameters": true,
-                    "adaptation_rate": 0.1,
-                    "improvement_history_size": 20,
-                    "success_history_size": 20,
+                    "adaptation_rate": 0.2,
+                    "improvement_history_size": 30,
+                    "success_history_size": 30,
                     "cooling_schedule": "Exponential"
                 }
             }
@@ -88,7 +90,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // Draw current individual
         let population = opt.get_population();
-        let current_x = population.column(0);
+        let current_x = population.row(0);
         chart.draw_series(std::iter::once(Circle::new(
             (current_x[0], current_x[1]),
             6,

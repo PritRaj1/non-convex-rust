@@ -8,6 +8,7 @@ where
     stagnation_counter: usize,
     last_best_fitness: T,
     improvement_threshold: T,
+    window_size: usize,
     improvement_history: VecDeque<f64>,
     success_history: VecDeque<bool>,
     temperature_history: VecDeque<f64>,
@@ -18,15 +19,16 @@ impl<T> SAStagnationMonitor<T>
 where
     T: FloatNum + Send + Sync,
 {
-    pub fn new(improvement_threshold: T, initial_fitness: T) -> Self {
+    pub fn new(improvement_threshold: T, initial_fitness: T, window_size: usize) -> Self {
         Self {
             stagnation_counter: 0,
             last_best_fitness: initial_fitness,
             improvement_threshold,
-            improvement_history: VecDeque::with_capacity(20),
-            success_history: VecDeque::with_capacity(20),
-            temperature_history: VecDeque::with_capacity(20),
-            step_size_history: VecDeque::with_capacity(20),
+            window_size,
+            improvement_history: VecDeque::with_capacity(window_size),
+            success_history: VecDeque::with_capacity(window_size),
+            temperature_history: VecDeque::with_capacity(window_size),
+            step_size_history: VecDeque::with_capacity(window_size),
         }
     }
 
@@ -35,25 +37,25 @@ where
 
         let improvement_f64 = improvement.to_f64().unwrap_or(0.0);
         self.improvement_history.push_back(improvement_f64);
-        if self.improvement_history.len() > 20 {
+        if self.improvement_history.len() > self.window_size {
             self.improvement_history.pop_front();
         }
 
         let success = improvement > self.improvement_threshold;
         self.success_history.push_back(success);
-        if self.success_history.len() > 20 {
+        if self.success_history.len() > self.window_size {
             self.success_history.pop_front();
         }
 
         let temp_f64 = temperature.to_f64().unwrap_or(0.0);
         self.temperature_history.push_back(temp_f64);
-        if self.temperature_history.len() > 20 {
+        if self.temperature_history.len() > self.window_size {
             self.temperature_history.pop_front();
         }
 
         let step_f64 = step_size.to_f64().unwrap_or(0.0);
         self.step_size_history.push_back(step_f64);
-        if self.step_size_history.len() > 20 {
+        if self.step_size_history.len() > self.window_size {
             self.step_size_history.pop_front();
         }
 
@@ -71,7 +73,7 @@ where
     }
 
     pub fn is_stagnated(&self) -> bool {
-        self.stagnation_counter > 20
+        self.stagnation_counter > self.window_size
     }
 
     pub fn get_performance_stats(&self) -> (f64, f64, f64, f64) {
@@ -139,5 +141,9 @@ where
         };
 
         (temp_factor, step_factor)
+    }
+
+    pub fn last_improvement(&self) -> T {
+        self.last_best_fitness
     }
 }

@@ -30,7 +30,7 @@ impl<T: FloatNum> CoolingSchedule<T> for ExponentialCooling {
         cooling_rate: T,
         success_rate: f64,
     ) -> T {
-        let base_temp = self.temperature(initial_temp, iteration, cooling_rate);
+        let base_temp = initial_temp * cooling_rate.powi(iteration as i32);
         if success_rate < 0.2 {
             base_temp * T::from_f64(1.2).unwrap() // Increase when low success, explore more
         } else if success_rate > 0.6 {
@@ -59,7 +59,7 @@ impl<T: FloatNum> CoolingSchedule<T> for LogarithmicCooling {
         _cooling_rate: T,
         success_rate: f64,
     ) -> T {
-        let base_temp = self.temperature(initial_temp, iteration, T::one());
+        let base_temp = initial_temp / T::from_f64(1.0 + (iteration as f64).ln()).unwrap();
         if success_rate < 0.2 {
             base_temp * T::from_f64(1.3).unwrap()
         } else if success_rate > 0.6 {
@@ -88,7 +88,7 @@ impl<T: FloatNum> CoolingSchedule<T> for CauchyCooling {
         _cooling_rate: T,
         success_rate: f64,
     ) -> T {
-        let base_temp = self.temperature(initial_temp, iteration, T::one());
+        let base_temp = initial_temp / T::from_f64(1.0 + iteration as f64).unwrap();
         if success_rate < 0.2 {
             base_temp * T::from_f64(1.4).unwrap()
         } else if success_rate > 0.6 {
