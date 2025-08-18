@@ -2,7 +2,7 @@ use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use nalgebra::SMatrix;
 use rand::random;
 
-use non_convex_opt::utils::config::{AlgConf, Config, OptConf, SAConf};
+use non_convex_opt::utils::config::{AlgConf, Config, OptConf, SAConf, RestartStrategy, StagnationDetection, CoolingScheduleType};
 use non_convex_opt::NonConvexOpt;
 
 mod common;
@@ -25,6 +25,19 @@ fn bench_sa_unconstrained(c: &mut Criterion) {
             reheat_after: 50,
             x_min: 0.0,
             x_max: 10.0,
+            advanced: non_convex_opt::utils::config::AdvancedConf {
+                restart_strategy: RestartStrategy::None,
+                stagnation_detection: StagnationDetection {
+                    stagnation_window: 20,
+                    improvement_threshold: 1e-6,
+                    diversity_threshold: 0.1,
+                },
+                adaptive_parameters: false,
+                adaptation_rate: 0.1,
+                improvement_history_size: 20,
+                success_history_size: 20,
+                cooling_schedule: CoolingScheduleType::Exponential,
+            },
         }),
     };
 
@@ -59,6 +72,19 @@ fn bench_sa_constrained(c: &mut Criterion) {
             reheat_after: 50,
             x_min: 0.0,
             x_max: 10.0,
+            advanced: non_convex_opt::utils::config::AdvancedConf {
+                restart_strategy: RestartStrategy::None,
+                stagnation_detection: StagnationDetection {
+                    stagnation_window: 20,
+                    improvement_threshold: 1e-6,
+                    diversity_threshold: 0.1,
+                },
+                adaptive_parameters: false,
+                adaptation_rate: 0.1,
+                improvement_history_size: 20,
+                success_history_size: 20,
+                cooling_schedule: CoolingScheduleType::Exponential,
+            },
         }),
     };
 

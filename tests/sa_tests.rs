@@ -5,7 +5,7 @@ use nalgebra::{SMatrix, U1, U2};
 
 use non_convex_opt::algorithms::simulated_annealing::sa::SimulatedAnnealing;
 use non_convex_opt::utils::{
-    config::SAConf,
+    config::{SAConf, RestartStrategy, StagnationDetection, CoolingScheduleType},
     opt_prob::{OptProb, OptimizationAlgorithm},
 };
 
@@ -19,6 +19,19 @@ fn test_sa_basic() {
         reheat_after: 20,
         x_min: -10.0,
         x_max: 10.0,
+        advanced: non_convex_opt::utils::config::AdvancedConf {
+            restart_strategy: RestartStrategy::None,
+            stagnation_detection: StagnationDetection {
+                stagnation_window: 20,
+                improvement_threshold: 1e-6,
+                diversity_threshold: 0.1,
+            },
+            adaptive_parameters: false,
+            adaptation_rate: 0.1,
+            improvement_history_size: 20,
+            success_history_size: 20,
+            cooling_schedule: CoolingScheduleType::Exponential,
+        },
     };
 
     let init_x = SMatrix::<f64, 1, 2>::from_row_slice(&[0.5, 0.5]);
@@ -48,6 +61,19 @@ fn test_sa_cooling() {
         reheat_after: 20,
         x_min: -10.0,
         x_max: 10.0,
+        advanced: non_convex_opt::utils::config::AdvancedConf {
+            restart_strategy: RestartStrategy::None,
+            stagnation_detection: StagnationDetection {
+                stagnation_window: 20,
+                improvement_threshold: 1e-6,
+                diversity_threshold: 0.1,
+            },
+            adaptive_parameters: false,
+            adaptation_rate: 0.1,
+            improvement_history_size: 20,
+            success_history_size: 20,
+            cooling_schedule: CoolingScheduleType::Exponential,
+        },
     };
 
     let init_x = SMatrix::<f64, 1, 2>::from_row_slice(&[0.5, 0.5]);
@@ -80,6 +106,19 @@ fn test_sa_neighbor_generation() {
         reheat_after: 20,
         x_min: -10.0,
         x_max: 10.0,
+        advanced: non_convex_opt::utils::config::AdvancedConf {
+            restart_strategy: RestartStrategy::None,
+            stagnation_detection: StagnationDetection {
+                stagnation_window: 20,
+                improvement_threshold: 1e-6,
+                diversity_threshold: 0.1,
+            },
+            adaptive_parameters: false,
+            adaptation_rate: 0.1,
+            improvement_history_size: 20,
+            success_history_size: 20,
+            cooling_schedule: CoolingScheduleType::Exponential,
+        },
     };
 
     let init_x = SMatrix::<f64, 1, 2>::from_row_slice(&[0.5, 0.5]);
@@ -104,6 +143,19 @@ fn test_sa_with_constraints() {
         reheat_after: 20,
         x_min: -10.0,
         x_max: 10.0,
+        advanced: non_convex_opt::utils::config::AdvancedConf {
+            restart_strategy: RestartStrategy::None,
+            stagnation_detection: StagnationDetection {
+                stagnation_window: 20,
+                improvement_threshold: 1e-6,
+                diversity_threshold: 0.1,
+            },
+            adaptive_parameters: false,
+            adaptation_rate: 0.1,
+            improvement_history_size: 20,
+            success_history_size: 20,
+            cooling_schedule: CoolingScheduleType::Exponential,
+        },
     };
 
     let init_x = SMatrix::<f64, 1, 2>::from_row_slice(&[0.5, 0.5]);
@@ -130,6 +182,19 @@ fn test_sa_acceptance() {
         reheat_after: 20,
         x_min: -10.0,
         x_max: 10.0,
+        advanced: non_convex_opt::utils::config::AdvancedConf {
+            restart_strategy: RestartStrategy::None,
+            stagnation_detection: StagnationDetection {
+                stagnation_window: 20,
+                improvement_threshold: 1e-6,
+                diversity_threshold: 0.1,
+            },
+            adaptive_parameters: false,
+            adaptation_rate: 0.1,
+            improvement_history_size: 20,
+            success_history_size: 20,
+            cooling_schedule: CoolingScheduleType::Exponential,
+        },
     };
 
     let init_x = SMatrix::<f64, 1, 2>::from_row_slice(&[0.5, 0.5]);

@@ -248,4 +248,3 @@ fn default_tol() -> f64 {
 fn default_bracket_factor() -> f64 {
     2.0
 }
-

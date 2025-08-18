@@ -66,9 +66,7 @@ fn test_lbfgs() {
 #[test]
 fn test_backtracking_line_search() {
     let conf = LBFGSConf {
-        common: CommonConf {
-            memory_size: 10,
-        },
+        common: CommonConf { memory_size: 10 },
         line_search: LineSearchConf::Backtracking(BacktrackingConf { c1: 1e-4, rho: 0.5 }),
         advanced: AdvancedConf {
             adaptive_parameters: false,

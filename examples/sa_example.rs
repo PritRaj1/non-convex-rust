@@ -30,7 +30,25 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 "num_neighbors": 20,
                 "reheat_after": 50,
                 "x_min": 0.0,
-                "x_max": 10.0
+                "x_max": 10.0,
+                "advanced": {
+                    "restart_strategy": {
+                        "Stagnation": {
+                            "max_iterations": 30,
+                            "threshold": 1e-6
+                        }
+                    },
+                    "stagnation_detection": {
+                        "stagnation_window": 20,
+                        "improvement_threshold": 1e-6,
+                        "diversity_threshold": 0.1
+                    },
+                    "adaptive_parameters": true,
+                    "adaptation_rate": 0.1,
+                    "improvement_history_size": 20,
+                    "success_history_size": 20,
+                    "cooling_schedule": "Exponential"
+                }
             }
         }
     }
