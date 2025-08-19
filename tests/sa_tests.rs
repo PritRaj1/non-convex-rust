@@ -1,6 +1,6 @@
 mod common;
 
-use common::fcns::{QuadraticConstraints, QuadraticObjective};
+use common::fcns::{RosenbrockConstraints, RosenbrockObjective};
 use nalgebra::{SMatrix, U1, U2};
 
 use non_convex_opt::algorithms::simulated_annealing::sa::SimulatedAnnealing;
@@ -13,15 +13,15 @@ use non_convex_opt::utils::{
 #[test]
 fn test_sa_basic() {
     let conf = SAConf {
-        initial_temp: 100.0,
-        cooling_rate: 0.99,
-        step_size: 1.0,
-        num_neighbors: 20,
-        x_min: -10.0,
-        x_max: 10.0,
-        min_step_size_factor: 0.3,
-        step_size_decay_power: 0.2,
-        min_temp_factor: 0.05,
+        initial_temp: 1000.0,
+        cooling_rate: 0.95,
+        step_size: 0.5,
+        num_neighbors: 50,
+        x_min: -5.0,
+        x_max: 5.0,
+        min_step_size_factor: 0.1,
+        step_size_decay_power: 0.1,
+        min_temp_factor: 0.01,
         use_adaptive_cooling: false,
         advanced: AdvancedConf {
             restart_strategy: RestartStrategy::None,
@@ -37,34 +37,34 @@ fn test_sa_basic() {
         },
     };
 
-    let init_x = SMatrix::<f64, 1, 2>::from_row_slice(&[0.5, 0.5]);
-    let obj_f = QuadraticObjective { a: 1.0, b: 100.0 };
-    let constraints = QuadraticConstraints {};
+    let init_x = SMatrix::<f64, 1, 2>::from_row_slice(&[0.9, 0.9]);
+    let obj_f = RosenbrockObjective { a: 1.0, b: 100.0 };
+    let constraints = RosenbrockConstraints {};
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
 
     let mut sa: SimulatedAnnealing<f64, U1, U2> = SimulatedAnnealing::new(conf, init_x, opt_prob);
     let initial_fitness = sa.st.best_f;
 
-    for _ in 0..10 {
+    for _ in 0..100 {
         sa.step();
     }
 
     assert!(sa.st.best_f > initial_fitness);
-    assert!(sa.st.best_x.iter().all(|&x| (-10.0..=10.0).contains(&x)));
+    assert!(sa.st.best_x.iter().all(|&x| (-5.0..=5.0).contains(&x)));
 }
 
 #[test]
 fn test_sa_cooling() {
     let conf = SAConf {
-        initial_temp: 100.0,
-        cooling_rate: 0.99,
-        step_size: 1.0,
-        num_neighbors: 20,
-        x_min: -10.0,
-        x_max: 10.0,
-        min_step_size_factor: 0.3,
-        step_size_decay_power: 0.2,
-        min_temp_factor: 0.05,
+        initial_temp: 1000.0,
+        cooling_rate: 0.95,
+        step_size: 0.5,
+        num_neighbors: 50,
+        x_min: -5.0,
+        x_max: 5.0,
+        min_step_size_factor: 0.1,
+        step_size_decay_power: 0.1,
+        min_temp_factor: 0.01,
         use_adaptive_cooling: false,
         advanced: AdvancedConf {
             restart_strategy: RestartStrategy::None,
@@ -80,9 +80,9 @@ fn test_sa_cooling() {
         },
     };
 
-    let init_x = SMatrix::<f64, 1, 2>::from_row_slice(&[0.5, 0.5]);
-    let obj_f = QuadraticObjective { a: 1.0, b: 100.0 };
-    let constraints = QuadraticConstraints {};
+    let init_x = SMatrix::<f64, 1, 2>::from_row_slice(&[0.9, 0.9]);
+    let obj_f = RosenbrockObjective { a: 1.0, b: 100.0 };
+    let constraints = RosenbrockConstraints {};
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
 
     let mut sa: SimulatedAnnealing<f64, U1, U2> = SimulatedAnnealing::new(conf, init_x, opt_prob);
@@ -102,15 +102,15 @@ fn test_sa_cooling() {
 #[test]
 fn test_sa_neighbor_generation() {
     let conf = SAConf {
-        initial_temp: 100.0,
-        cooling_rate: 0.99,
-        step_size: 1.0,
-        num_neighbors: 20,
-        x_min: -10.0,
-        x_max: 10.0,
-        min_step_size_factor: 0.3,
-        step_size_decay_power: 0.2,
-        min_temp_factor: 0.05,
+        initial_temp: 1000.0,
+        cooling_rate: 0.95,
+        step_size: 0.5,
+        num_neighbors: 50,
+        x_min: -5.0,
+        x_max: 5.0,
+        min_step_size_factor: 0.1,
+        step_size_decay_power: 0.1,
+        min_temp_factor: 0.01,
         use_adaptive_cooling: false,
         advanced: AdvancedConf {
             restart_strategy: RestartStrategy::None,
@@ -126,29 +126,29 @@ fn test_sa_neighbor_generation() {
         },
     };
 
-    let init_x = SMatrix::<f64, 1, 2>::from_row_slice(&[0.5, 0.5]);
-    let obj_f = QuadraticObjective { a: 1.0, b: 100.0 };
-    let constraints = QuadraticConstraints {};
+    let init_x = SMatrix::<f64, 1, 2>::from_row_slice(&[0.9, 0.9]);
+    let obj_f = RosenbrockObjective { a: 1.0, b: 100.0 };
+    let constraints = RosenbrockConstraints {};
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
 
     let mut sa: SimulatedAnnealing<f64, U1, U2> = SimulatedAnnealing::new(conf, init_x, opt_prob);
 
     sa.step();
-    assert!(sa.st.best_x.iter().all(|&x| (-10.0..=10.0).contains(&x)));
+    assert!(sa.st.best_x.iter().all(|&x| (-5.0..=5.0).contains(&x)));
 }
 
 #[test]
 fn test_sa_with_constraints() {
     let conf = SAConf {
-        initial_temp: 100.0,
-        cooling_rate: 0.99,
-        step_size: 1.0,
-        num_neighbors: 20,
-        x_min: -10.0,
-        x_max: 10.0,
-        min_step_size_factor: 0.3,
-        step_size_decay_power: 0.2,
-        min_temp_factor: 0.05,
+        initial_temp: 1000.0,
+        cooling_rate: 0.95,
+        step_size: 0.5,
+        num_neighbors: 50,
+        x_min: -5.0,
+        x_max: 5.0,
+        min_step_size_factor: 0.1,
+        step_size_decay_power: 0.1,
+        min_temp_factor: 0.01,
         use_adaptive_cooling: false,
         advanced: AdvancedConf {
             restart_strategy: RestartStrategy::None,
@@ -164,31 +164,31 @@ fn test_sa_with_constraints() {
         },
     };
 
-    let init_x = SMatrix::<f64, 1, 2>::from_row_slice(&[0.5, 0.5]);
-    let obj_f = QuadraticObjective { a: 1.0, b: 100.0 };
-    let constraints = QuadraticConstraints {};
+    let init_x = SMatrix::<f64, 1, 2>::from_row_slice(&[0.9, 0.9]);
+    let obj_f = RosenbrockObjective { a: 1.0, b: 100.0 };
+    let constraints = RosenbrockConstraints {};
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
 
     let mut sa: SimulatedAnnealing<f64, U1, U2> = SimulatedAnnealing::new(conf, init_x, opt_prob);
 
     for _ in 0..10 {
         sa.step();
-        assert!(sa.st.best_x.iter().all(|&x| (0.0..=1.0).contains(&x)));
+        assert!(sa.st.best_x.iter().all(|&x| (-5.0..=5.0).contains(&x)));
     }
 }
 
 #[test]
 fn test_sa_acceptance() {
     let conf = SAConf {
-        initial_temp: 100.0,
-        cooling_rate: 0.99,
-        step_size: 1.0,
-        num_neighbors: 20,
-        x_min: -10.0,
-        x_max: 10.0,
-        min_step_size_factor: 0.3,
-        step_size_decay_power: 0.2,
-        min_temp_factor: 0.05,
+        initial_temp: 1000.0,
+        cooling_rate: 0.95,
+        step_size: 0.5,
+        num_neighbors: 50,
+        x_min: -5.0,
+        x_max: 5.0,
+        min_step_size_factor: 0.1,
+        step_size_decay_power: 0.1,
+        min_temp_factor: 0.01,
         use_adaptive_cooling: false,
         advanced: AdvancedConf {
             restart_strategy: RestartStrategy::None,
@@ -204,9 +204,9 @@ fn test_sa_acceptance() {
         },
     };
 
-    let init_x = SMatrix::<f64, 1, 2>::from_row_slice(&[0.5, 0.5]);
-    let obj_f = QuadraticObjective { a: 1.0, b: 100.0 };
-    let constraints = QuadraticConstraints {};
+    let init_x = SMatrix::<f64, 1, 2>::from_row_slice(&[0.9, 0.9]);
+    let obj_f = RosenbrockObjective { a: 1.0, b: 100.0 };
+    let constraints = RosenbrockConstraints {};
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
 
     let mut sa: SimulatedAnnealing<f64, U1, U2> = SimulatedAnnealing::new(conf, init_x, opt_prob);
