@@ -1,12 +1,13 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{criterion_group, criterion_main, Criterion};
 use nalgebra::SMatrix;
 use rand::random;
+use std::hint::black_box;
 
 use non_convex_opt::utils::config::{AlgConf, Config, GRASPConf, OptConf};
 use non_convex_opt::NonConvexOpt;
 
 mod common;
-use common::fcns::{KBFConstraints, KBF};
+use common::fcns::{KbfConstraints, Kbf};
 
 fn bench_grasp_unconstrained(c: &mut Criterion) {
     let config = Config {
@@ -37,8 +38,8 @@ fn bench_grasp_unconstrained(c: &mut Criterion) {
             let mut opt = NonConvexOpt::new(
                 config.clone(),
                 black_box(init_pop),
-                KBF,
-                None::<KBFConstraints>,
+                Kbf,
+                None::<KbfConstraints>,
             );
             let _st = opt.run();
         })
@@ -74,8 +75,8 @@ fn bench_grasp_constrained(c: &mut Criterion) {
             let mut opt = NonConvexOpt::new(
                 config.clone(),
                 black_box(init_pop),
-                KBF,
-                Some(KBFConstraints),
+                Kbf,
+                Some(KbfConstraints),
             );
             let _st = opt.run();
         })

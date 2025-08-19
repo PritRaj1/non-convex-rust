@@ -5,9 +5,9 @@ use image::ImageReader;
 use nalgebra::SMatrix;
 use plotters::prelude::*;
 
-use common::fcns::{BoxConstraints, MultiModalFunction};
+use common::fcns::{MultiModalFunction, BoxConstraints};
 use common::img::{
-    create_contour_data, find_closest_color, get_color_palette, setup_chart, setup_gif,
+    create_contour_data, find_closest_color, get_color_palette, setup_chart, setup_gif, ChartParams,
 };
 
 use non_convex_opt::utils::config::Config;
@@ -79,16 +79,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut encoder = setup_gif("examples/gifs/lbfgs_kbf.gif")?;
 
     for frame in 0..10 {
-        let mut chart = setup_chart(
+        let mut chart = setup_chart(ChartParams {
             frame,
-            "LBFGS",
+            algorithm_name: "L-BFGS",
             resolution,
-            &z_values,
+            z_values: &z_values,
             min_val,
             max_val,
-            &constraints,
-            "examples/lbfgs_frame.png",
-        )?;
+            constraints: &constraints,
+            frame_path: "examples/lbfgs_frame.png",
+        })?;
 
         // Draw best individual in yellow
         let best_x = opt.get_best_individual();
@@ -112,11 +112,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             indexed_pixels.push(idx as u8);
         }
 
-        let mut frame = Frame::default();
-        frame.width = 800;
-        frame.height = 800;
-        frame.delay = 40;
-        frame.buffer = std::borrow::Cow::from(indexed_pixels);
+        let frame = Frame::<'_> {
+            width: 800,
+            height: 800,
+            delay: 40,
+            buffer: std::borrow::Cow::from(indexed_pixels),
+            ..Default::default()
+        };
         encoder.write_frame(&frame)?;
 
         opt.step();

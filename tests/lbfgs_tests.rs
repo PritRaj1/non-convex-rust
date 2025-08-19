@@ -52,7 +52,7 @@ fn test_lbfgs() {
     let constraints = QuadraticConstraints {};
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
 
-    let mut lbfgs: LBFGS<f64, U1, U2> = LBFGS::new(conf, init_x.clone(), opt_prob);
+    let mut lbfgs: LBFGS<f64, U1, U2> = LBFGS::new(conf, init_x, opt_prob);
     let initial_fitness = lbfgs.st.best_f;
 
     for _ in 0..10 {
@@ -60,7 +60,7 @@ fn test_lbfgs() {
     }
 
     assert!(lbfgs.st.best_f > initial_fitness);
-    assert!(lbfgs.st.best_x.iter().all(|&x| x >= 0.0 && x <= 1.0));
+    assert!(lbfgs.st.best_x.iter().all(|&x| (0.0..=1.0).contains(&x)));
 }
 
 #[test]
@@ -99,7 +99,7 @@ fn test_backtracking_line_search() {
     let constraints = QuadraticConstraints {};
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
 
-    let mut lbfgs: LBFGS<f64, U1, U2> = LBFGS::new(conf, init_x.clone(), opt_prob);
+    let mut lbfgs: LBFGS<f64, U1, U2> = LBFGS::new(conf, init_x, opt_prob);
     let initial_fitness = lbfgs.st.best_f;
 
     for _ in 0..5 {
@@ -149,7 +149,7 @@ fn test_strong_wolfe_line_search() {
     let constraints = QuadraticConstraints {};
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
 
-    let mut lbfgs: LBFGS<f64, U1, U2> = LBFGS::new(conf, init_x.clone(), opt_prob);
+    let mut lbfgs: LBFGS<f64, U1, U2> = LBFGS::new(conf, init_x, opt_prob);
     let initial_fitness = lbfgs.st.best_f;
 
     for _ in 0..5 {
@@ -201,7 +201,7 @@ fn test_hager_zhang_line_search() {
     let constraints = QuadraticConstraints {};
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
 
-    let mut lbfgs: LBFGS<f64, U1, U2> = LBFGS::new(conf, init_x.clone(), opt_prob);
+    let mut lbfgs: LBFGS<f64, U1, U2> = LBFGS::new(conf, init_x, opt_prob);
     let initial_fitness = lbfgs.st.best_f;
 
     for _ in 0..5 {
@@ -251,7 +251,7 @@ fn test_more_thuente_line_search() {
     let constraints = QuadraticConstraints {};
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
 
-    let mut lbfgs: LBFGS<f64, U1, U2> = LBFGS::new(conf, init_x.clone(), opt_prob);
+    let mut lbfgs: LBFGS<f64, U1, U2> = LBFGS::new(conf, init_x, opt_prob);
     let initial_fitness = lbfgs.st.best_f;
 
     for _ in 0..5 {
@@ -301,7 +301,7 @@ fn test_golden_section_line_search() {
     let constraints = QuadraticConstraints {};
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
 
-    let mut lbfgs: LBFGS<f64, U1, U2> = LBFGS::new(conf, init_x.clone(), opt_prob);
+    let mut lbfgs: LBFGS<f64, U1, U2> = LBFGS::new(conf, init_x, opt_prob);
     let initial_fitness = lbfgs.st.best_f;
 
     for _ in 0..5 {

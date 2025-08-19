@@ -4,11 +4,10 @@ use gif::Frame;
 use image::ImageReader;
 use nalgebra::SMatrix;
 use plotters::prelude::*;
-use serde_json;
 
-use common::fcns::{KBFConstraints, KBF};
+use common::fcns::{KbfConstraints, Kbf};
 use common::img::{
-    create_contour_data, find_closest_color, get_color_palette, setup_chart, setup_gif,
+    create_contour_data, find_closest_color, get_color_palette, setup_chart, setup_gif, ChartParams,
 };
 
 use non_convex_opt::utils::config::Config;
@@ -50,8 +49,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    let obj_f = KBF;
-    let constraints = KBFConstraints;
+    let obj_f = Kbf;
+    let constraints = KbfConstraints;
 
     let mut opt = NonConvexOpt::new(config, init_pop, obj_f.clone(), Some(constraints.clone()));
 
@@ -64,16 +63,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let frame_delay = 10;
 
     for frame in 0..num_frames {
-        let mut chart = setup_chart(
+        let mut chart = setup_chart(ChartParams {
             frame,
-            "MSPO",
+            algorithm_name: "MSPO",
             resolution,
-            &z_values,
+            z_values: &z_values,
             min_val,
             max_val,
-            &constraints,
-            "examples/mspo_frame.png",
-        )?;
+            constraints: &constraints,
+            frame_path: "examples/mspo_frame.png",
+        })?;
 
         // Draw population
         let population = opt.get_population();
@@ -104,11 +103,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             indexed_pixels.push(idx as u8);
         }
 
-        let mut frame = Frame::default();
-        frame.width = 800;
-        frame.height = 800;
-        frame.delay = frame_delay;
-        frame.buffer = std::borrow::Cow::from(indexed_pixels);
+        let frame = Frame::<'_> {
+            width: 800,
+            height: 800,
+            delay: frame_delay,
+            buffer: std::borrow::Cow::from(indexed_pixels),
+            ..Default::default()
+        };
         encoder.write_frame(&frame)?;
 
         opt.step();

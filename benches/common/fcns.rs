@@ -3,9 +3,9 @@ use non_convex_opt::utils::opt_prob::{BooleanConstraintFunction, ObjectiveFuncti
 
 #[allow(dead_code)]
 #[derive(Clone)]
-pub struct KBF;
+pub struct Kbf;
 
-impl<D> ObjectiveFunction<f64, D> for KBF
+impl<D> ObjectiveFunction<f64, D> for Kbf
 where
     D: Dim,
     DefaultAllocator: Allocator<D>,
@@ -36,9 +36,9 @@ where
 
 #[allow(dead_code)]
 #[derive(Clone)]
-pub struct KBFConstraints;
+pub struct KbfConstraints;
 
-impl<D: Dim> BooleanConstraintFunction<f64, D> for KBFConstraints
+impl<D: Dim> BooleanConstraintFunction<f64, D> for KbfConstraints
 where
     D: Dim,
     DefaultAllocator: Allocator<D>,
@@ -48,7 +48,7 @@ where
         let product: f64 = x.iter().product();
         let sum: f64 = x.iter().sum();
 
-        x.iter().all(|&xi| xi >= 0.0 && xi <= 10.0)
+        x.iter().all(|&xi| (-5.0..=5.0).contains(&xi))
             && product > 0.75
             && sum < (15.0 * n as f64) / 2.0
     }
@@ -83,7 +83,7 @@ where
     DefaultAllocator: Allocator<D>,
 {
     fn g(&self, x: &OVector<f64, D>) -> bool {
-        x.iter().all(|&xi| xi >= -5.0 && xi <= 5.0)
+        x.iter().all(|&xi| (-5.0..=5.0).contains(&xi))
     }
 }
 
@@ -138,6 +138,6 @@ where
     DefaultAllocator: Allocator<D>,
 {
     fn g(&self, x: &OVector<f64, D>) -> bool {
-        x.iter().all(|&xi| xi >= -5.0 && xi <= 5.0)
+        x.iter().all(|&xi| (0.0..=1.0).contains(&xi))
     }
 }

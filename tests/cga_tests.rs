@@ -119,8 +119,8 @@ fn test_adaptive_parameters() {
     // Parameters should be finite and within reasonable bounds
     assert!(final_mut_rate.is_finite());
     assert!(final_cross_prob.is_finite());
-    assert!(final_mut_rate >= 0.001 && final_mut_rate <= 0.5);
-    assert!(final_cross_prob >= 0.1 && final_cross_prob <= 0.95);
+    assert!((0.001..=0.5).contains(&final_mut_rate));
+    assert!((0.1..=0.95).contains(&final_cross_prob));
 }
 
 #[test]

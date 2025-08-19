@@ -6,17 +6,21 @@ use nalgebra::SMatrix;
 use plotters::backend::BitMapBackend;
 use plotters::prelude::*;
 
-use common::fcns::{KBFConstraints, KBF};
+use common::fcns::{KbfConstraints, Kbf};
 use common::img::{create_contour_data, find_closest_color, get_color_palette, setup_gif};
 
 use non_convex_opt::utils::config::Config;
 use non_convex_opt::utils::opt_prob::{BooleanConstraintFunction, ObjectiveFunction};
 use non_convex_opt::NonConvexOpt;
 
+type ContourData = Vec<Vec<(f64, f64)>>;
+type BestPoints = Vec<(f64, f64)>;
+type Temperatures = Vec<f64>;
+
 fn get_replica_data(
     opt: &NonConvexOpt<f64, nalgebra::Const<50>, nalgebra::Const<2>>,
-    obj_f: &KBF,
-) -> (Vec<Vec<(f64, f64)>>, Vec<(f64, f64)>, Vec<f64>) {
+    obj_f: &Kbf,
+) -> (ContourData, BestPoints, Temperatures) {
     let replica_populations = opt
         .get_pt_replica_populations()
         .expect("This example requires Parallel Tempering algorithm");
@@ -89,8 +93,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let config = Config::new(conf_json).unwrap();
 
-    let obj_f = KBF;
-    let constraints = KBFConstraints;
+    let obj_f = Kbf;
+    let constraints = KbfConstraints;
 
     let mut init_pop = SMatrix::<f64, 50, 2>::zeros();
     for i in 0..50 {
@@ -126,7 +130,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         for (replica_idx, area) in replica_areas.iter().enumerate() {
             let mut chart = ChartBuilder::on(area)
                 .caption(
-                    &format!(
+                    format!(
                         "Replica {} (T={:.3})",
                         replica_idx,
                         replica_temperatures.get(replica_idx).unwrap_or(&0.0)
@@ -140,8 +144,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             chart.configure_mesh().draw()?;
 
-            for i in 0..resolution - 1 {
-                for j in 0..resolution - 1 {
+            for (i, _) in z_values.iter().enumerate().take(resolution - 1) {
+                for (j, _) in z_values[i].iter().enumerate().take(resolution - 1) {
                     let x = 10.0 * i as f64 / (resolution - 1) as f64;
                     let y = 10.0 * j as f64 / (resolution - 1) as f64;
                     let dx = 10.0 / (resolution - 1) as f64;
@@ -152,15 +156,27 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         (255.0 * val) as u8,
                     );
 
-                    chart.draw_series(std::iter::once(Rectangle::new(
-                        [(x, y), (x + dx, y + dx)],
-                        color.filled(),
-                    )))?;
+                    let point = nalgebra::SVector::<f64, 2>::from_vec(vec![x, y]);
+                    if !constraints.g(&point) {
+                        let stripe_width = 0.2;
+                        let stripe_pos = ((x + y) / stripe_width).floor() as i32;
+                        if stripe_pos % 2 == 0 {
+                            chart.draw_series(std::iter::once(Rectangle::new(
+                                [(x, y), (x + dx, y + dx)],
+                                RGBColor(128, 128, 128).mix(0.3).filled(),
+                            )))?;
+                        }
+                    } else {
+                        chart.draw_series(std::iter::once(Rectangle::new(
+                            [(x, y), (x + dx, y + dx)],
+                            color.filled(),
+                        )))?;
+                    }
                 }
             }
 
-            for i in 0..resolution - 1 {
-                for j in 0..resolution - 1 {
+            for (i, _) in z_values.iter().enumerate().take(resolution - 1) {
+                for (j, _) in z_values[i].iter().enumerate().take(resolution - 1) {
                     let x = 10.0 * i as f64 / (resolution - 1) as f64;
                     let y = 10.0 * j as f64 / (resolution - 1) as f64;
 
@@ -214,11 +230,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             indexed_pixels.push(idx as u8);
         }
 
-        let mut frame = Frame::default();
-        frame.width = 2000;
-        frame.height = 400;
-        frame.delay = 5;
-        frame.buffer = std::borrow::Cow::from(indexed_pixels);
+        let frame = Frame::<'_> {
+            width: 2000,
+            height: 400,
+            delay: 5,
+            buffer: std::borrow::Cow::from(indexed_pixels),
+            ..Default::default()
+        };
         encoder.write_frame(&frame)?;
 
         opt.step();

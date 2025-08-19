@@ -31,7 +31,7 @@ where
     DefaultAllocator: Allocator<D>,
 {
     fn g(&self, x: &OVector<f64, D>) -> bool {
-        x.iter().all(|&xi| xi >= 0.0 && xi <= 1.0)
+        x.iter().all(|&xi| (-5.0..=5.0).contains(&xi))
     }
 }
 
@@ -90,6 +90,12 @@ where
     DefaultAllocator: Allocator<D>,
 {
     fn g(&self, x: &OVector<f64, D>) -> bool {
-        x.iter().all(|&xi| xi >= 0.0 && xi <= 1.0)
+        let n = x.len();
+        let product: f64 = x.iter().product();
+        let sum: f64 = x.iter().sum();
+
+        x.iter().all(|&xi| (0.0..=10.0).contains(&xi))
+            && product > 0.75
+            && sum < (15.0 * n as f64) / 2.0
     }
 }

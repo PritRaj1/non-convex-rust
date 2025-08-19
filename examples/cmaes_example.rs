@@ -4,11 +4,10 @@ use gif::Frame;
 use image::ImageReader;
 use nalgebra::{RowVector2, SMatrix};
 use plotters::prelude::*;
-use serde_json;
 
-use common::fcns::{KBFConstraints, KBF};
+use common::fcns::{KbfConstraints, Kbf};
 use common::img::{
-    create_contour_data, find_closest_color, get_color_palette, setup_chart, setup_gif,
+    create_contour_data, find_closest_color, get_color_palette, setup_chart, setup_gif, ChartParams,
 };
 
 use non_convex_opt::utils::config::Config;
@@ -33,8 +32,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let config: Config = serde_json::from_str(config_json).unwrap();
 
-    let obj_f = KBF;
-    let constraints = KBFConstraints;
+    let obj_f = Kbf;
+    let constraints = KbfConstraints;
 
     let mut init_x = SMatrix::<f64, 100, 2>::zeros();
     init_x.row_mut(0).copy_from(&RowVector2::new(4.0, 9.0));
@@ -47,16 +46,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut encoder = setup_gif("examples/gifs/cmaes_kbf.gif")?;
 
     for frame in 0..20 {
-        let mut chart = setup_chart(
+        let mut chart = setup_chart(ChartParams {
             frame,
-            "CMAES",
+            algorithm_name: "CMA-ES",
             resolution,
-            &z_values,
+            z_values: &z_values,
             min_val,
             max_val,
-            &constraints,
-            "examples/cmaes_frame.png",
-        )?;
+            constraints: &constraints,
+            frame_path: "examples/cmaes_frame.png",
+        })?;
 
         // Draw population
         let population = opt.get_population();
@@ -87,11 +86,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             indexed_pixels.push(idx as u8);
         }
 
-        let mut frame = Frame::default();
-        frame.width = 800;
-        frame.height = 800;
-        frame.delay = 20;
-        frame.buffer = std::borrow::Cow::from(indexed_pixels);
+        let frame = Frame::<'_> {
+            width: 800,
+            height: 800,
+            delay: 20,
+            buffer: std::borrow::Cow::from(indexed_pixels),
+            ..Default::default()
+        };
         encoder.write_frame(&frame)?;
 
         opt.step();

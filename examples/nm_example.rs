@@ -5,9 +5,9 @@ use image::ImageReader;
 use nalgebra::SMatrix;
 use plotters::prelude::*;
 
-use common::fcns::{KBFConstraints, KBF};
+use common::fcns::{KbfConstraints, Kbf};
 use common::img::{
-    create_contour_data, find_closest_color, get_color_palette, setup_chart, setup_gif,
+    create_contour_data, find_closest_color, get_color_palette, setup_chart, setup_gif, ChartParams,
 };
 
 use non_convex_opt::utils::alg_conf::nm_conf::{
@@ -57,8 +57,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }),
     };
 
-    let obj_f = KBF;
-    let constraints = KBFConstraints;
+    let obj_f = Kbf;
+    let constraints = KbfConstraints;
 
     // Create initial simplex directly
     let init_simplex = SMatrix::<f64, 3, 2>::from_rows(&[
@@ -80,16 +80,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut encoder = setup_gif("examples/gifs/nm_kbf.gif")?;
 
     for frame in 0..10 {
-        let mut chart = setup_chart(
+        let mut chart = setup_chart(ChartParams {
             frame,
-            "Nelder-Mead Simplex",
+            algorithm_name: "Nelder-Mead",
             resolution,
-            &z_values,
+            z_values: &z_values,
             min_val,
             max_val,
-            &constraints,
-            "examples/nm_frame.png",
-        )?;
+            constraints: &constraints,
+            frame_path: "examples/nm_frame.png",
+        })?;
 
         // Get current simplex vertices and best point
         let vertices = opt
@@ -138,11 +138,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             indexed_pixels.push(idx as u8);
         }
 
-        let mut frame = Frame::default();
-        frame.width = 800;
-        frame.height = 800;
-        frame.delay = 40;
-        frame.buffer = std::borrow::Cow::from(indexed_pixels);
+        let frame = Frame::<'_> {
+            width: 800,
+            height: 800,
+            delay: 40,
+            buffer: std::borrow::Cow::from(indexed_pixels),
+            ..Default::default()
+        };
         encoder.write_frame(&frame)?;
 
         opt.step();

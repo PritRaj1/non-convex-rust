@@ -33,10 +33,10 @@ fn test_metropolis_hastings_accept_reject() {
 
     let x_better = DVector::from_vec(vec![0.95, 0.9025]); // Closer to Rosenbrock optimum [1,1]
     let accepted_uphill = mh.accept_reject(&x_old, &x_better, constraints_new, 0.5);
-    assert_eq!(accepted_uphill, true);
+    assert!(accepted_uphill);
 
     let accepted_constrained = mh.accept_reject(&x_old, &x_new, false, 0.5);
-    assert_eq!(accepted_constrained, false);
+    assert!(!accepted_constrained);
 }
 
 #[test]

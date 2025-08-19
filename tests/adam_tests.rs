@@ -25,7 +25,7 @@ fn test_adam() {
     let constraints = QuadraticConstraints {};
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
 
-    let mut adam = Adam::<f64, U1, U2>::new(conf, init_x.clone(), opt_prob);
+    let mut adam = Adam::<f64, U1, U2>::new(conf, init_x, opt_prob);
 
     let initial_fitness = adam.st.best_f;
 

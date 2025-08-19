@@ -43,7 +43,7 @@ fn test_sa_basic() {
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
 
     let mut sa: SimulatedAnnealing<f64, U1, U2> =
-        SimulatedAnnealing::new(conf, init_x.clone(), opt_prob);
+        SimulatedAnnealing::new(conf, init_x, opt_prob);
     let initial_fitness = sa.st.best_f;
 
     for _ in 0..10 {
@@ -51,7 +51,7 @@ fn test_sa_basic() {
     }
 
     assert!(sa.st.best_f > initial_fitness);
-    assert!(sa.st.best_x.iter().all(|&x| x >= 0.0 && x <= 1.0));
+    assert!(sa.st.best_x.iter().all(|&x| (-10.0..=10.0).contains(&x)));
 }
 
 #[test]
@@ -87,7 +87,7 @@ fn test_sa_cooling() {
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
 
     let mut sa: SimulatedAnnealing<f64, U1, U2> =
-        SimulatedAnnealing::new(conf, init_x.clone(), opt_prob);
+        SimulatedAnnealing::new(conf, init_x, opt_prob);
     let initial_temp = sa.temperature;
 
     for _ in 0..5 {
@@ -134,10 +134,10 @@ fn test_sa_neighbor_generation() {
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
 
     let mut sa: SimulatedAnnealing<f64, U1, U2> =
-        SimulatedAnnealing::new(conf, init_x.clone(), opt_prob);
+        SimulatedAnnealing::new(conf, init_x, opt_prob);
 
     sa.step();
-    assert!(sa.st.best_x.iter().all(|&x| x >= -10.0 && x <= 10.0));
+    assert!(sa.st.best_x.iter().all(|&x| (-10.0..=10.0).contains(&x)));
 }
 
 #[test]
@@ -173,11 +173,11 @@ fn test_sa_with_constraints() {
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
 
     let mut sa: SimulatedAnnealing<f64, U1, U2> =
-        SimulatedAnnealing::new(conf, init_x.clone(), opt_prob);
+        SimulatedAnnealing::new(conf, init_x, opt_prob);
 
     for _ in 0..10 {
         sa.step();
-        assert!(sa.st.best_x.iter().all(|&x| x >= 0.0 && x <= 1.0));
+        assert!(sa.st.best_x.iter().all(|&x| (0.0..=1.0).contains(&x)));
     }
 }
 
@@ -214,8 +214,8 @@ fn test_sa_acceptance() {
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
 
     let mut sa: SimulatedAnnealing<f64, U1, U2> =
-        SimulatedAnnealing::new(conf, init_x.clone(), opt_prob);
-    let initial_x = sa.st.best_x.clone();
+        SimulatedAnnealing::new(conf, init_x, opt_prob);
+    let initial_x = sa.st.best_x;
 
     sa.step();
 

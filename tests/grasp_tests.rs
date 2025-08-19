@@ -31,7 +31,7 @@ fn test_grasp_unconstrained() {
         None::<Box<dyn BooleanConstraintFunction<f64, U2>>>,
     );
 
-    let mut grasp: GRASP<f64, U1, U2> = GRASP::new(conf, init_x.clone(), opt_prob);
+    let mut grasp: GRASP<f64, U1, U2> = GRASP::new(conf, init_x, opt_prob);
 
     let initial_fitness = grasp.st.best_f;
 
@@ -62,7 +62,7 @@ fn test_grasp_constrained() {
     let constraints = RosenbrockConstraints {};
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
 
-    let mut grasp: GRASP<f64, U1, U2> = GRASP::new(conf, init_x.clone(), opt_prob);
+    let mut grasp: GRASP<f64, U1, U2> = GRASP::new(conf, init_x, opt_prob);
 
     let initial_fitness = grasp.st.best_f;
 
@@ -71,7 +71,7 @@ fn test_grasp_constrained() {
     }
 
     assert!(grasp.st.best_f > initial_fitness);
-    assert!(grasp.st.best_x.iter().all(|&x| x >= 0.0 && x <= 1.0));
+    assert!(grasp.st.best_x.iter().all(|&x| (0.0..=1.0).contains(&x)));
 }
 
 #[test]
@@ -94,7 +94,7 @@ fn test_grasp_construction_and_local_search() {
     let constraints = RosenbrockConstraints {};
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
 
-    let grasp: GRASP<f64, U1, U2> = GRASP::new(conf, init_x.clone(), opt_prob);
+    let grasp: GRASP<f64, U1, U2> = GRASP::new(conf, init_x, opt_prob);
 
     let solution = grasp.construct_solution();
     let improved = grasp.local_search(&solution);
@@ -123,10 +123,10 @@ fn test_grasp_bounds() {
     let constraints = RosenbrockConstraints {};
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
 
-    let mut grasp: GRASP<f64, U1, U2> = GRASP::new(conf, init_x.clone(), opt_prob);
+    let mut grasp: GRASP<f64, U1, U2> = GRASP::new(conf, init_x, opt_prob);
 
     for _ in 0..10 {
         grasp.step();
-        assert!(grasp.st.best_x.iter().all(|&x| x >= 0.0 && x <= 1.0));
+        assert!(grasp.st.best_x.iter().all(|&x| (0.0..=1.0).contains(&x)));
     }
 }

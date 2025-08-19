@@ -64,7 +64,7 @@ fn test_swarm_initialization() {
 
     // Check particles are within bounds
     for particle in &swarm.particles {
-        assert!(particle.position.iter().all(|&x| x >= -10.0 && x <= 10.0));
+        assert!(particle.position.iter().all(|&x| (-10.0..=10.0).contains(&x)));
     }
 }
 
@@ -94,7 +94,7 @@ fn test_swarm_update() {
 
     // After update, particles should still be within bounds
     for particle in &swarm.particles {
-        assert!(particle.position.iter().all(|&x| x >= -10.0 && x <= 10.0));
+        assert!(particle.position.iter().all(|&x| (-10.0..=10.0).contains(&x)));
     }
 
     // Best fitness should not decrease

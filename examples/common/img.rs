@@ -13,13 +13,13 @@ pub fn create_contour_data<F: ObjectiveFunction<f64, U2>>(
     let mut min_val = f64::INFINITY;
     let mut max_val = f64::NEG_INFINITY;
 
-    for i in 0..resolution {
-        for j in 0..resolution {
+    for (i, z_row) in z.iter_mut().enumerate().take(resolution) {
+        for (j, z_val) in z_row.iter_mut().enumerate().take(resolution) {
             let x = 10.0 * i as f64 / (resolution - 1) as f64;
             let y = 10.0 * j as f64 / (resolution - 1) as f64;
             let point = SVector::<f64, 2>::from_vec(vec![x, y]);
             let val = obj_f.f(&point);
-            z[i][j] = val;
+            *z_val = val;
             min_val = min_val.min(val);
             max_val = max_val.max(val);
         }
@@ -57,28 +57,32 @@ pub fn find_closest_color(r: u8, g: u8, b: u8, palette: &[u8]) -> usize {
     best_idx
 }
 
+pub struct ChartParams<'a> {
+    pub frame: usize,
+    pub algorithm_name: &'a str,
+    pub resolution: usize,
+    pub z_values: &'a [Vec<f64>],
+    pub min_val: f64,
+    pub max_val: f64,
+    pub constraints: &'a dyn BooleanConstraintFunction<f64, U2>,
+    pub frame_path: &'a str,
+}
+
 #[allow(dead_code)]
-pub fn setup_chart<'a, F: BooleanConstraintFunction<f64, U2>>(
-    frame: usize,
-    algorithm_name: &'a str,
-    resolution: usize,
-    z_values: &'a [Vec<f64>],
-    min_val: f64,
-    max_val: f64,
-    constraints: &'a F,
-    frame_path: &'a str,
+pub fn setup_chart<'a>(
+    params: ChartParams<'a>,
 ) -> Result<
     ChartContext<'a, BitMapBackend<'a>, Cartesian2d<RangedCoordf64, RangedCoordf64>>,
     Box<dyn std::error::Error>,
 > {
-    let root = BitMapBackend::new(frame_path, (800, 800)).into_drawing_area();
+    let root = BitMapBackend::new(params.frame_path, (800, 800)).into_drawing_area();
     root.fill(&WHITE)?;
 
     let mut chart = ChartBuilder::on(&root)
         .caption(
             format!(
                 "{}, Keane's Bump Function - Iteration {}",
-                algorithm_name, frame
+                params.algorithm_name, params.frame
             ),
             ("sans-serif", 30),
         )
@@ -90,12 +94,12 @@ pub fn setup_chart<'a, F: BooleanConstraintFunction<f64, U2>>(
     chart.configure_mesh().disable_mesh().draw()?;
 
     // Draw contour and feasible regions
-    for i in 0..resolution - 1 {
-        for j in 0..resolution - 1 {
-            let x = 10.0 * i as f64 / (resolution - 1) as f64;
-            let y = 10.0 * j as f64 / (resolution - 1) as f64;
-            let dx = 10.0 / (resolution - 1) as f64;
-            let val = (z_values[i][j] - min_val) / (max_val - min_val);
+    for (i, z_row) in params.z_values.iter().enumerate().take(params.resolution - 1) {
+        for (j, _) in z_row.iter().enumerate().take(params.resolution - 1) {
+            let x = 10.0 * i as f64 / (params.resolution - 1) as f64;
+            let y = 10.0 * j as f64 / (params.resolution - 1) as f64;
+            let dx = 10.0 / (params.resolution - 1) as f64;
+            let val = (params.z_values[i][j] - params.min_val) / (params.max_val - params.min_val);
             let color = RGBColor(
                 (255.0 * val) as u8,
                 (255.0 * val) as u8,
@@ -103,7 +107,7 @@ pub fn setup_chart<'a, F: BooleanConstraintFunction<f64, U2>>(
             );
 
             let point = SVector::<f64, 2>::from_vec(vec![x, y]);
-            if !constraints.g(&point) {
+            if !params.constraints.g(&point) {
                 let stripe_width = 0.2;
                 let stripe_pos = ((x + y) / stripe_width).floor() as i32;
                 if stripe_pos % 2 == 0 {

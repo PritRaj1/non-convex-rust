@@ -1,14 +1,14 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{criterion_group, criterion_main, Criterion};
 use nalgebra::SMatrix;
 use rand::random;
-use serde_json;
+use std::hint::black_box;
 use std::sync::LazyLock;
 
 use non_convex_opt::utils::config::Config;
 use non_convex_opt::NonConvexOpt;
 
 mod common;
-use common::fcns::{KBFConstraints, KBF};
+use common::fcns::{KbfConstraints, Kbf};
 
 static CONFIG_JSON: &str = r#"
 {
@@ -42,8 +42,8 @@ fn bench_mspo_unconstrained(c: &mut Criterion) {
             let mut opt = NonConvexOpt::new(
                 CONFIG.clone(),
                 black_box(init_pop),
-                KBF,
-                None::<KBFConstraints>,
+                Kbf,
+                None::<KbfConstraints>,
             );
             let _st = opt.run();
         })
@@ -57,8 +57,8 @@ fn bench_mspo_constrained(c: &mut Criterion) {
             let mut opt = NonConvexOpt::new(
                 CONFIG.clone(),
                 black_box(init_pop),
-                KBF,
-                Some(KBFConstraints),
+                Kbf,
+                Some(KbfConstraints),
             );
             let _st = opt.run();
         })

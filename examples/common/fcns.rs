@@ -3,9 +3,9 @@ use non_convex_opt::utils::opt_prob::{BooleanConstraintFunction, ObjectiveFuncti
 
 #[allow(dead_code)]
 #[derive(Clone)]
-pub struct KBF;
+pub struct Kbf;
 
-impl ObjectiveFunction<f64, U2> for KBF
+impl ObjectiveFunction<f64, U2> for Kbf
 where
     DefaultAllocator: Allocator<U2>,
 {
@@ -32,9 +32,9 @@ where
 
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
-pub struct KBFConstraints;
+pub struct KbfConstraints;
 
-impl BooleanConstraintFunction<f64, U2> for KBFConstraints
+impl BooleanConstraintFunction<f64, U2> for KbfConstraints
 where
     DefaultAllocator: Allocator<U2>,
 {
@@ -43,7 +43,7 @@ where
         let product: f64 = x.iter().product();
         let sum: f64 = x.iter().sum();
 
-        x.iter().all(|&xi| xi >= 0.0 && xi <= 10.0)
+        x.iter().all(|&xi| (0.0..=10.0).contains(&xi))
             && product > 0.75
             && sum < (15.0 * n as f64) / 2.0
     }
@@ -101,6 +101,6 @@ where
     DefaultAllocator: Allocator<U2>,
 {
     fn g(&self, x: &SVector<f64, 2>) -> bool {
-        x.iter().all(|&xi| xi >= 0.0 && xi <= 10.0)
+        x.iter().all(|&xi| (0.0..=10.0).contains(&xi))
     }
 }

@@ -64,7 +64,7 @@ fn test_standard_tabu() {
     let constraints = RosenbrockConstraints {};
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
 
-    let mut tabu: TabuSearch<f64, U1, U2> = TabuSearch::new(tabu_conf, init_x.clone(), opt_prob);
+    let mut tabu: TabuSearch<f64, U1, U2> = TabuSearch::new(tabu_conf, init_x, opt_prob);
     let initial_fitness = tabu.st.best_f;
 
     for _ in 0..10 {
@@ -72,7 +72,7 @@ fn test_standard_tabu() {
     }
 
     assert!(tabu.st.best_f > initial_fitness);
-    assert!(tabu.st.best_x.iter().all(|&x| x >= 0.0 && x <= 1.0));
+    assert!(tabu.st.best_x.iter().all(|&x| (0.0..=1.0).contains(&x)));
 }
 
 #[test]
@@ -89,7 +89,7 @@ fn test_reactive_tabu() {
     let constraints = RosenbrockConstraints {};
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
 
-    let mut tabu: TabuSearch<f64, U1, U2> = TabuSearch::new(tabu_conf, init_x.clone(), opt_prob);
+    let mut tabu: TabuSearch<f64, U1, U2> = TabuSearch::new(tabu_conf, init_x, opt_prob);
     let initial_fitness = tabu.st.best_f;
 
     for _ in 0..10 {
@@ -97,7 +97,7 @@ fn test_reactive_tabu() {
     }
 
     assert!(tabu.st.best_f > initial_fitness);
-    assert!(tabu.st.best_x.iter().all(|&x| x >= 0.0 && x <= 1.0));
+    assert!(tabu.st.best_x.iter().all(|&x| (0.0..=1.0).contains(&x)));
 }
 
 #[test]
@@ -157,7 +157,7 @@ fn test_frequency_based_tabu() {
     let constraints = RosenbrockConstraints {};
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
 
-    let mut tabu: TabuSearch<f64, U1, U2> = TabuSearch::new(tabu_conf, init_x.clone(), opt_prob);
+    let mut tabu: TabuSearch<f64, U1, U2> = TabuSearch::new(tabu_conf, init_x, opt_prob);
     let initial_fitness = tabu.st.best_f;
 
     for _ in 0..10 {
@@ -165,7 +165,7 @@ fn test_frequency_based_tabu() {
     }
 
     assert!(tabu.st.best_f > initial_fitness);
-    assert!(tabu.st.best_x.iter().all(|&x| x >= 0.0 && x <= 1.0));
+    assert!(tabu.st.best_x.iter().all(|&x| (0.0..=1.0).contains(&x)));
 }
 
 #[test]
@@ -225,7 +225,7 @@ fn test_quality_based_tabu() {
     let constraints = RosenbrockConstraints {};
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
 
-    let mut tabu: TabuSearch<f64, U1, U2> = TabuSearch::new(tabu_conf, init_x.clone(), opt_prob);
+    let mut tabu: TabuSearch<f64, U1, U2> = TabuSearch::new(tabu_conf, init_x, opt_prob);
     let initial_fitness = tabu.st.best_f;
 
     for _ in 0..10 {
@@ -233,7 +233,7 @@ fn test_quality_based_tabu() {
     }
 
     assert!(tabu.st.best_f > initial_fitness);
-    assert!(tabu.st.best_x.iter().all(|&x| x >= 0.0 && x <= 1.0));
+    assert!(tabu.st.best_x.iter().all(|&x| (0.0..=1.0).contains(&x)));
 }
 
 #[test]
@@ -288,7 +288,7 @@ fn test_gaussian_neighborhood() {
     let constraints = RosenbrockConstraints {};
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
 
-    let mut tabu: TabuSearch<f64, U1, U2> = TabuSearch::new(tabu_conf, init_x.clone(), opt_prob);
+    let mut tabu: TabuSearch<f64, U1, U2> = TabuSearch::new(tabu_conf, init_x, opt_prob);
     let initial_fitness = tabu.st.best_f;
 
     for _ in 0..10 {
@@ -296,7 +296,7 @@ fn test_gaussian_neighborhood() {
     }
 
     assert!(tabu.st.best_f > initial_fitness);
-    assert!(tabu.st.best_x.iter().all(|&x| x >= 0.0 && x <= 1.0));
+    assert!(tabu.st.best_x.iter().all(|&x| (0.0..=1.0).contains(&x)));
 }
 
 #[test]
@@ -354,7 +354,7 @@ fn test_adaptive_neighborhood() {
     let constraints = RosenbrockConstraints {};
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
 
-    let mut tabu: TabuSearch<f64, U1, U2> = TabuSearch::new(tabu_conf, init_x.clone(), opt_prob);
+    let mut tabu: TabuSearch<f64, U1, U2> = TabuSearch::new(tabu_conf, init_x, opt_prob);
     let initial_fitness = tabu.st.best_f;
 
     for _ in 0..10 {
@@ -362,5 +362,5 @@ fn test_adaptive_neighborhood() {
     }
 
     assert!(tabu.st.best_f > initial_fitness);
-    assert!(tabu.st.best_x.iter().all(|&x| x >= 0.0 && x <= 1.0));
+    assert!(tabu.st.best_x.iter().all(|&x| (0.0..=1.0).contains(&x)));
 }
