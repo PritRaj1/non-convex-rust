@@ -127,7 +127,11 @@ where
                 threshold,
             } => {
                 self.stagnation_monitor.stagnation_counter() >= *max_iterations
-                    || self.improvement_history.back().unwrap_or(&0.0) < threshold
+                    || self
+                        .improvement_history
+                        .back()
+                        .map(|v| *v < *threshold)
+                        .unwrap_or(false)
             }
             RestartStrategy::Adaptive {
                 base_frequency,

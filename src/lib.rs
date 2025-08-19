@@ -162,7 +162,7 @@ where
         let improvement = current_best - previous_best;
         let abs_improvement = num_traits::Float::abs(improvement);
 
-        let abs_converged = abs_improvement < atol;
+        let abs_converged = abs_improvement < atol && self.alg.state().iter > min_iter_for_rtol;
 
         let rel_converged = if num_traits::Float::abs(current_best) > T::from_f64(1e-10).unwrap() {
             abs_improvement / num_traits::Float::abs(current_best) <= rtol
@@ -172,6 +172,7 @@ where
 
         // Check for stagnation: no significant improvement over a window of iterations
         let stagnation_converged = if self.best_fitness_history.len() >= self.conf.stagnation_window
+            && self.alg.state().iter > min_iter_for_rtol
         {
             let window_start = self.best_fitness_history.len() - self.conf.stagnation_window;
             let oldest_in_window = self.best_fitness_history[window_start];

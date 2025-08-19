@@ -71,7 +71,18 @@ where
                 let mut rng = rand::rng();
                 let step = T::from_f64(rng.sample::<f64, _>(Normal::new(0.0, step_size).unwrap()))
                     .unwrap();
-                val[0] = (current[i] + step).clamp(bounds.0, bounds.1);
+                let new_pos = current[i] + step;
+
+                // Reflective bounds
+                if new_pos < bounds.0 {
+                    let reflected_pos = bounds.0 + (bounds.0 - new_pos);
+                    val[0] = reflected_pos.clamp(bounds.0, bounds.1);
+                } else if new_pos > bounds.1 {
+                    let reflected_pos = bounds.1 - (new_pos - bounds.1);
+                    val[0] = reflected_pos.clamp(bounds.0, bounds.1);
+                } else {
+                    val[0] = new_pos;
+                }
             });
 
         neighbor
@@ -89,8 +100,16 @@ where
         }) * (step * T::from_f64(2.0).unwrap()).sqrt();
 
         let mut new_pos = current + drift + noise;
+
+        // Reflective bounds (does not preserve detailed balance)
         for i in 0..new_pos.len() {
-            new_pos[i] = new_pos[i].clamp(bounds.0, bounds.1); // Not valid without Jacobian, but hey!
+            if new_pos[i] < bounds.0 {
+                let reflected_pos = bounds.0 + (bounds.0 - new_pos[i]);
+                new_pos[i] = reflected_pos.clamp(bounds.0, bounds.1);
+            } else if new_pos[i] > bounds.1 {
+                let reflected_pos = bounds.1 - (new_pos[i] - bounds.1);
+                new_pos[i] = reflected_pos.clamp(bounds.0, bounds.1);
+            }
         }
 
         new_pos

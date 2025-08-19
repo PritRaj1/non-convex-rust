@@ -181,7 +181,9 @@ where
     fn check_restart(&mut self) -> bool {
         match &self.conf.advanced.restart_strategy {
             RestartStrategy::None => false,
-            RestartStrategy::Periodic { frequency } => self.st.iter % frequency == 0,
+            RestartStrategy::Periodic { frequency } => {
+                self.st.iter > 0 && self.st.iter % frequency == 0
+            }
             RestartStrategy::Stagnation {
                 max_iterations,
                 threshold,
@@ -200,7 +202,7 @@ where
                 let adaptive_frequency = (*base_frequency as f64
                     * (1.0 + self.iterations_since_improvement as f64 * adaptation_rate))
                     as usize;
-                self.st.iter % adaptive_frequency == 0
+                self.st.iter > 0 && self.st.iter % adaptive_frequency == 0
             }
         }
     }

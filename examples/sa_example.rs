@@ -18,38 +18,38 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     {
         "opt_conf": {
             "max_iter": 100,
-            "rtol": "1e-6",
-            "atol": "0.0",
-            "rtol_max_iter_fraction": 1.0
+            "rtol": "1e-8",
+            "atol": "1e-8",
+            "rtol_max_iter_fraction": 0.8
         },
         "alg_conf": {
             "SA": {
-                "initial_temp": 100.0,
-                "cooling_rate": 0.998,
-                "step_size": 2.0,
-                "num_neighbors": 30,
+                "initial_temp": 50.0,
+                "cooling_rate": 0.995,
+                "step_size": 0.4,
+                "num_neighbors": 50,
                 "x_min": 0.0,
                 "x_max": 10.0,
-                "min_step_size_factor": 0.5,
-                "step_size_decay_power": 0.3,
-                "min_temp_factor": 0.05,
-                "use_adaptive_cooling": false,
+                "min_step_size_factor": 0.3,
+                "step_size_decay_power": 0.2,
+                "min_temp_factor": 0.01,
+                "use_adaptive_cooling": true,
                 "advanced": {
                     "restart_strategy": {
                         "Stagnation": {
-                            "max_iterations": 50,
-                            "threshold": 1e-6
+                            "max_iterations": 30,
+                            "threshold": 1e-8
                         }
                     },
                     "stagnation_detection": {
-                        "stagnation_window": 30,
-                        "improvement_threshold": 1e-6
+                        "stagnation_window": 50,
+                        "improvement_threshold": 1e-8
                     },
                     "adaptive_parameters": true,
-                    "adaptation_rate": 0.2,
-                    "improvement_history_size": 30,
-                    "success_history_size": 30,
-                    "cooling_schedule": "Exponential"
+                    "adaptation_rate": 0.15,
+                    "improvement_history_size": 50,
+                    "success_history_size": 50,
+                    "cooling_schedule": "Adaptive"
                 }
             }
         }
@@ -76,9 +76,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let color_palette = get_color_palette();
     let mut encoder = setup_gif("examples/gifs/sa_kbf.gif")?;
 
-    for frame in 0..80 {
+    for frame_num in 0..100 {
         let mut chart = setup_chart(
-            frame,
+            frame_num,
             "Simulated Annealing",
             resolution,
             &z_values,
@@ -106,7 +106,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         )))?;
 
         chart.plotting_area().present()?;
-
         // Convert PNG to GIF frame
         let img = ImageReader::open("examples/sa_frame.png")?
             .decode()?
