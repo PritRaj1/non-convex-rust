@@ -8,7 +8,7 @@ use non_convex_opt::utils::{
     opt_prob::{OptProb, OptimizationAlgorithm},
 };
 
-use non_convex_opt::algorithms::continous_ga::{
+use non_convex_opt::algorithms::continuous_genetic::{
     cga::CGA,
     crossover::{CrossoverOperator, Heuristic, Random, SimulatedBinary},
     selection::{Residual, RouletteWheel, SelectionOperator, Tournament},

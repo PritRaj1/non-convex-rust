@@ -1,6 +1,6 @@
 pub mod adam;
 pub mod cma_es;
-pub mod continous_ga;
+pub mod continuous_genetic;
 pub mod differential_evolution;
 pub mod grasp;
 pub mod limited_memory_bfgs;

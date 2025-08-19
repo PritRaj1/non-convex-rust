@@ -5,7 +5,7 @@ use std::collections::VecDeque;
 use crate::utils::config::{CGAConf, CrossoverConf, MutationConf, SelectionConf};
 use crate::utils::opt_prob::{FloatNumber as FloatNum, OptProb, OptimizationAlgorithm, State};
 
-use crate::algorithms::continous_ga::{
+use crate::algorithms::continuous_genetic::{
     crossover::*,
     mutation::{Gaussian, MutationOperator, NonUniform, Polynomial, Uniform},
     selection::*,
