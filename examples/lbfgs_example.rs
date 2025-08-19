@@ -5,7 +5,7 @@ use image::ImageReader;
 use nalgebra::SMatrix;
 use plotters::prelude::*;
 
-use common::fcns::{MultiModalFunction, BoxConstraints};
+use common::fcns::{BoxConstraints, MultiModalFunction};
 use common::img::{
     create_contour_data, find_closest_color, get_color_palette, setup_chart, setup_gif, ChartParams,
 };

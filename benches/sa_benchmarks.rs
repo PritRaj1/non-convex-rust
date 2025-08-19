@@ -10,7 +10,7 @@ use non_convex_opt::utils::config::{AlgConf, Config, OptConf};
 use non_convex_opt::NonConvexOpt;
 
 mod common;
-use common::fcns::{KbfConstraints, Kbf};
+use common::fcns::{Kbf, KbfConstraints};
 
 fn bench_sa_unconstrained(c: &mut Criterion) {
     let config = Config {

@@ -42,8 +42,7 @@ fn test_sa_basic() {
     let constraints = QuadraticConstraints {};
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
 
-    let mut sa: SimulatedAnnealing<f64, U1, U2> =
-        SimulatedAnnealing::new(conf, init_x, opt_prob);
+    let mut sa: SimulatedAnnealing<f64, U1, U2> = SimulatedAnnealing::new(conf, init_x, opt_prob);
     let initial_fitness = sa.st.best_f;
 
     for _ in 0..10 {
@@ -86,8 +85,7 @@ fn test_sa_cooling() {
     let constraints = QuadraticConstraints {};
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
 
-    let mut sa: SimulatedAnnealing<f64, U1, U2> =
-        SimulatedAnnealing::new(conf, init_x, opt_prob);
+    let mut sa: SimulatedAnnealing<f64, U1, U2> = SimulatedAnnealing::new(conf, init_x, opt_prob);
     let initial_temp = sa.temperature;
 
     for _ in 0..5 {
@@ -133,8 +131,7 @@ fn test_sa_neighbor_generation() {
     let constraints = QuadraticConstraints {};
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
 
-    let mut sa: SimulatedAnnealing<f64, U1, U2> =
-        SimulatedAnnealing::new(conf, init_x, opt_prob);
+    let mut sa: SimulatedAnnealing<f64, U1, U2> = SimulatedAnnealing::new(conf, init_x, opt_prob);
 
     sa.step();
     assert!(sa.st.best_x.iter().all(|&x| (-10.0..=10.0).contains(&x)));
@@ -172,8 +169,7 @@ fn test_sa_with_constraints() {
     let constraints = QuadraticConstraints {};
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
 
-    let mut sa: SimulatedAnnealing<f64, U1, U2> =
-        SimulatedAnnealing::new(conf, init_x, opt_prob);
+    let mut sa: SimulatedAnnealing<f64, U1, U2> = SimulatedAnnealing::new(conf, init_x, opt_prob);
 
     for _ in 0..10 {
         sa.step();
@@ -213,8 +209,7 @@ fn test_sa_acceptance() {
     let constraints = QuadraticConstraints {};
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
 
-    let mut sa: SimulatedAnnealing<f64, U1, U2> =
-        SimulatedAnnealing::new(conf, init_x, opt_prob);
+    let mut sa: SimulatedAnnealing<f64, U1, U2> = SimulatedAnnealing::new(conf, init_x, opt_prob);
     let initial_x = sa.st.best_x;
 
     sa.step();

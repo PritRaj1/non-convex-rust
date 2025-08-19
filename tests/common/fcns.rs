@@ -20,6 +20,22 @@ where
         }
         -sum // Negate for maximization (higher is better, closer to optimum)
     }
+
+    fn x_lower_bound(&self, x: &OVector<f64, D>) -> Option<OVector<f64, D>> {
+        Some(OVector::<f64, D>::from_element_generic(
+            D::from_usize(x.len()),
+            U1,
+            0.0,
+        ))
+    }
+
+    fn x_upper_bound(&self, x: &OVector<f64, D>) -> Option<OVector<f64, D>> {
+        Some(OVector::<f64, D>::from_element_generic(
+            D::from_usize(x.len()),
+            U1,
+            1.0,
+        ))
+    }
 }
 
 #[allow(dead_code)]

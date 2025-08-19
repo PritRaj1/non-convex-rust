@@ -8,7 +8,7 @@ use non_convex_opt::utils::config::Config;
 use non_convex_opt::NonConvexOpt;
 
 mod common;
-use common::fcns::{KbfConstraints, Kbf};
+use common::fcns::{Kbf, KbfConstraints};
 
 static CONFIG_JSON: &str = r#"
 {

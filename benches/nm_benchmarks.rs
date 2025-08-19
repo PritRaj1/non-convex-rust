@@ -3,9 +3,11 @@ use nalgebra::{SMatrix, SVector};
 use std::hint::black_box;
 use std::sync::LazyLock;
 
-use common::fcns::{KbfConstraints, Kbf};
+use common::fcns::{Kbf, KbfConstraints};
+use non_convex_opt::utils::alg_conf::nm_conf::{
+    AdvancedConf, CoefficientBounds, RestartStrategy, StagnationDetection,
+};
 use non_convex_opt::utils::config::{AlgConf, Config, NelderMeadConf, OptConf};
-use non_convex_opt::utils::alg_conf::nm_conf::{AdvancedConf, CoefficientBounds, RestartStrategy, StagnationDetection};
 use non_convex_opt::NonConvexOpt;
 
 mod common;

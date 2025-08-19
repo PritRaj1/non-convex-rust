@@ -6,7 +6,7 @@ use nalgebra::SMatrix;
 use plotters::backend::BitMapBackend;
 use plotters::prelude::*;
 
-use common::fcns::{KbfConstraints, Kbf};
+use common::fcns::{Kbf, KbfConstraints};
 use common::img::{create_contour_data, find_closest_color, get_color_palette, setup_gif};
 
 use non_convex_opt::utils::config::Config;

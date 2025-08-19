@@ -5,7 +5,7 @@ use image::ImageReader;
 use nalgebra::{RowVector2, SMatrix};
 use plotters::prelude::*;
 
-use common::fcns::{KbfConstraints, Kbf};
+use common::fcns::{Kbf, KbfConstraints};
 use common::img::{
     create_contour_data, find_closest_color, get_color_palette, setup_chart, setup_gif, ChartParams,
 };

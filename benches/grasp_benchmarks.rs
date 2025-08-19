@@ -7,7 +7,7 @@ use non_convex_opt::utils::config::{AlgConf, Config, GRASPConf, OptConf};
 use non_convex_opt::NonConvexOpt;
 
 mod common;
-use common::fcns::{KbfConstraints, Kbf};
+use common::fcns::{Kbf, KbfConstraints};
 
 fn bench_grasp_unconstrained(c: &mut Criterion) {
     let config = Config {

@@ -94,7 +94,12 @@ pub fn setup_chart<'a>(
     chart.configure_mesh().disable_mesh().draw()?;
 
     // Draw contour and feasible regions
-    for (i, z_row) in params.z_values.iter().enumerate().take(params.resolution - 1) {
+    for (i, z_row) in params
+        .z_values
+        .iter()
+        .enumerate()
+        .take(params.resolution - 1)
+    {
         for (j, _) in z_row.iter().enumerate().take(params.resolution - 1) {
             let x = 10.0 * i as f64 / (params.resolution - 1) as f64;
             let y = 10.0 * j as f64 / (params.resolution - 1) as f64;
