@@ -200,6 +200,12 @@ where
                             .unwrap();
                         }
                     }
+
+                    let (lb, ub) = self.get_bounds(&neighbor);
+                    for i in 0..neighbor.len() {
+                        neighbor[i] = neighbor[i].max(lb[i]).min(ub[i]);
+                    }
+
                     neighbor
                 })
                 .collect();
