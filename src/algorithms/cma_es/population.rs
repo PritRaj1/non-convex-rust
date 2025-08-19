@@ -25,6 +25,16 @@ where
             for i in 0..sample.len() {
                 sample[i] += sigma * y[i];
             }
+            
+            if let (Some(lb), Some(ub)) = (
+                opt_prob.objective.x_lower_bound(&sample),
+                opt_prob.objective.x_upper_bound(&sample),
+            ) {
+                for i in 0..sample.len() {
+                    sample[i] = sample[i].max(lb[i]).min(ub[i]);
+                }
+            }
+            
             let fitness = opt_prob.evaluate(&sample);
             let constraint = opt_prob.is_feasible(&sample);
             (sample, fitness, constraint)
