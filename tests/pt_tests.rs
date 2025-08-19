@@ -228,7 +228,19 @@ fn create_test_pt_pcn() -> PT<f64, nalgebra::Dyn, nalgebra::Dyn> {
         _ => panic!("Expected PTConf"),
     };
 
-    let init_pop = DMatrix::from_vec(2, 2, vec![0.5, 0.5, 0.6, 0.4]);
+    // Need fairly large pop for covariance to change
+    let init_pop = DMatrix::from_vec(10, 2, vec![
+        0.90, 0.90,  // 0.81
+        0.95, 0.80,  // 0.76
+        0.88, 0.86,  // 0.7568
+        0.92, 0.85,  // 0.782
+        0.89, 0.95,  // 0.8455
+        0.97, 0.78,  // 0.7566
+        0.90, 0.86,  // 0.774
+        0.88, 0.90,  // 0.792
+        0.93, 0.90,  // 0.837
+        0.91, 0.91,  // 0.8281
+    ]);
     let obj_f = QuadraticObjective { a: 1.0, b: 1.0 };
     let constraints = QuadraticConstraints {};
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
@@ -242,7 +254,7 @@ fn test_sample_covariance_preconditioner() {
     let initial_best = pt.st.best_f;
 
     let preconditioner: Box<dyn Preconditioner<f64, nalgebra::Dyn, nalgebra::Dyn> + Send + Sync> =
-        Box::new(SampleCovariance::new(0.01));
+        Box::new(SampleCovariance::new(0.001));
     pt.set_preconditioner(preconditioner);
 
     assert_eq!(pt.covariance_matrices.len(), pt.get_num_replicas());
@@ -383,7 +395,7 @@ fn test_preconditioner_covariance_update() {
     let mut pt = create_test_pt_pcn();
 
     let preconditioner: Box<dyn Preconditioner<f64, nalgebra::Dyn, nalgebra::Dyn> + Send + Sync> =
-        Box::new(SampleCovariance::new(0.01));
+        Box::new(SampleCovariance::new(0.0001));
     pt.set_preconditioner(preconditioner);
 
     let initial_covariances: Vec<_> = pt.covariance_matrices.clone();

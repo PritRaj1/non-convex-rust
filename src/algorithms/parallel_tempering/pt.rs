@@ -180,7 +180,7 @@ where
                 constraints: first_replica_constraints,
                 iter: 1,
             },
-            last_covariance_update: 0,
+            last_covariance_update: 1,
         }
     }
 
