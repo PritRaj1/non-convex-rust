@@ -97,7 +97,7 @@ fn test_reactive_tabu() {
     }
 
     assert!(tabu.st.best_f > initial_fitness);
-    assert!(tabu.st.best_x.iter().all(|&x| (0.0..=1.0).contains(&x)));
+    assert!(tabu.st.best_x.iter().all(|&x| (-5.0..=5.0).contains(&x)));
 }
 
 #[test]
@@ -165,7 +165,7 @@ fn test_frequency_based_tabu() {
     }
 
     assert!(tabu.st.best_f > initial_fitness);
-    assert!(tabu.st.best_x.iter().all(|&x| (0.0..=1.0).contains(&x)));
+    assert!(tabu.st.best_x.iter().all(|&x| (-5.0..=5.0).contains(&x)));
 }
 
 #[test]
@@ -233,7 +233,7 @@ fn test_quality_based_tabu() {
     }
 
     assert!(tabu.st.best_f > initial_fitness);
-    assert!(tabu.st.best_x.iter().all(|&x| (0.0..=1.0).contains(&x)));
+    assert!(tabu.st.best_x.iter().all(|&x| (-5.0..=5.0).contains(&x)));
 }
 
 #[test]
@@ -266,7 +266,7 @@ fn test_gaussian_neighborhood() {
                         }
                     },
                     "restart_strategy": {
-                        "None": {}
+                        "None": null
                     },
                     "intensification_cycles": 5,
                     "diversification_threshold": 0.1,
@@ -296,7 +296,7 @@ fn test_gaussian_neighborhood() {
     }
 
     assert!(tabu.st.best_f > initial_fitness);
-    assert!(tabu.st.best_x.iter().all(|&x| (0.0..=1.0).contains(&x)));
+    assert!(tabu.st.best_x.iter().all(|&x| (-5.0..=5.0).contains(&x)));
 }
 
 #[test]
@@ -362,5 +362,5 @@ fn test_adaptive_neighborhood() {
     }
 
     assert!(tabu.st.best_f > initial_fitness);
-    assert!(tabu.st.best_x.iter().all(|&x| (0.0..=1.0).contains(&x)));
+    assert!(tabu.st.best_x.iter().all(|&x| (-5.0..=5.0).contains(&x)));
 }

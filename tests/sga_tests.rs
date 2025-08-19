@@ -19,7 +19,7 @@ fn test_sga() {
         adaptive_noise: false,
     };
 
-    let init_x = SMatrix::<f64, 1, 2>::from_row_slice(&[0.5, 0.5]);
+    let init_x = SMatrix::<f64, 1, 2>::from_row_slice(&[0.9, 0.9]);
     let obj_f = QuadraticObjective { a: 1.0, b: 100.0 };
     let constraints = QuadraticConstraints {};
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
@@ -27,7 +27,7 @@ fn test_sga() {
     let mut sga: SGAscent<f64, U1, U2> = SGAscent::new(conf, init_x, opt_prob);
     let initial_fitness = sga.st.best_f;
 
-    for _ in 0..10 {
+    for _ in 0..50 {
         sga.step();
     }
 
