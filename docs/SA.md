@@ -4,7 +4,7 @@
 
 <img src="../examples/gifs/sa_kbf.gif" width="200" alt="SA Example">
 
-<p><b>Figure:</b> The Simulated Annealing (SA) algorithm explores the search space  by accepting both improving and deteriorating moves with a probability that decreases over time, controlled by a temperature parameter.</p>
+<p><b>Figure:</b> The Simulated Annealing (SA) algorithm explores the search space  by accepting both improving and deteriorating moves with a probability that decreases over time, controlled by a temperature parameter. (Example above converged in 81 iters).</p>
 
 </div>
 
