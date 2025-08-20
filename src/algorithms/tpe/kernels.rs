@@ -1,188 +1,399 @@
+use crate::utils::alg_conf::tpe_conf::{BandwidthConf, BandwidthMethod};
 use crate::utils::opt_prob::FloatNumber as FloatNum;
-use nalgebra::{allocator::Allocator, DefaultAllocator, Dim, OVector, U1};
-use rayon::prelude::*;
-use std::marker::PhantomData;
+use nalgebra::{allocator::Allocator, DefaultAllocator, Dim, OVector};
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum KernelType {
     Gaussian,
     Epanechnikov,
-    TopHat,
-    Triangular,
+    Uniform,
 }
 
-pub trait Kernel<T: FloatNum>: Send + Sync {
-    fn evaluate(&self, x: T, bandwidth: T) -> T;
-}
-
-/// RBF: K(x) = (1/√(2π)) * exp(-x²/2)
-pub struct GaussianKernel;
-
-impl<T: FloatNum> Kernel<T> for GaussianKernel {
-    fn evaluate(&self, x: T, bandwidth: T) -> T {
-        let x_norm = x / bandwidth;
-        let factor = T::from_f64(0.3989422804014327).unwrap(); // 1/√(2π)
-        factor * (-x_norm * x_norm / T::from_f64(2.0).unwrap()).exp() / bandwidth
-    }
-}
-
-/// Epanechnikov: K(x) = (3/4) * (1 - x²) for |x| ≤ 1, 0 otherwise
-pub struct EpanechnikovKernel;
-
-impl<T: FloatNum> Kernel<T> for EpanechnikovKernel {
-    fn evaluate(&self, x: T, bandwidth: T) -> T {
-        let x_norm = x / bandwidth;
-        let x_abs = x_norm.abs();
-
-        if x_abs <= T::one() {
-            let factor = T::from_f64(0.75).unwrap(); // 3/4
-            factor * (T::one() - x_norm * x_norm) / bandwidth
-        } else {
-            T::zero()
+impl KernelType {
+    pub fn evaluate<T: FloatNum>(&self, x: T, bandwidth: T) -> T {
+        match self {
+            KernelType::Gaussian => {
+                let z = x / bandwidth;
+                let factor = T::from_f64(1.0 / (2.0 * std::f64::consts::PI).sqrt()).unwrap();
+                factor * (-T::from_f64(0.5).unwrap() * z * z).exp() / bandwidth
+            }
+            KernelType::Epanechnikov => {
+                let z = x / bandwidth;
+                let abs_z = z.abs();
+                if abs_z <= T::one() {
+                    let factor = T::from_f64(0.75).unwrap();
+                    factor * (T::one() - z * z) / bandwidth
+                } else {
+                    T::zero()
+                }
+            }
+            KernelType::Uniform => {
+                let z = x / bandwidth;
+                if z.abs() <= T::from_f64(0.5).unwrap() {
+                    T::one() / bandwidth
+                } else {
+                    T::zero()
+                }
+            }
         }
     }
 }
 
-/// Uniform: K(x) = 1/2 for |x| ≤ 1, 0 otherwise
-pub struct TopHatKernel;
-
-impl<T: FloatNum> Kernel<T> for TopHatKernel {
-    fn evaluate(&self, x: T, bandwidth: T) -> T {
-        let x_norm = x / bandwidth;
-
-        if x_norm.abs() <= T::one() {
-            T::from_f64(0.5).unwrap() / bandwidth
-        } else {
-            T::zero()
-        }
-    }
-}
-
-/// Triangular: K(x) = (1 - |x|) for |x| ≤ 1, 0 otherwise
-pub struct TriangularKernel;
-
-impl<T: FloatNum> Kernel<T> for TriangularKernel {
-    fn evaluate(&self, x: T, bandwidth: T) -> T {
-        let x_norm = x / bandwidth;
-        let x_abs = x_norm.abs();
-
-        if x_abs <= T::one() {
-            (T::one() - x_abs) / bandwidth
-        } else {
-            T::zero()
-        }
-    }
-}
-
-// Builder
-pub fn create_kernel<T: FloatNum>(kernel_type: KernelType) -> Box<dyn Kernel<T>> {
-    match kernel_type {
-        KernelType::Gaussian => Box::new(GaussianKernel),
-        KernelType::Epanechnikov => Box::new(EpanechnikovKernel),
-        KernelType::TopHat => Box::new(TopHatKernel),
-        KernelType::Triangular => Box::new(TriangularKernel),
+pub fn create_kernel(kernel_type: &str) -> KernelType {
+    match kernel_type.to_lowercase().as_str() {
+        "gaussian" => KernelType::Gaussian,
+        "epanechnikov" => KernelType::Epanechnikov,
+        "uniform" => KernelType::Uniform,
+        _ => KernelType::Gaussian, // Default to Gaussian
     }
 }
 
 pub struct KernelDensityEstimator<T: FloatNum, D: Dim>
 where
-    OVector<T, D>: Send + Sync,
     DefaultAllocator: Allocator<D>,
 {
-    data: Vec<OVector<T, D>>,
-    bandwidths: OVector<T, D>,
-    kernel: Box<dyn Kernel<T>>,
-    _phantom: PhantomData<T>,
+    observations: Vec<OVector<T, D>>,
+    bandwidths: Vec<T>,
+    kernel: KernelType,
+    bandwidth_conf: BandwidthConf,
 }
 
-impl<T: FloatNum + std::iter::Sum, D: Dim> KernelDensityEstimator<T, D>
+impl<T: FloatNum, D: Dim> KernelDensityEstimator<T, D>
 where
-    OVector<T, D>: Send + Sync,
     DefaultAllocator: Allocator<D>,
 {
-    pub fn new(kernel_type: KernelType, dimension_size: usize) -> Self {
+    pub fn new(observations: Vec<OVector<T, D>>, kernel: KernelType) -> Self {
+        let _dim = observations.first().map(|x| x.len()).unwrap_or(0);
+        let bandwidths = Self::compute_bandwidths(&observations, &BandwidthConf::default());
+
         Self {
-            data: Vec::new(),
-            bandwidths: OVector::zeros_generic(D::from_usize(dimension_size), U1),
-            kernel: create_kernel(kernel_type),
-            _phantom: PhantomData,
+            observations,
+            bandwidths,
+            kernel,
+            bandwidth_conf: BandwidthConf::default(),
         }
     }
 
-    pub fn fit(&mut self, data: &[OVector<T, D>]) {
-        self.data = data.to_vec();
-        self.bandwidths = self.compute_bandwidths();
+    pub fn new_with_config(
+        observations: Vec<OVector<T, D>>,
+        kernel: KernelType,
+        bandwidth_conf: BandwidthConf,
+    ) -> Self {
+        let bandwidths = Self::compute_bandwidths(&observations, &bandwidth_conf);
+
+        Self {
+            observations,
+            bandwidths,
+            kernel,
+            bandwidth_conf,
+        }
     }
 
     pub fn evaluate(&self, x: &OVector<T, D>) -> T {
-        if self.data.is_empty() {
+        if self.observations.is_empty() {
             return T::zero();
         }
 
-        let n = T::from_usize(self.data.len()).unwrap();
+        let mut density = T::zero();
+        let n = self.observations.len();
 
-        let density: T = self
-            .data
-            .par_iter()
-            .map(|point| {
-                let mut kernel_product = T::one();
+        for (i, obs) in self.observations.iter().enumerate() {
+            let bandwidth = self.bandwidths[i];
+            let mut distance = T::zero();
 
-                for dim in 0..x.len() {
-                    let diff = x[dim] - point[dim];
-                    let bandwidth = self.bandwidths[dim];
-                    kernel_product *= self.kernel.evaluate(diff, bandwidth);
-                }
+            for j in 0..obs.len() {
+                let diff = (obs[j] - x[j]) / bandwidth;
+                distance = distance + diff * diff;
+            }
+            distance = distance.sqrt();
 
-                kernel_product
-            })
-            .sum();
-
-        density / n
-    }
-
-    fn compute_bandwidths(&self) -> OVector<T, D> {
-        if self.data.is_empty() {
-            return self.bandwidths.clone();
+            density = density + self.kernel.evaluate(distance, bandwidth);
         }
 
-        let mut bandwidths = self.bandwidths.clone();
-        let n = self.data.len();
+        density / T::from_usize(n).unwrap()
+    }
 
-        // Silverman's rule of thumb: h = 1.06 * σ * n^(-1/5)
-        for dim in 0..self.data[0].len() {
-            let variance = self.compute_variance(dim);
+    pub fn fit(&mut self, new_observations: &[OVector<T, D>]) {
+        self.observations.extend_from_slice(new_observations);
+        self.bandwidths = Self::compute_bandwidths(&self.observations, &self.bandwidth_conf);
+    }
+
+    pub fn add_observation(&mut self, observation: OVector<T, D>) {
+        self.observations.push(observation);
+        self.bandwidths = Self::compute_bandwidths(&self.observations, &self.bandwidth_conf);
+    }
+
+    pub fn update_observations(&mut self, new_observations: Vec<OVector<T, D>>) {
+        self.observations = new_observations;
+        self.bandwidths = Self::compute_bandwidths(&self.observations, &self.bandwidth_conf);
+    }
+
+    pub fn get_bandwidths(&self) -> &[T] {
+        &self.bandwidths
+    }
+
+    pub fn set_bandwidth_conf(&mut self, bandwidth_conf: BandwidthConf) {
+        self.bandwidth_conf = bandwidth_conf;
+        self.bandwidths = Self::compute_bandwidths(&self.observations, &self.bandwidth_conf);
+    }
+
+    pub fn update_bandwidths(&mut self) {
+        self.bandwidths = Self::compute_bandwidths(&self.observations, &self.bandwidth_conf);
+    }
+
+    fn compute_bandwidths(
+        observations: &[OVector<T, D>],
+        bandwidth_conf: &BandwidthConf,
+    ) -> Vec<T> {
+        match bandwidth_conf.method {
+            BandwidthMethod::Silverman => Self::compute_silverman_bandwidths(observations),
+            BandwidthMethod::CrossValidation => {
+                Self::compute_cv_bandwidths(observations, bandwidth_conf)
+            }
+            BandwidthMethod::Adaptive => Self::compute_adaptive_bandwidths(observations),
+            BandwidthMethod::LikelihoodBased => Self::compute_likelihood_bandwidths(observations),
+        }
+    }
+
+    fn compute_silverman_bandwidths(observations: &[OVector<T, D>]) -> Vec<T> {
+        if observations.is_empty() {
+            return vec![];
+        }
+
+        let n = observations.len();
+        let dim = observations[0].len();
+
+        // Silverman's rule of thumb: h = (4/(d+2))^(1/(d+4)) * n^(-1/(d+4)) * σ
+        let factor =
+            T::from_f64((4.0 / (dim as f64 + 2.0)).powf(1.0 / (dim as f64 + 4.0))).unwrap();
+        let n_factor = T::from_f64((n as f64).powf(-1.0 / (dim as f64 + 4.0))).unwrap();
+
+        let mut bandwidths = Vec::with_capacity(n);
+
+        for obs in observations {
+            let mut variance = T::zero();
+            for &val in obs.iter() {
+                variance = variance + val * val;
+            }
+            variance = variance / T::from_usize(dim).unwrap();
             let std_dev = variance.sqrt();
-            let factor = T::from_f64(1.06).unwrap();
-            let n_factor = T::from_f64(n as f64)
-                .unwrap()
-                .powf(T::from_f64(-0.2).unwrap());
 
-            bandwidths[dim] = factor * std_dev * n_factor;
-            let min_bw = T::from_f64(1e-6).unwrap(); // Avoid zero bandwidth
-            bandwidths[dim] = bandwidths[dim].max(min_bw);
+            let bandwidth = factor * n_factor * std_dev;
+            bandwidths.push(bandwidth.max(T::from_f64(1e-6).unwrap()));
         }
 
         bandwidths
     }
 
-    fn compute_variance(&self, dim: usize) -> T {
-        if self.data.len() < 2 {
-            return T::zero();
+    // Cross-validation to find best bandwidth
+    fn compute_cv_bandwidths(
+        observations: &[OVector<T, D>],
+        _bandwidth_conf: &BandwidthConf,
+    ) -> Vec<T> {
+        if observations.len() < 2 {
+            return Self::compute_silverman_bandwidths(observations);
         }
 
-        let mean = self.data.par_iter().map(|point| point[dim]).sum::<T>()
-            / T::from_usize(self.data.len()).unwrap();
+        let mut bandwidths = Vec::with_capacity(observations.len());
 
-        let variance = self
-            .data
-            .par_iter()
-            .map(|point| {
-                let diff = point[dim] - mean;
-                diff * diff
-            })
-            .sum::<T>()
-            / T::from_usize(self.data.len() - 1).unwrap();
+        // Golden-section search, (similar to L-BFGS)
+        for i in 0..observations.len() {
+            let mut a = T::from_f64(0.01).unwrap();
+            let mut b = T::from_f64(5.0).unwrap();
+            let inv_phi = T::from_f64((3.0_f64 - (5.0_f64).sqrt()) / 2.0).unwrap();
+            let tolerance = T::from_f64(1e-4).unwrap();
 
-        variance
+            let mut x1 = b - inv_phi * (b - a);
+            let mut x2 = a + inv_phi * (b - a);
+
+            let mut f1 = Self::compute_cv_score(observations, i, x1);
+            let mut f2 = Self::compute_cv_score(observations, i, x2);
+
+            while (b - a).abs() > tolerance {
+                if f1 > f2 {
+                    b = x2;
+                    x2 = x1;
+                    f2 = f1;
+                    x1 = b - inv_phi * (b - a);
+                    f1 = Self::compute_cv_score(observations, i, x1);
+                } else {
+                    a = x1;
+                    x1 = x2;
+                    f1 = f2;
+                    x2 = a + inv_phi * (b - a);
+                    f2 = Self::compute_cv_score(observations, i, x2);
+                }
+            }
+
+            let best_bandwidth = if f1 > f2 { x1 } else { x2 };
+
+            bandwidths.push(best_bandwidth);
+        }
+
+        bandwidths
+    }
+
+    fn find_best_bandwidth_cv(
+        observations: &[OVector<T, D>],
+        target_idx: usize,
+        test_bandwidth: T,
+    ) -> T {
+        let mut score = T::zero();
+        let n = observations.len();
+
+        for i in 0..n {
+            if i == target_idx {
+                continue;
+            }
+
+            let obs = &observations[i];
+            let target = &observations[target_idx];
+
+            let mut distance = T::zero();
+            for j in 0..obs.len() {
+                let diff = (obs[j] - target[j]) / test_bandwidth;
+                distance = distance + diff * diff;
+            }
+            distance = distance.sqrt();
+
+            let kernel_val = (-T::from_f64(0.5).unwrap() * distance * distance).exp();
+            score = score + kernel_val;
+        }
+
+        score
+    }
+
+    fn compute_cv_score(observations: &[OVector<T, D>], target_idx: usize, bandwidth: T) -> T {
+        Self::find_best_bandwidth_cv(observations, target_idx, bandwidth)
+    }
+
+    fn compute_adaptive_bandwidths(observations: &[OVector<T, D>]) -> Vec<T> {
+        let mut bandwidths = Self::compute_silverman_bandwidths(observations); // Start with Silverman bandwidths
+
+        if observations.len() < 2 {
+            return bandwidths;
+        }
+
+        for i in 0..observations.len() {
+            let local_density = Self::compute_local_density(observations, i, &bandwidths);
+            let adaptation_factor = T::one() / (local_density + T::from_f64(1e-6).unwrap());
+            bandwidths[i] = bandwidths[i] * adaptation_factor.sqrt();
+        }
+
+        bandwidths
+    }
+
+    fn compute_likelihood_bandwidths(observations: &[OVector<T, D>]) -> Vec<T> {
+        let mut bandwidths = Self::compute_silverman_bandwidths(observations); // Start with Silverman bandwidths
+
+        if observations.len() < 2 {
+            return bandwidths;
+        }
+
+        for i in 0..observations.len() {
+            bandwidths[i] = Self::optimize_bandwidth_likelihood(observations, i, bandwidths[i]);
+        }
+
+        bandwidths
+    }
+
+    fn optimize_bandwidth_likelihood(
+        observations: &[OVector<T, D>],
+        target_idx: usize,
+        initial_h: T,
+    ) -> T {
+        if observations.len() < 2 {
+            return initial_h;
+        }
+
+        // Golden section search similar to L-BFGS
+        let inv_phi = T::from_f64((3.0_f64 - (5.0_f64).sqrt()) / 2.0).unwrap();
+        let tolerance = T::from_f64(1e-6).unwrap();
+
+        let mut a = initial_h * T::from_f64(0.1).unwrap();
+        let mut b = initial_h * T::from_f64(10.0).unwrap();
+
+        let mut x1 = b - inv_phi * (b - a);
+        let mut x2 = a + inv_phi * (b - a);
+
+        let mut f1 = Self::compute_likelihood(observations, target_idx, x1);
+        let mut f2 = Self::compute_likelihood(observations, target_idx, x2);
+
+        while (b - a).abs() > tolerance {
+            if f1 > f2 {
+                b = x2;
+                x2 = x1;
+                f2 = f1;
+                x1 = b - inv_phi * (b - a);
+                f1 = Self::compute_likelihood(observations, target_idx, x1);
+            } else {
+                a = x1;
+                x1 = x2;
+                f1 = f2;
+                x2 = a + inv_phi * (b - a);
+                f2 = Self::compute_likelihood(observations, target_idx, x2);
+            }
+        }
+
+        // Midpoint of the final interval
+        (a + b) / T::from_f64(2.0).unwrap()
+    }
+
+    fn compute_likelihood(observations: &[OVector<T, D>], target_idx: usize, bandwidth: T) -> T {
+        let mut likelihood = T::zero();
+        let n = observations.len();
+
+        for i in 0..n {
+            if i == target_idx {
+                continue;
+            }
+
+            let obs = &observations[i];
+            let target = &observations[target_idx];
+
+            let mut distance = T::zero();
+            for j in 0..obs.len() {
+                let diff = (obs[j] - target[j]) / bandwidth;
+                distance = distance + diff * diff;
+            }
+            distance = distance.sqrt();
+
+            let kernel_val = (-T::from_f64(0.5).unwrap() * distance * distance).exp();
+            likelihood = likelihood + kernel_val.ln();
+        }
+
+        likelihood
+    }
+
+    fn compute_local_density(
+        observations: &[OVector<T, D>],
+        target_idx: usize,
+        bandwidths: &[T],
+    ) -> T {
+        let mut density = T::zero();
+        let n = observations.len();
+
+        for i in 0..n {
+            if i == target_idx {
+                continue;
+            }
+
+            let obs = &observations[i];
+            let target = &observations[target_idx];
+            let bandwidth = bandwidths[i];
+
+            // Simple distance-based density estimate
+            let mut distance = T::zero();
+            for j in 0..obs.len() {
+                let diff = (obs[j] - target[j]) / bandwidth;
+                distance = distance + diff * diff;
+            }
+            distance = distance.sqrt();
+            let kernel_val = (-T::from_f64(0.5).unwrap() * distance * distance).exp();
+            density = density + kernel_val;
+        }
+
+        density / T::from_usize(n - 1).unwrap()
     }
 }

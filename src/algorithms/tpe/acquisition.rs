@@ -1,63 +1,130 @@
-use crate::utils::opt_prob::FloatNumber as FloatNum;
-use nalgebra::{allocator::Allocator, DefaultAllocator, Dim, OVector};
-use std::iter::Sum;
-
 use crate::algorithms::tpe::kernels::KernelDensityEstimator;
+use crate::utils::alg_conf::tpe_conf::AcquisitionType;
+use nalgebra::{allocator::Allocator, DefaultAllocator, Dim, OVector};
 
-pub struct ExpectedImprovement<D>
+/// EI(x) = E[max(0, f(x) - f(x_best))], analytically simpler to use ratio
+pub fn expected_improvement<T, D: Dim>(
+    x: &OVector<T, D>,
+    kde_l: &KernelDensityEstimator<T, D>,
+    kde_g: &KernelDensityEstimator<T, D>,
+    _kappa: T,
+) -> T
 where
-    D: Dim,
+    T: crate::utils::opt_prob::FloatNumber,
     DefaultAllocator: Allocator<D>,
 {
-    _phantom: std::marker::PhantomData<D>,
-}
+    let p_l = kde_l.evaluate(x);
+    let p_g = kde_g.evaluate(x);
 
-impl<D> ExpectedImprovement<D>
-where
-    D: Dim,
-    DefaultAllocator: Allocator<D>,
-{
-    pub fn new() -> Self {
-        Self {
-            _phantom: std::marker::PhantomData,
-        }
+    let epsilon = T::from_f64(1e-10).unwrap();
+    if p_g <= epsilon {
+        return T::zero();
     }
 
-    pub fn compute_ei<T: FloatNum + Sum>(
-        &self,
-        x: &OVector<T, D>,
-        kde_l: &KernelDensityEstimator<T, D>,
-        kde_g: &KernelDensityEstimator<T, D>,
-        prior_weight: T,
-    ) -> T
-    where
-        OVector<T, D>: Send + Sync,
-        DefaultAllocator: Allocator<D>,
-    {
-        let p_l = kde_l.evaluate(x); // l(x): density of WORST observations (lower quantile)
-        let p_g = kde_g.evaluate(x); // g(x): density of BEST observations (upper quantile)
-
-        if p_g <= T::from_f64(1e-10).unwrap() {
-            return T::zero();
-        }
-
-        // Expected Improvement: EI(x) = E[max(f(x) - f(x_best) - ξ, 0)]
-        // High p_g (good density) and low p_l (bad density) = high EI
-        let ratio = p_g / p_l;
-
-        // Apply prior weight and regularization
-        let ei = ratio * prior_weight;
-        let max_ei = T::from_f64(100.0).unwrap();
-        ei.min(max_ei)
+    let ratio = p_l / p_g;
+    if ratio <= epsilon {
+        return T::zero();
     }
+
+    ratio
 }
 
-impl<D> Default for ExpectedImprovement<D>
+/// UCB(x) = f(x) + kappa * sqrt(2 * log(1 / delta) / p(x))
+pub fn upper_confidence_bound<T, D: Dim>(
+    x: &OVector<T, D>,
+    kde_l: &KernelDensityEstimator<T, D>,
+    kde_g: &KernelDensityEstimator<T, D>,
+    kappa: T,
+) -> T
 where
-    D: Dim,
+    T: crate::utils::opt_prob::FloatNumber,
     DefaultAllocator: Allocator<D>,
 {
-    fn default() -> Self {
-        Self::new()
+    let p_l = kde_l.evaluate(x);
+    let p_g = kde_g.evaluate(x);
+
+    let epsilon = T::from_f64(1e-10).unwrap();
+    if p_g <= epsilon {
+        return T::zero();
+    }
+
+    let ratio = p_l / p_g;
+    let exploration_term = kappa * (p_l + p_g).sqrt();
+
+    ratio + exploration_term
+}
+
+/// PI(x) = P(f(x) > f(x_best))
+pub fn probability_improvement<T, D: Dim>(
+    x: &OVector<T, D>,
+    kde_l: &KernelDensityEstimator<T, D>,
+    kde_g: &KernelDensityEstimator<T, D>,
+    _kappa: T,
+) -> T
+where
+    T: crate::utils::opt_prob::FloatNumber,
+    DefaultAllocator: Allocator<D>,
+{
+    let p_l = kde_l.evaluate(x);
+    let p_g = kde_g.evaluate(x);
+
+    let epsilon = T::from_f64(1e-10).unwrap();
+    if p_g <= epsilon {
+        return T::zero();
+    }
+
+    let ratio = p_l / p_g;
+    if ratio <= epsilon {
+        return T::zero();
+    }
+
+    ratio / (T::one() + ratio)
+}
+
+/// ES(x) = -p(x) * log(p(x)) - p(x) * log(p(x))
+pub fn entropy_search<T, D: Dim>(
+    x: &OVector<T, D>,
+    kde_l: &KernelDensityEstimator<T, D>,
+    kde_g: &KernelDensityEstimator<T, D>,
+    _kappa: T,
+) -> T
+where
+    T: crate::utils::opt_prob::FloatNumber,
+    DefaultAllocator: Allocator<D>,
+{
+    let p_l = kde_l.evaluate(x);
+    let p_g = kde_g.evaluate(x);
+
+    let epsilon = T::from_f64(1e-10).unwrap();
+    if p_g <= epsilon || p_l <= epsilon {
+        return T::zero();
+    }
+
+    let total = p_l + p_g;
+    let p_l_norm = p_l / total;
+    let p_g_norm = p_g / total;
+
+    // Entropy-based acquisition: prefer points that reduce uncertainty
+    let entropy = -p_l_norm * p_l_norm.ln() - p_g_norm * p_g_norm.ln();
+    let ratio = p_l / p_g;
+    ratio * entropy
+}
+
+pub type AcquisitionFunctionPtr<T, D> =
+    fn(&OVector<T, D>, &KernelDensityEstimator<T, D>, &KernelDensityEstimator<T, D>, T) -> T;
+
+// Builder
+pub fn get_acquisition_function<T, D: Dim>(
+    acquisition_type: AcquisitionType,
+) -> AcquisitionFunctionPtr<T, D>
+where
+    T: crate::utils::opt_prob::FloatNumber,
+    DefaultAllocator: Allocator<D>,
+{
+    match acquisition_type {
+        AcquisitionType::ExpectedImprovement => expected_improvement,
+        AcquisitionType::UpperConfidenceBound => upper_confidence_bound,
+        AcquisitionType::ProbabilityImprovement => probability_improvement,
+        AcquisitionType::EntropySearch => entropy_search,
     }
 }
