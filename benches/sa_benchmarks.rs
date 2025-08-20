@@ -4,7 +4,7 @@ use rand::random;
 use std::hint::black_box;
 
 use non_convex_opt::utils::alg_conf::sa_conf::{
-    AdvancedConf, CoolingScheduleType, RestartStrategy, SAConf, StagnationDetection,
+    AdvancedConf, CoolingScheduleType, RestartStrategy, SAConf,
 };
 use non_convex_opt::utils::config::{AlgConf, Config, OptConf};
 use non_convex_opt::NonConvexOpt;
@@ -34,10 +34,6 @@ fn bench_sa_unconstrained(c: &mut Criterion) {
             use_adaptive_cooling: false,
             advanced: AdvancedConf {
                 restart_strategy: RestartStrategy::None,
-                stagnation_detection: StagnationDetection {
-                    stagnation_window: 10,
-                    improvement_threshold: 1e-6,
-                },
                 adaptive_parameters: false,
                 adaptation_rate: 0.1,
                 improvement_history_size: 20,
@@ -83,10 +79,6 @@ fn bench_sa_constrained(c: &mut Criterion) {
             use_adaptive_cooling: false,
             advanced: AdvancedConf {
                 restart_strategy: RestartStrategy::None,
-                stagnation_detection: StagnationDetection {
-                    stagnation_window: 10,
-                    improvement_threshold: 1e-6,
-                },
                 adaptive_parameters: false,
                 adaptation_rate: 0.1,
                 improvement_history_size: 20,

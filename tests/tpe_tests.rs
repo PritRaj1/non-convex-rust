@@ -1,7 +1,7 @@
 mod common;
 
 use common::fcns::{QuadraticObjective, RosenbrockConstraints, RosenbrockObjective};
-use nalgebra::{SMatrix, U1, U2, U3, U4, U5};
+use nalgebra::{SMatrix, U2, U3, U4, U5};
 
 use non_convex_opt::algorithms::tpe::tpe_opt::TPE;
 use non_convex_opt::utils::{
