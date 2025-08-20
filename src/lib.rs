@@ -9,7 +9,7 @@ use crate::algorithms::{
     differential_evolution::de::DE, grasp::grasp_opt::GRASP, limited_memory_bfgs::lbfgs::LBFGS,
     multi_swarm::mspo::MSPO, nelder_mead::nm::NelderMead, parallel_tempering::pt::PT,
     sg_ascent::sga::SGAscent, simulated_annealing::sa::SimulatedAnnealing,
-    tabu_search::tabu::TabuSearch,
+    tabu_search::tabu::TabuSearch, tpe::tpe::TPE,
 };
 
 use crate::utils::opt_prob::{
@@ -140,9 +140,11 @@ where
                 sa_conf,
                 init_pop.row(0).into_owned(),
                 opt_prob,
+                conf.opt_conf.stagnation_window,
             )),
             AlgConf::DE(de_conf) => Box::new(DE::new(de_conf, init_pop, opt_prob)),
             AlgConf::CMAES(cma_es_conf) => Box::new(CMAES::new(cma_es_conf, init_pop, opt_prob)),
+            AlgConf::TPE(tpe_conf) => Box::new(TPE::new(tpe_conf, init_pop, opt_prob, conf.opt_conf.stagnation_window)),
         };
 
         Self {
@@ -220,11 +222,9 @@ where
         let previous_best_fitness = self.alg.state().best_f;
         self.alg.step();
         let current_best_fitness = self.alg.state().best_f;
-
-        // Track fitness history for stagnation detection
         self.best_fitness_history.push(current_best_fitness);
 
-        // Keep history bounded to avoid unbounded memory growth
+        // Avoid unbounded memory growth
         let max_history = self.conf.stagnation_window * 2;
         if self.best_fitness_history.len() > max_history {
             let excess = self.best_fitness_history.len() - max_history;

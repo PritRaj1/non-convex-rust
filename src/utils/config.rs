@@ -20,6 +20,7 @@ pub use crate::utils::alg_conf::{
     sa_conf::SAConf,
     sga_conf::SGAConf,
     tabu_conf::{ListType, ReactiveConf, StandardConf, TabuConf},
+    tpe_conf::TPEConf,
 };
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
@@ -36,6 +37,7 @@ pub enum AlgConf {
     SA(SAConf),
     DE(DEConf),
     CMAES(CMAESConf),
+    TPE(TPEConf),
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]

@@ -30,8 +30,6 @@ pub struct SAConf {
 pub struct AdvancedConf {
     #[serde(default = "default_restart_strategy")]
     pub restart_strategy: RestartStrategy,
-    #[serde(default = "default_stagnation_detection")]
-    pub stagnation_detection: StagnationDetection,
     #[serde(default = "default_adaptive_parameters")]
     pub adaptive_parameters: bool,
     #[serde(default = "default_adaptation_rate")]
@@ -61,14 +59,6 @@ pub enum RestartStrategy {
     Diversity {
         min_diversity: f64,
     },
-}
-
-#[derive(Deserialize, Serialize, Debug, Clone)]
-pub struct StagnationDetection {
-    #[serde(default = "default_stagnation_window")]
-    pub stagnation_window: usize,
-    #[serde(default = "default_improvement_threshold")]
-    pub improvement_threshold: f64,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
@@ -114,7 +104,6 @@ fn default_use_adaptive_cooling() -> bool {
 fn default_advanced() -> AdvancedConf {
     AdvancedConf {
         restart_strategy: default_restart_strategy(),
-        stagnation_detection: default_stagnation_detection(),
         adaptive_parameters: default_adaptive_parameters(),
         adaptation_rate: default_adaptation_rate(),
         improvement_history_size: default_improvement_history_size(),
@@ -127,13 +116,6 @@ fn default_restart_strategy() -> RestartStrategy {
     RestartStrategy::Stagnation {
         max_iterations: 100,
         threshold: 1e-6,
-    }
-}
-
-fn default_stagnation_detection() -> StagnationDetection {
-    StagnationDetection {
-        stagnation_window: 10,
-        improvement_threshold: 1e-6,
     }
 }
 
@@ -155,12 +137,4 @@ fn default_success_history_size() -> usize {
 
 fn default_cooling_schedule() -> CoolingScheduleType {
     CoolingScheduleType::Exponential
-}
-
-fn default_stagnation_window() -> usize {
-    10
-}
-
-fn default_improvement_threshold() -> f64 {
-    1e-6
 }

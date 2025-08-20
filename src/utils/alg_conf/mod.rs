@@ -10,3 +10,4 @@ pub mod pt_conf;
 pub mod sa_conf;
 pub mod sga_conf;
 pub mod tabu_conf;
+pub mod tpe_conf;

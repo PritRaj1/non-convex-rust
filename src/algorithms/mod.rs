@@ -10,3 +10,4 @@ pub mod parallel_tempering;
 pub mod sg_ascent;
 pub mod simulated_annealing;
 pub mod tabu_search;
+pub mod tpe;
