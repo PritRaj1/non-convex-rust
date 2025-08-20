@@ -288,6 +288,33 @@ where
         candidate
     }
 
+    fn sample_random_feasible_point(&mut self) -> OVector<T, D> {
+        let n = self.st.pop.ncols();
+        let max_attempts = 1000; // This can be hard-coded
+
+        for _ in 0..max_attempts {
+            let mut candidate = OVector::<T, D>::zeros_generic(D::from_usize(n), U1);
+            let (lb, ub) = self.get_bounds(&candidate);
+            for j in 0..n {
+                let range = ub[j] - lb[j];
+                candidate[j] = lb[j] + T::from_f64(rand::random::<f64>()).unwrap() * range;
+            }
+
+            if self.opt_prob.is_feasible(&candidate) {
+                return candidate;
+            }
+        }
+
+        // Fallback: return random in-domain point; feasible or not
+        let mut candidate = OVector::<T, D>::zeros_generic(D::from_usize(n), U1);
+        let (lb, ub) = self.get_bounds(&candidate);
+        for j in 0..n {
+            let range = ub[j] - lb[j];
+            candidate[j] = lb[j] + T::from_f64(rand::random::<f64>()).unwrap() * range;
+        }
+        candidate
+    }
+
     fn should_restart(&self) -> bool {
         if !self.conf.advanced.use_restart_strategy {
             return false;
@@ -410,9 +437,11 @@ where
 
         for (i, fitness) in candidate_fitnesses.iter().enumerate() {
             let x = candidates[i].clone();
-            new_observations.push((x.clone(), *fitness));
-
-            if *fitness > best_fitness && self.opt_prob.is_feasible(&x) {
+            let is_feasible = self.opt_prob.is_feasible(&x);
+            if is_feasible {
+                new_observations.push((x.clone(), *fitness));
+            }
+            if *fitness > best_fitness && is_feasible {
                 best_fitness = *fitness;
                 best_candidate = Some(x);
             }
@@ -457,12 +486,32 @@ where
         let mut new_constraints =
             OVector::<bool, N>::from_element_generic(N::from_usize(population_size), U1, true);
 
-        for (i, (x, fitness)) in self.observations.iter().take(population_size).enumerate() {
-            for j in 0..x.len() {
-                new_pop[(i, j)] = x[j]; // Fill with best measurements
+        // Fill with feasible first
+        let mut feasible_count = 0;
+        for (x, fitness) in self.observations.iter() {
+            if feasible_count >= population_size {
+                break;
             }
-            new_fitness[i] = *fitness;
-            new_constraints[i] = self.opt_prob.is_feasible(x);
+
+            if self.opt_prob.is_feasible(x) {
+                for j in 0..x.len() {
+                    new_pop[(feasible_count, j)] = x[j];
+                }
+                new_fitness[feasible_count] = *fitness;
+                new_constraints[feasible_count] = true;
+                feasible_count += 1;
+            }
+        }
+
+        // Fill remaining slots with random
+        while feasible_count < population_size {
+            let random_point = self.sample_random_feasible_point();
+            for j in 0..random_point.len() {
+                new_pop[(feasible_count, j)] = random_point[j];
+            }
+            new_fitness[feasible_count] = self.opt_prob.evaluate(&random_point);
+            new_constraints[feasible_count] = true;
+            feasible_count += 1;
         }
 
         self.st.pop = new_pop;
