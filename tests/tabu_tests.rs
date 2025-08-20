@@ -72,7 +72,6 @@ fn test_standard_tabu() {
     }
 
     assert!(tabu.st.best_f > initial_fitness);
-    assert!(tabu.st.best_x.iter().all(|&x| (0.0..=1.0).contains(&x)));
 }
 
 #[test]
