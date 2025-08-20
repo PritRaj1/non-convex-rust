@@ -104,11 +104,11 @@ where
 
             for j in 0..obs.len() {
                 let diff = (obs[j] - x[j]) / bandwidth;
-                distance = distance + diff * diff;
+                distance += diff * diff;
             }
             distance = distance.sqrt();
 
-            density = density + self.kernel.evaluate(distance, bandwidth);
+            density += self.kernel.evaluate(distance, bandwidth);
         }
 
         density / T::from_usize(n).unwrap()
@@ -174,9 +174,9 @@ where
         for obs in observations {
             let mut variance = T::zero();
             for &val in obs.iter() {
-                variance = variance + val * val;
+                variance += val * val;
             }
-            variance = variance / T::from_usize(dim).unwrap();
+            variance /= T::from_usize(dim).unwrap();
             let std_dev = variance.sqrt();
 
             let bandwidth = factor * n_factor * std_dev;
@@ -253,12 +253,12 @@ where
             let mut distance = T::zero();
             for j in 0..obs.len() {
                 let diff = (obs[j] - target[j]) / test_bandwidth;
-                distance = distance + diff * diff;
+                distance += diff * diff;
             }
             distance = distance.sqrt();
 
             let kernel_val = (-T::from_f64(0.5).unwrap() * distance * distance).exp();
-            score = score + kernel_val;
+            score += kernel_val;
         }
 
         score
@@ -275,10 +275,15 @@ where
             return bandwidths;
         }
 
-        for i in 0..observations.len() {
-            let local_density = Self::compute_local_density(observations, i, &bandwidths);
-            let adaptation_factor = T::one() / (local_density + T::from_f64(1e-6).unwrap());
-            bandwidths[i] = bandwidths[i] * adaptation_factor.sqrt();
+        // Compute all local densities first to avoid borrowing conflicts
+        let local_densities: Vec<T> = (0..observations.len())
+            .map(|i| Self::compute_local_density(observations, i, &bandwidths))
+            .collect();
+
+        // Now update bandwidths using the pre-computed densities
+        for (i, bandwidth) in bandwidths.iter_mut().enumerate() {
+            let adaptation_factor = T::one() / (local_densities[i] + T::from_f64(1e-6).unwrap());
+            *bandwidth *= adaptation_factor.sqrt();
         }
 
         bandwidths
@@ -291,8 +296,8 @@ where
             return bandwidths;
         }
 
-        for i in 0..observations.len() {
-            bandwidths[i] = Self::optimize_bandwidth_likelihood(observations, i, bandwidths[i]);
+        for (i, bandwidth) in bandwidths.iter_mut().enumerate() {
+            *bandwidth = Self::optimize_bandwidth_likelihood(observations, i, *bandwidth);
         }
 
         bandwidths
@@ -355,12 +360,12 @@ where
             let mut distance = T::zero();
             for j in 0..obs.len() {
                 let diff = (obs[j] - target[j]) / bandwidth;
-                distance = distance + diff * diff;
+                distance += diff * diff;
             }
             distance = distance.sqrt();
 
             let kernel_val = (-T::from_f64(0.5).unwrap() * distance * distance).exp();
-            likelihood = likelihood + kernel_val.ln();
+            likelihood += kernel_val.ln();
         }
 
         likelihood
@@ -387,11 +392,11 @@ where
             let mut distance = T::zero();
             for j in 0..obs.len() {
                 let diff = (obs[j] - target[j]) / bandwidth;
-                distance = distance + diff * diff;
+                distance += diff * diff;
             }
             distance = distance.sqrt();
             let kernel_val = (-T::from_f64(0.5).unwrap() * distance * distance).exp();
-            density = density + kernel_val;
+            density += kernel_val;
         }
 
         density / T::from_usize(n - 1).unwrap()
