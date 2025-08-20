@@ -9,7 +9,7 @@ use crate::algorithms::{
     differential_evolution::de::DE, grasp::grasp_opt::GRASP, limited_memory_bfgs::lbfgs::LBFGS,
     multi_swarm::mspo::MSPO, nelder_mead::nm::NelderMead, parallel_tempering::pt::PT,
     sg_ascent::sga::SGAscent, simulated_annealing::sa::SimulatedAnnealing,
-    tabu_search::tabu::TabuSearch, tpe::tpe::TPE,
+    tabu_search::tabu::TabuSearch, tpe::tpe_opt::TPE,
 };
 
 use crate::utils::opt_prob::{
@@ -144,7 +144,12 @@ where
             )),
             AlgConf::DE(de_conf) => Box::new(DE::new(de_conf, init_pop, opt_prob)),
             AlgConf::CMAES(cma_es_conf) => Box::new(CMAES::new(cma_es_conf, init_pop, opt_prob)),
-            AlgConf::TPE(tpe_conf) => Box::new(TPE::new(tpe_conf, init_pop, opt_prob, conf.opt_conf.stagnation_window)),
+            AlgConf::TPE(tpe_conf) => Box::new(TPE::new(
+                tpe_conf,
+                init_pop,
+                opt_prob,
+                conf.opt_conf.stagnation_window,
+            )),
         };
 
         Self {

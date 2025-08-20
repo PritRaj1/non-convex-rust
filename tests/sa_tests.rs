@@ -5,7 +5,7 @@ use nalgebra::{SMatrix, U1, U2};
 
 use non_convex_opt::algorithms::simulated_annealing::sa::SimulatedAnnealing;
 use non_convex_opt::utils::{
-    alg_conf::sa_conf::{AdvancedConf, CoolingScheduleType, RestartStrategy, StagnationDetection},
+    alg_conf::sa_conf::{AdvancedConf, CoolingScheduleType, RestartStrategy},
     config::SAConf,
     opt_prob::{OptProb, OptimizationAlgorithm},
 };
@@ -25,10 +25,6 @@ fn test_sa_basic() {
         use_adaptive_cooling: false,
         advanced: AdvancedConf {
             restart_strategy: RestartStrategy::None,
-            stagnation_detection: StagnationDetection {
-                stagnation_window: 10,
-                improvement_threshold: 1e-6,
-            },
             adaptive_parameters: false,
             adaptation_rate: 0.1,
             improvement_history_size: 20,
@@ -42,7 +38,8 @@ fn test_sa_basic() {
     let constraints = RosenbrockConstraints {};
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
 
-    let mut sa: SimulatedAnnealing<f64, U1, U2> = SimulatedAnnealing::new(conf, init_x, opt_prob);
+    let mut sa: SimulatedAnnealing<f64, U1, U2> =
+        SimulatedAnnealing::new(conf, init_x, opt_prob, 50);
     let initial_fitness = sa.st.best_f;
 
     for _ in 0..100 {
@@ -68,10 +65,6 @@ fn test_sa_cooling() {
         use_adaptive_cooling: false,
         advanced: AdvancedConf {
             restart_strategy: RestartStrategy::None,
-            stagnation_detection: StagnationDetection {
-                stagnation_window: 10,
-                improvement_threshold: 1e-6,
-            },
             adaptive_parameters: false,
             adaptation_rate: 0.1,
             improvement_history_size: 20,
@@ -85,7 +78,8 @@ fn test_sa_cooling() {
     let constraints = RosenbrockConstraints {};
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
 
-    let mut sa: SimulatedAnnealing<f64, U1, U2> = SimulatedAnnealing::new(conf, init_x, opt_prob);
+    let mut sa: SimulatedAnnealing<f64, U1, U2> =
+        SimulatedAnnealing::new(conf, init_x, opt_prob, 50);
     let initial_temp = sa.temperature;
 
     for _ in 0..5 {
@@ -114,10 +108,6 @@ fn test_sa_neighbor_generation() {
         use_adaptive_cooling: false,
         advanced: AdvancedConf {
             restart_strategy: RestartStrategy::None,
-            stagnation_detection: StagnationDetection {
-                stagnation_window: 10,
-                improvement_threshold: 1e-6,
-            },
             adaptive_parameters: false,
             adaptation_rate: 0.1,
             improvement_history_size: 20,
@@ -131,7 +121,8 @@ fn test_sa_neighbor_generation() {
     let constraints = RosenbrockConstraints {};
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
 
-    let mut sa: SimulatedAnnealing<f64, U1, U2> = SimulatedAnnealing::new(conf, init_x, opt_prob);
+    let mut sa: SimulatedAnnealing<f64, U1, U2> =
+        SimulatedAnnealing::new(conf, init_x, opt_prob, 50);
 
     sa.step();
     assert!(sa.st.best_x.iter().all(|&x| (-5.0..=5.0).contains(&x)));
@@ -152,10 +143,6 @@ fn test_sa_with_constraints() {
         use_adaptive_cooling: false,
         advanced: AdvancedConf {
             restart_strategy: RestartStrategy::None,
-            stagnation_detection: StagnationDetection {
-                stagnation_window: 10,
-                improvement_threshold: 1e-6,
-            },
             adaptive_parameters: false,
             adaptation_rate: 0.1,
             improvement_history_size: 20,
@@ -169,7 +156,8 @@ fn test_sa_with_constraints() {
     let constraints = RosenbrockConstraints {};
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
 
-    let mut sa: SimulatedAnnealing<f64, U1, U2> = SimulatedAnnealing::new(conf, init_x, opt_prob);
+    let mut sa: SimulatedAnnealing<f64, U1, U2> =
+        SimulatedAnnealing::new(conf, init_x, opt_prob, 50);
 
     for _ in 0..10 {
         sa.step();
@@ -192,10 +180,6 @@ fn test_sa_acceptance() {
         use_adaptive_cooling: false,
         advanced: AdvancedConf {
             restart_strategy: RestartStrategy::None,
-            stagnation_detection: StagnationDetection {
-                stagnation_window: 10,
-                improvement_threshold: 1e-6,
-            },
             adaptive_parameters: false,
             adaptation_rate: 0.1,
             improvement_history_size: 20,
@@ -209,7 +193,8 @@ fn test_sa_acceptance() {
     let constraints = RosenbrockConstraints {};
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
 
-    let mut sa: SimulatedAnnealing<f64, U1, U2> = SimulatedAnnealing::new(conf, init_x, opt_prob);
+    let mut sa: SimulatedAnnealing<f64, U1, U2> =
+        SimulatedAnnealing::new(conf, init_x, opt_prob, 50);
     let initial_x = sa.st.best_x;
 
     sa.step();

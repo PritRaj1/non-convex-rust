@@ -1,3 +1,3 @@
 pub mod acquisition;
 pub mod kernels;
-pub mod tpe;
+pub mod tpe_opt;

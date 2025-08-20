@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
-use crate::algorithms::tpe::kernels::KernelType;
+
+pub use crate::algorithms::tpe::kernels::KernelType;
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct TPEConf {

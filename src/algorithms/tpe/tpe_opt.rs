@@ -52,7 +52,12 @@ where
     OMatrix<T, N, D>: Send + Sync,
     DefaultAllocator: Allocator<D> + Allocator<N, D> + Allocator<N>,
 {
-    pub fn new(conf: TPEConf, init_pop: OMatrix<T, N, D>, opt_prob: OptProb<T, D>, stagnation_window: usize) -> Self {
+    pub fn new(
+        conf: TPEConf,
+        init_pop: OMatrix<T, N, D>,
+        opt_prob: OptProb<T, D>,
+        stagnation_window: usize,
+    ) -> Self {
         let n = init_pop.ncols();
         let population_size = init_pop.nrows();
 
@@ -70,7 +75,7 @@ where
             .iter()
             .enumerate()
             .filter(|(i, _)| constraint_values[*i])
-            .min_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+            .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
             .unwrap_or((0, &fitness_values[0]))
             .0;
 
@@ -96,7 +101,7 @@ where
             observations.push((x, fitness_values[i]));
         }
 
-        observations.sort_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap());
+        observations.sort_by(|(_, a), (_, b)| b.partial_cmp(a).unwrap());
         let n_best = (observations.len() as f64 * conf.gamma).floor() as usize;
         let best_observations = observations[..n_best].to_vec();
         let worst_observations = observations[n_best..].to_vec();
@@ -167,13 +172,16 @@ where
 
             (lower_bounds, upper_bounds)
         } else {
-            (self.cached_lower_bounds.clone(), self.cached_upper_bounds.clone())
+            (
+                self.cached_lower_bounds.clone(),
+                self.cached_upper_bounds.clone(),
+            )
         }
     }
 
     fn sample_random_candidates(&mut self, n_candidates: usize) -> Vec<OVector<T, D>> {
         let n = self.st.pop.ncols();
-        
+
         let sample_candidate = OVector::<T, D>::zeros_generic(D::from_usize(n), U1);
         let (lb, ub) = self.get_bounds(&sample_candidate);
 
@@ -312,7 +320,7 @@ where
                 let x1 = self.st.pop.row(i).transpose();
                 let x2 = self.st.pop.row(j).transpose();
                 let distance = self.euclidean_distance(&x1, &x2);
-                total_distance = total_distance + distance;
+                total_distance += distance;
                 pair_count += 1;
             }
         }
@@ -328,7 +336,7 @@ where
         let mut sum_squared = T::zero();
         for j in 0..a.len() {
             let diff = a[j] - b[j];
-            sum_squared = sum_squared + diff * diff;
+            sum_squared += diff * diff;
         }
         sum_squared.sqrt()
     }
@@ -336,7 +344,7 @@ where
     fn update_observations(&mut self, new_observations: Vec<(OVector<T, D>, T)>) {
         self.observations.extend(new_observations);
         self.observations
-            .sort_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap());
+            .sort_by(|(_, a), (_, b)| b.partial_cmp(a).unwrap()); // Descending order for maximization
 
         let n_best = (self.observations.len() as f64 * self.conf.gamma).floor() as usize;
         self.best_observations = self.observations[..n_best].to_vec();
@@ -363,7 +371,7 @@ where
         let candidates = self.sample_candidates(n_candidates);
         let mut new_observations = Vec::new();
         let mut best_candidate = None;
-        let mut best_fitness = T::infinity();
+        let mut best_fitness = T::neg_infinity(); // For maximization
 
         let candidate_fitnesses: Vec<T> = candidates
             .par_iter()
@@ -374,7 +382,7 @@ where
             let x = candidates[i].clone();
             new_observations.push((x.clone(), *fitness));
 
-            if *fitness < best_fitness && self.opt_prob.is_feasible(&x) {
+            if *fitness > best_fitness && self.opt_prob.is_feasible(&x) {
                 best_fitness = *fitness;
                 best_candidate = Some(x);
             }
@@ -383,8 +391,8 @@ where
         self.update_observations(new_observations);
 
         if let Some(best_x) = best_candidate {
-            if best_fitness < self.st.best_f {
-                let improvement = self.st.best_f - best_fitness;
+            if best_fitness > self.st.best_f {
+                let improvement = best_fitness - self.st.best_f;
                 self.improvement_history.push(improvement);
                 self.last_improvement = improvement;
                 self.last_improvement_iter = self.iteration;

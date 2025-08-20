@@ -1,7 +1,7 @@
-use nalgebra::{OVector, Dim, allocator::Allocator, DefaultAllocator, U1};
 use crate::utils::opt_prob::FloatNumber as FloatNum;
-use std::marker::PhantomData;
+use nalgebra::{allocator::Allocator, DefaultAllocator, Dim, OVector, U1};
 use rayon::prelude::*;
+use std::marker::PhantomData;
 
 #[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum KernelType {
@@ -33,7 +33,7 @@ impl<T: FloatNum> Kernel<T> for EpanechnikovKernel {
     fn evaluate(&self, x: T, bandwidth: T) -> T {
         let x_norm = x / bandwidth;
         let x_abs = x_norm.abs();
-        
+
         if x_abs <= T::one() {
             let factor = T::from_f64(0.75).unwrap(); // 3/4
             factor * (T::one() - x_norm * x_norm) / bandwidth
@@ -49,7 +49,7 @@ pub struct TopHatKernel;
 impl<T: FloatNum> Kernel<T> for TopHatKernel {
     fn evaluate(&self, x: T, bandwidth: T) -> T {
         let x_norm = x / bandwidth;
-        
+
         if x_norm.abs() <= T::one() {
             T::from_f64(0.5).unwrap() / bandwidth
         } else {
@@ -65,7 +65,7 @@ impl<T: FloatNum> Kernel<T> for TriangularKernel {
     fn evaluate(&self, x: T, bandwidth: T) -> T {
         let x_norm = x / bandwidth;
         let x_abs = x_norm.abs();
-        
+
         if x_abs <= T::one() {
             (T::one() - x_abs) / bandwidth
         } else {
@@ -120,18 +120,19 @@ where
         }
 
         let n = T::from_usize(self.data.len()).unwrap();
-        
-        let density: T = self.data
+
+        let density: T = self
+            .data
             .par_iter()
             .map(|point| {
                 let mut kernel_product = T::one();
-                
+
                 for dim in 0..x.len() {
                     let diff = x[dim] - point[dim];
                     let bandwidth = self.bandwidths[dim];
-                    kernel_product = kernel_product * self.kernel.evaluate(diff, bandwidth);
+                    kernel_product *= self.kernel.evaluate(diff, bandwidth);
                 }
-                
+
                 kernel_product
             })
             .sum();
@@ -146,14 +147,16 @@ where
 
         let mut bandwidths = self.bandwidths.clone();
         let n = self.data.len();
-        
+
         // Silverman's rule of thumb: h = 1.06 * σ * n^(-1/5)
         for dim in 0..self.data[0].len() {
             let variance = self.compute_variance(dim);
             let std_dev = variance.sqrt();
             let factor = T::from_f64(1.06).unwrap();
-            let n_factor = T::from_f64(n as f64).unwrap().powf(T::from_f64(-0.2).unwrap());
-            
+            let n_factor = T::from_f64(n as f64)
+                .unwrap()
+                .powf(T::from_f64(-0.2).unwrap());
+
             bandwidths[dim] = factor * std_dev * n_factor;
             let min_bw = T::from_f64(1e-6).unwrap(); // Avoid zero bandwidth
             bandwidths[dim] = bandwidths[dim].max(min_bw);
@@ -167,18 +170,18 @@ where
             return T::zero();
         }
 
-        let mean = self.data
-            .par_iter()
-            .map(|point| point[dim])
-            .sum::<T>() / T::from_usize(self.data.len()).unwrap();
+        let mean = self.data.par_iter().map(|point| point[dim]).sum::<T>()
+            / T::from_usize(self.data.len()).unwrap();
 
-        let variance = self.data
+        let variance = self
+            .data
             .par_iter()
             .map(|point| {
                 let diff = point[dim] - mean;
                 diff * diff
             })
-            .sum::<T>() / T::from_usize(self.data.len() - 1).unwrap();
+            .sum::<T>()
+            / T::from_usize(self.data.len() - 1).unwrap();
 
         variance
     }

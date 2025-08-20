@@ -51,3 +51,13 @@ where
         ei.min(max_ei)
     }
 }
+
+impl<D> Default for ExpectedImprovement<D>
+where
+    D: Dim,
+    DefaultAllocator: Allocator<D>,
+{
+    fn default() -> Self {
+        Self::new()
+    }
+}

@@ -53,16 +53,18 @@ where
     OMatrix<T, N, D>: Send + Sync,
     DefaultAllocator: Allocator<D> + Allocator<N, D> + Allocator<U1, D> + Allocator<N>,
 {
-    pub fn new(conf: SAConf, init_pop: OMatrix<T, U1, D>, opt_prob: OptProb<T, D>, stagnation_window: usize) -> Self {
+    pub fn new(
+        conf: SAConf,
+        init_pop: OMatrix<T, U1, D>,
+        opt_prob: OptProb<T, D>,
+        stagnation_window: usize,
+    ) -> Self {
         let init_x = init_pop.row(0).transpose();
         let best_f = opt_prob.evaluate(&init_x);
         let n = init_x.len();
         let improvement_threshold = T::from_f64(1e-6).unwrap(); // TODO: should this be hard-coded?
-        let stagnation_monitor = SAStagnationMonitor::new(
-            improvement_threshold,
-            best_f,
-            stagnation_window,
-        );
+        let stagnation_monitor =
+            SAStagnationMonitor::new(improvement_threshold, best_f, stagnation_window);
 
         let cooling_schedule: Box<dyn CoolingSchedule<T> + Send + Sync> =
             match conf.advanced.cooling_schedule {
@@ -109,7 +111,7 @@ where
             ),
             cooling_schedule,
             acceptance: MetropolisAcceptance::new(opt_prob, init_x),
-            stagnation_window: stagnation_window,
+            stagnation_window,
         }
     }
 
