@@ -1,4 +1,5 @@
 use nalgebra::{allocator::Allocator, DefaultAllocator, Dim, OMatrix, OVector, U1};
+use rand;
 use rayon::prelude::*;
 
 use crate::utils::alg_conf::tpe_conf::TPEConf;
@@ -101,10 +102,10 @@ where
             observations.push((x, fitness_values[i]));
         }
 
-        observations.sort_by(|(_, a), (_, b)| b.partial_cmp(a).unwrap());
+        observations.sort_by(|(_, a), (_, b)| b.partial_cmp(a).unwrap()); // Descending order for maximization
         let n_best = (observations.len() as f64 * conf.gamma).floor() as usize;
-        let best_observations = observations[..n_best].to_vec();
-        let worst_observations = observations[n_best..].to_vec();
+        let best_observations = observations[..n_best].to_vec(); // Top γ-quantile (best)
+        let worst_observations = observations[n_best..].to_vec(); // Bottom (1-γ)-quantile (worst)
 
         Self {
             conf: conf.clone(),
@@ -209,7 +210,7 @@ where
                 .iter()
                 .map(|(x, _)| x.clone())
                 .collect();
-            self.kde_l.fit(&best_x);
+            self.kde_g.fit(&best_x); // upper quantile
         }
         if !self.worst_observations.is_empty() {
             let worst_x: Vec<_> = self
@@ -217,7 +218,7 @@ where
                 .iter()
                 .map(|(x, _)| x.clone())
                 .collect();
-            self.kde_g.fit(&worst_x);
+            self.kde_l.fit(&worst_x); // lower quantile
         }
 
         for _ in 0..n_candidates {
@@ -234,28 +235,57 @@ where
         let mut best_candidate = OVector::<T, D>::zeros_generic(D::from_usize(n), U1);
         let mut best_ei = T::neg_infinity();
 
-        for _ in 0..num_samples {
-            let mut candidate = OVector::<T, D>::zeros_generic(D::from_usize(n), U1);
-            let (lb, ub) = self.get_bounds(&candidate);
+        // Sample candidate from g(x) distribution, fallback uniform
+        if !self.best_observations.is_empty() {
+            for _ in 0..num_samples {
+                let candidate = self.sample_from_good_distribution();
+
+                let ei = self.acquisition.compute_ei(
+                    &candidate,
+                    &self.kde_l,
+                    &self.kde_g,
+                    self.prior_weight,
+                );
+
+                if ei > best_ei {
+                    best_ei = ei;
+                    best_candidate = candidate;
+                }
+            }
+        } else {
+            let (lb, ub) = self.get_bounds(&OVector::<T, D>::zeros_generic(D::from_usize(n), U1));
             for j in 0..n {
                 let range = ub[j] - lb[j];
-                candidate[j] = lb[j] + T::from_f64(rand::random::<f64>()).unwrap() * range;
-            }
-
-            let ei = self.acquisition.compute_ei(
-                &candidate,
-                &self.kde_l,
-                &self.kde_g,
-                self.prior_weight,
-            );
-
-            if ei > best_ei {
-                best_ei = ei;
-                best_candidate = candidate;
+                best_candidate[j] = lb[j] + T::from_f64(rand::random::<f64>()).unwrap() * range;
             }
         }
 
         best_candidate
+    }
+
+    fn sample_from_good_distribution(&mut self) -> OVector<T, D> {
+        let n = self.st.pop.ncols();
+        let mut candidate = OVector::<T, D>::zeros_generic(D::from_usize(n), U1);
+
+        // KDE approx
+        if !self.best_observations.is_empty() {
+            let random_idx = (rand::random::<f64>() * self.best_observations.len() as f64) as usize;
+            let base_point = &self.best_observations[random_idx].0;
+
+            // Add noise around the base point
+            for j in 0..n {
+                let noise = T::from_f64(rand::random::<f64>() * 2.0 - 1.0).unwrap()
+                    * T::from_f64(0.1).unwrap();
+                candidate[j] = base_point[j] + noise;
+            }
+
+            let (lb, ub) = self.get_bounds(&candidate);
+            for j in 0..n {
+                candidate[j] = candidate[j].max(lb[j]).min(ub[j]);
+            }
+        }
+
+        candidate
     }
 
     fn should_restart(&self) -> bool {
@@ -344,11 +374,11 @@ where
     fn update_observations(&mut self, new_observations: Vec<(OVector<T, D>, T)>) {
         self.observations.extend(new_observations);
         self.observations
-            .sort_by(|(_, a), (_, b)| b.partial_cmp(a).unwrap()); // Descending order for maximization
+            .sort_by(|(_, a), (_, b)| b.partial_cmp(a).unwrap());
 
         let n_best = (self.observations.len() as f64 * self.conf.gamma).floor() as usize;
-        self.best_observations = self.observations[..n_best].to_vec();
-        self.worst_observations = self.observations[n_best..].to_vec();
+        self.best_observations = self.observations[..n_best].to_vec(); // Top γ-quantile
+        self.worst_observations = self.observations[n_best..].to_vec(); // Bottom (1-γ)-quantile
     }
 }
 
@@ -371,7 +401,7 @@ where
         let candidates = self.sample_candidates(n_candidates);
         let mut new_observations = Vec::new();
         let mut best_candidate = None;
-        let mut best_fitness = T::neg_infinity(); // For maximization
+        let mut best_fitness = T::neg_infinity();
 
         let candidate_fitnesses: Vec<T> = candidates
             .par_iter()

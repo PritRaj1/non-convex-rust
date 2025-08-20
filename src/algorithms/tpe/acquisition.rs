@@ -34,16 +34,16 @@ where
         OVector<T, D>: Send + Sync,
         DefaultAllocator: Allocator<D>,
     {
-        let p_l = kde_l.evaluate(x); // Low-fitness dist
-        let p_g = kde_g.evaluate(x); // High-fitness dist
+        let p_l = kde_l.evaluate(x); // l(x): density of WORST observations (lower quantile)
+        let p_g = kde_g.evaluate(x); // g(x): density of BEST observations (upper quantile)
 
         if p_g <= T::from_f64(1e-10).unwrap() {
             return T::zero();
         }
 
         // Expected Improvement: EI(x) = E[max(f(x) - f(x_best) - ξ, 0)]
-        // In TPE we use the ratio, since the truu expectation is analytically difficult
-        let ratio = p_l / p_g;
+        // High p_g (good density) and low p_l (bad density) = high EI
+        let ratio = p_g / p_l;
 
         // Apply prior weight and regularization
         let ei = ratio * prior_weight;
