@@ -67,7 +67,7 @@ fn test_standard_tabu() {
     let mut tabu: TabuSearch<f64, U1, U2> = TabuSearch::new(tabu_conf, init_x, opt_prob);
     let initial_fitness = tabu.st.best_f;
 
-    for _ in 0..10 {
+    for _ in 0..30 {
         tabu.step();
     }
 

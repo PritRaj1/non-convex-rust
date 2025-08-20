@@ -440,7 +440,7 @@ where
 
     fn sample_random_feasible_point(&mut self) -> OVector<T, D> {
         let n = self.st.pop.ncols();
-        let max_attempts = 1000;
+        let max_attempts = 10;
 
         for _ in 0..max_attempts {
             let mut candidate = OVector::<T, D>::zeros_generic(D::from_usize(n), U1);
