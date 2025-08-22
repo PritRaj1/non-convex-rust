@@ -6,6 +6,7 @@ use thiserror::Error;
 
 pub use crate::utils::alg_conf::{
     adam_conf::AdamConf,
+    cem_conf::CEMConf,
     cga_conf::{CGAConf, CommonConf, CrossoverConf, MutationConf, SelectionConf},
     cmaes_conf::CMAESConf,
     de_conf::{DEConf, DEStrategy},
@@ -38,6 +39,7 @@ pub enum AlgConf {
     DE(DEConf),
     CMAES(CMAESConf),
     TPE(TPEConf),
+    CEM(CEMConf),
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]

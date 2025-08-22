@@ -1,4 +1,5 @@
 pub mod adam_conf;
+pub mod cem_conf;
 pub mod cga_conf;
 pub mod cmaes_conf;
 pub mod de_conf;
