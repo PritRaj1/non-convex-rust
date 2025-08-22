@@ -10,7 +10,7 @@ use crate::utils::opt_prob::{FloatNumber as FloatNum, OptProb, OptimizationAlgor
 
 pub struct CEM<T, N, D>
 where
-    T: FloatNum + Send + Sync,
+    T: FloatNum + Send + Sync + nalgebra::ComplexField,
     N: Dim + Send + Sync,
     D: Dim + Send + Sync,
     OVector<T, D>: Send + Sync,
@@ -26,6 +26,8 @@ where
     pub mean: OVector<T, D>,
     pub covariance: OMatrix<T, D, D>,
     pub std_dev: OVector<T, D>,
+    pub cached_cholesky: Option<nalgebra::Cholesky<T, D>>,
+    pub covariance_changed: bool,
 
     pub improvement_history: Vec<T>,
     pub diversity_history: Vec<T>,
@@ -123,6 +125,8 @@ where
             mean,
             covariance,
             std_dev,
+            cached_cholesky: None,
+            covariance_changed: true,
             improvement_history: Vec::new(),
             diversity_history: Vec::new(),
             stagnation_counter: 0,
@@ -169,8 +173,27 @@ where
         let restart_freq = self.conf.advanced.restart_frequency;
         let stagnation_threshold = restart_freq / 2;
 
-        self.stagnation_counter > stagnation_threshold
-            || (self.st.iter - self.last_restart_iter) > restart_freq
+        // Frequency-based
+        let basic_restart = self.stagnation_counter > stagnation_threshold
+            || (self.st.iter - self.last_restart_iter) > restart_freq;
+
+        // Based on diversity and convergence
+        if self.st.iter > 20 {
+            let recent_diversity = self
+                .diversity_history
+                .iter()
+                .rev()
+                .take(5)
+                .fold(T::zero(), |acc, &x| acc + x)
+                / T::from_f64(5.0).unwrap();
+
+            let diversity_threshold = T::from_f64(1e-4).unwrap();
+            let diversity_restart = recent_diversity < diversity_threshold;
+
+            return basic_restart || diversity_restart;
+        }
+
+        basic_restart
     }
 
     fn should_early_stop(&self) -> bool {
@@ -226,7 +249,7 @@ where
                 }
             }
         }
-
+        self.covariance_changed = true;
         self.stagnation_counter = 0;
         self.last_restart_iter = self.st.iter;
         self.restart_counter += 1;
@@ -274,9 +297,10 @@ where
             }
         }
 
+        // This a variance reduction technique: generated negatively correlated pairs
         if self.conf.sampling.use_antithetic && antithetic_count > 0 {
             for i in 0..antithetic_count.min(regular_sample_count) {
-                let antithetic = self.mean.clone() - (population[i].clone() - self.mean.clone());
+                let antithetic = &self.mean - (&population[i] - &self.mean); // Reflect about mean
 
                 let (lb, ub) = self.get_bounds(&antithetic);
                 let mut bounded_antithetic = antithetic;
@@ -292,35 +316,33 @@ where
         population
     }
 
-    fn sample_multivariate_normal(&self) -> OVector<T, D> {
+    fn sample_multivariate_normal(&mut self) -> OVector<T, D> {
         let n = self.mean.len();
 
-        // tandard normal samples
         let mut z = OVector::<T, D>::zeros_generic(D::from_usize(n), U1);
+        let normal = Normal::new(0.0, 1.0).unwrap();
         for i in 0..n {
-            let normal = Normal::new(0.0, 1.0).unwrap();
             z[i] = T::from_f64(normal.sample(&mut rand::rng())).unwrap();
         }
 
-        // Use Cholesky decomposition for multivariate normal: L * L^T = Σ
-        let mut cov_matrix = self.covariance.clone();
-        let reg_factor = T::from_f64(1e-6).unwrap();
-        for i in 0..n {
-            cov_matrix[(i, i)] += reg_factor;
-        }
+        if self.cached_cholesky.is_none() || self.covariance_changed {
+            let mut cov_matrix = self.covariance.clone();
+            let reg_factor = T::from_f64(1e-6).unwrap();
+            for i in 0..n {
+                cov_matrix[(i, i)] += reg_factor;
+            }
 
-        let l_matrix = cov_matrix
-            .cholesky()
-            .expect("Covariance matrix should be positive definite after regularization");
+            let new_cholesky = cov_matrix
+                .cholesky()
+                .expect("Covariance matrix should be positive definite after regularization");
+            self.cached_cholesky = Some(new_cholesky);
+            self.covariance_changed = false;
+        }
 
         // Transform standard normal: x = μ + L * z
+        let l_matrix = self.cached_cholesky.as_ref().unwrap();
         let transformed = l_matrix.l() * z;
-        let mut sample = OVector::<T, D>::zeros_generic(D::from_usize(n), U1);
-        for i in 0..n {
-            sample[i] = self.mean[i] + transformed[i];
-        }
-
-        sample
+        &self.mean + &transformed
     }
 
     fn update_distribution(&mut self, elite_samples: &[OVector<T, D>]) {
@@ -333,23 +355,25 @@ where
 
         // Update mean with elite samples
         let mut new_mean = OVector::<T, D>::zeros_generic(D::from_usize(n), U1);
-        for i in 0..n {
-            let sum: T = elite_samples.iter().map(|x| x[i]).sum();
-            new_mean[i] = sum / T::from_usize(elite_size).unwrap();
+        for sample in elite_samples {
+            new_mean += sample;
         }
+        new_mean /= T::from_usize(elite_size).unwrap();
 
-        // Update cov with elite samples
+        // Update covariance with elite samples
         let mut new_covariance =
             OMatrix::<T, D, D>::zeros_generic(D::from_usize(n), D::from_usize(n));
-        for i in 0..n {
-            for j in 0..n {
-                let sum: T = elite_samples
-                    .iter()
-                    .map(|x| (x[i] - new_mean[i]) * (x[j] - new_mean[j]))
-                    .sum();
-                new_covariance[(i, j)] = sum / T::from_usize(elite_size).unwrap();
+
+        for sample in elite_samples {
+            let diff = sample - &new_mean;
+            // Rank-1 update: cov += diff * diff^T
+            for i in 0..n {
+                for j in 0..n {
+                    new_covariance[(i, j)] += diff[i] * diff[j];
+                }
             }
         }
+        new_covariance /= T::from_usize(elite_size).unwrap();
 
         // Ensure positive definiteness in cov
         if self.conf.advanced.use_covariance_adaptation {
@@ -357,22 +381,37 @@ where
             for i in 0..n {
                 new_covariance[(i, i)] += reg;
             }
+
+            // Additional numerical stability: ensure minimum eigenvalue
+            let min_diag = new_covariance
+                .diagonal()
+                .iter()
+                .fold(T::infinity(), |acc, &x| Float::min(acc, x));
+            if min_diag < reg {
+                let additional_reg = reg - min_diag;
+                for i in 0..n {
+                    new_covariance[(i, i)] += additional_reg;
+                }
+            }
         }
 
         // Smooth updates with EMA
         let alpha = T::from_f64(self.conf.adaptation.smoothing_factor).unwrap();
 
         // Update mean with EMA
+        let one_minus_alpha = T::one() - alpha;
         for i in 0..n {
-            self.mean[i] = alpha * new_mean[i] + (T::one() - alpha) * self.mean[i];
+            self.mean[i] = alpha * new_mean[i] + one_minus_alpha * self.mean[i];
         }
 
+        // Update covariance with EMA
         for i in 0..n {
             for j in 0..n {
                 self.covariance[(i, j)] =
-                    alpha * new_covariance[(i, j)] + (T::one() - alpha) * self.covariance[(i, j)];
+                    alpha * new_covariance[(i, j)] + one_minus_alpha * self.covariance[(i, j)];
             }
         }
+        self.covariance_changed = true;
 
         // Update std from diagonal of cov
         for i in 0..n {
@@ -391,7 +430,8 @@ where
             return T::zero();
         }
 
-        let mut diversity = T::zero();
+        // Vectorized diversity computation
+        let mut total_variance = T::zero();
         for i in 0..n {
             let mean_val = self.mean[i];
             let variance: T = (0..population_size)
@@ -400,10 +440,10 @@ where
                     diff * diff
                 })
                 .sum();
-            diversity += variance;
+            total_variance += variance;
         }
 
-        Float::sqrt(diversity) / T::from_usize(n).unwrap()
+        Float::sqrt(total_variance) / T::from_usize(n).unwrap()
     }
 }
 

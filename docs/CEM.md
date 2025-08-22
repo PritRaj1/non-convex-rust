@@ -4,7 +4,7 @@
 
 <img src="../examples/gifs/cem_kbf.gif" width="200" alt="CEM Example">
 
-<p><b>Figure:</b>The Cross Entropy Method (CEM) is a population-based, derivative-free algorithm that holds a distribution over samples and minimises the Kullback-Leibler divergence between the current sampling distribution and the optimal importance sampling distribution, (conditioned on the objective function).</p>
+<p><b>Figure:</b>The Cross Entropy Method (CEM) is a population-based, derivative-free algorithm that holds a distribution over samples and minimises the Kullback-Leibler divergence between the current sampling distribution and the optimal [importance sampling](https://github.com/PritRaj1/hilbert-mcmc/blob/main/importance_sampling.ipynb) distribution, (conditioned on the objective function).</p>
 
 </div>
 
@@ -62,3 +62,7 @@ Default values:
 }
 ```
 
+## Source and more info
+
+- [CEM](https://link.springer.com/article/10.1023/A:1010091220143)
+- [Antithetic sampling](https://arxiv.org/pdf/2110.15124)
