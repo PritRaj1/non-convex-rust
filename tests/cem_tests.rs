@@ -4,7 +4,7 @@ use common::fcns::{
     QuadraticConstraints, QuadraticObjective, RosenbrockConstraints, RosenbrockObjective,
 };
 use nalgebra::{DMatrix, SMatrix};
-use non_convex_opt::utils::config::{CEMConf, Config};
+use non_convex_opt::utils::config::Config;
 use non_convex_opt::utils::opt_prob::BooleanConstraintFunction;
 use non_convex_opt::NonConvexOpt;
 

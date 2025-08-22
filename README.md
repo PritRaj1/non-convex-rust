@@ -22,6 +22,7 @@ Sources/links to more information in the respective algorithm .md files.
 | [Differential Evolution (DE)](./docs/DE.md) | [✓] |
 | [Covariance Matrix Adaptation Evolution Strategy (CMA-ES)](./docs/CMA_ES.md) | [✓] |
 | [Tree-Structured Parzen Estimator (TPE)](./docs/TPE.md) | [✓] |
+| [Cross Entropy Method (CEM)](./docs/CEM.md) | [✓] |
 
 ## Installation
 
