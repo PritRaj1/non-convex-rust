@@ -4,7 +4,7 @@
 
 <img src="../examples/gifs/cmaes_kbf.gif" width="200" alt="CMA-ES Example">
 
-<p><b>Figure:</b> CMA-ES is a stochastic, derivative-free algorithm for difficult non-linear non-convex problems in continuous domains. It's good for ill-conditioned and non-separable problems.</p>#
+<p><b>Figure:</b> CMA-ES is a stochastic, derivative-free algorithm for difficult non-linear non-convex problems in continuous domains. It's good for ill-conditioned and non-separable problems.</p>
 
 </div>
 
@@ -20,11 +20,17 @@ It maintains and adapts a covariance matrix, C, capturing the shape of the searc
 | **pc** (covariance) | Tracks direction of successful steps | $\mathbf{p}_c = (1-c_c) \cdot \mathbf{p}_c +$ hsig $\cdot \sqrt{c_c(2-c_c)\mu_{eff}} \cdot \mathbf{y}$ | • $c_c$: learning rate<br>• $\mu_{eff}$: effective selection mass<br>• hsig: Heaviside function |
 | **ps** (step size) | Tracks magnitude of successful steps | $\mathbf{p}_s = (1-c_s) \cdot \mathbf{p}_s + \sqrt{c_s(2-c_s)\mu_{eff}} \cdot B \cdot D^{-1} \cdot B^T \cdot \mathbf{y}$ | • $c_s$: learning rate<br>• $B \cdot D^{-1} \cdot B^T$: transformed step<br>• $\mathbf{y}$: normalized step vector |
 
-**Note**: $y = \frac{m_{new} - m_{old}}{\sigma}$, hsig=$ = \begin{cases} 1 & \text{if } \frac{\|\mathbf{p}_s\|}{\chi} > 1.4 \\ 0 & \text{otherwise} \end{cases}$
+**Note**: 
+```math
+y = \frac{m_{new} - m_{old}}{\sigma}, \text{hsig} = \begin{cases} 1 & \text{if } \frac{\|\mathbf{p}_s\|}{\chi} > 1.4 \\ 0 & \text{otherwise} \end{cases}
+```
 
 ### Covariance Matrix Update
 
-**Formula**: $C = (1-c_1-c_\mu) \cdot C + c_1 \cdot \mathbf{p}_c \mathbf{p}_c^T + c_\mu \cdot \sum_{i=1}^{\mu} w_i \mathbf{y}_i \mathbf{y}_i^T$
+**Formula**: 
+```math
+C = (1-c_1-c_\mu) \cdot C + c_1 \cdot \mathbf{p}_c \mathbf{p}_c^T + c_\mu \cdot \sum_{i=1}^{\mu} w_i \mathbf{y}_i \mathbf{y}_i^T
+```
 
 | Component | Purpose | Mathematical Form |
 |-----------|---------|-------------------|
@@ -33,7 +39,7 @@ It maintains and adapts a covariance matrix, C, capturing the shape of the searc
 | **Rank-μ** | Population-based adaptation using weighted differences | $c_\mu \cdot \sum_{i=1}^{\mu} w_i \mathbf{y}_i \mathbf{y}_i^T$ |
 | **Factorization** | Efficient sampling and updates | $C = B \cdot D^2 \cdot B^T$ |
 
-**Where**: $B$ = eigenvectors, $D$ = $\sqrt{\text{eigenvalues}}$, $w_i$ = recombination weights 
+**Where**: B = eigenvectors, D = $\sqrt{\text{eigenvalues}}$, $w_i$ = recombination weights 
 
 
 ```

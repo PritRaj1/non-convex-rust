@@ -10,9 +10,9 @@
 
 The Kullback-Leibler divergence between the current sampling distribution and the optimal importance sampling distribution is:
 
-$$
+```math
 KL(p_\theta \,\|\, p_{\theta^*}) = \int p_\theta(x) \log\left(\frac{p_\theta(x)}{p_{\theta^*}(x)}\right) dx
-$$
+```
 
 where:
 - $p_\theta$ is the current sampling distribution
