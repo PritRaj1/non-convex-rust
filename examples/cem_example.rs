@@ -17,7 +17,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config_json = r#"
     {
         "opt_conf": {
-            "max_iter": 50,
+            "max_iter": 20,
             "rtol": "1e-8",
             "atol": "0.0",
             "rtol_max_iter_fraction": 1.0
@@ -40,7 +40,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 },
                 "advanced": {
                     "use_restart_strategy": true,
-                    "restart_frequency": 20,
+                    "restart_frequency": 50,
                     "use_covariance_adaptation": true,
                     "covariance_regularization": 1e-6
                 }
@@ -67,7 +67,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let color_palette = get_color_palette();
     let mut encoder = setup_gif("examples/gifs/cem_kbf.gif")?;
 
-    for frame in 0..50 {
+    for frame in 0..20 {
         let mut chart = setup_chart(ChartParams {
             frame,
             algorithm_name: "CEM",
@@ -111,7 +111,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let frame = Frame::<'_> {
             width: 800,
             height: 800,
-            delay: 20,
+            delay: 8,
             buffer: std::borrow::Cow::from(indexed_pixels),
             ..Default::default()
         };
