@@ -78,6 +78,7 @@ fn bench_tabu_unconstrained(c: &mut Criterion) {
                 black_box(init_pop),
                 Kbf,
                 None::<KbfConstraints>,
+                42,
             );
             let _st = opt.run();
         })
@@ -93,6 +94,7 @@ fn bench_tabu_constrained(c: &mut Criterion) {
                 black_box(init_pop),
                 Kbf,
                 Some(KbfConstraints),
+                42,
             );
             let _st = opt.run();
         })
@@ -108,6 +110,7 @@ fn bench_reactive_tabu_unconstrained(c: &mut Criterion) {
                 black_box(init_pop),
                 Kbf,
                 None::<KbfConstraints>,
+                42,
             );
             let _st = opt.run();
         })
@@ -123,6 +126,7 @@ fn bench_reactive_tabu_constrained(c: &mut Criterion) {
                 black_box(init_pop),
                 Kbf,
                 Some(KbfConstraints),
+                42,
             );
             let _st = opt.run();
         })

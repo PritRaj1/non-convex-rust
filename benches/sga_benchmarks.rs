@@ -35,6 +35,7 @@ fn bench_sga_unconstrained(c: &mut Criterion) {
                 black_box(init_pop),
                 RosenbrockFunction,
                 None::<RosenbrockConstraints>,
+                42,
             );
             let _st = opt.run();
         })

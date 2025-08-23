@@ -36,6 +36,7 @@ fn bench_cmaes_unconstrained(c: &mut Criterion) {
                 black_box(init_x),
                 Kbf,
                 None::<KbfConstraints>,
+                42,
             );
             let _st = opt.run();
         })
@@ -46,8 +47,13 @@ fn bench_cmaes_constrained(c: &mut Criterion) {
     c.bench_function("cmaes_constrained", |b| {
         b.iter(|| {
             let init_x = SMatrix::<f64, 100, 2>::from_fn(|_, _| random::<f64>() * 10.0);
-            let mut opt =
-                NonConvexOpt::new(CONFIG.clone(), black_box(init_x), Kbf, Some(KbfConstraints));
+            let mut opt = NonConvexOpt::new(
+                CONFIG.clone(),
+                black_box(init_x),
+                Kbf,
+                Some(KbfConstraints),
+                42,
+            );
             let _st = opt.run();
         })
     });

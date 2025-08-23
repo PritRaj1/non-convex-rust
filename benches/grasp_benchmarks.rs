@@ -40,6 +40,7 @@ fn bench_grasp_unconstrained(c: &mut Criterion) {
                 black_box(init_pop),
                 Kbf,
                 None::<KbfConstraints>,
+                42,
             );
             let _st = opt.run();
         })
@@ -77,6 +78,7 @@ fn bench_grasp_constrained(c: &mut Criterion) {
                 black_box(init_pop),
                 Kbf,
                 Some(KbfConstraints),
+                42,
             );
             let _st = opt.run();
         })

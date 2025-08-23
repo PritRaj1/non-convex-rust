@@ -199,10 +199,11 @@ where
             let neighbors: Vec<OVector<T, D>> = (0..self.conf.num_neighbors)
                 .into_par_iter()
                 .map_init(
-
                     || {
                         let thread_id = rayon::current_thread_index().unwrap_or(0);
-                        StdRng::seed_from_u64(self.seed + self.st.iter as u64 * 1000 + thread_id as u64)
+                        StdRng::seed_from_u64(
+                            self.seed + self.st.iter as u64 * 1000 + thread_id as u64,
+                        )
                     },
                     |rng, _i| {
                         let mut neighbor = current.clone();

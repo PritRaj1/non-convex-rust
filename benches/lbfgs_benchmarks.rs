@@ -161,6 +161,7 @@ fn bench_lbfgs_backtracking(c: &mut Criterion) {
                 black_box(init_pop),
                 RosenbrockFunction,
                 None::<RosenbrockConstraints>,
+                42,
             );
             let _st = opt.run();
         })
@@ -176,6 +177,7 @@ fn bench_lbfgs_hager_zhang(c: &mut Criterion) {
                 black_box(init_pop),
                 RosenbrockFunction,
                 None::<RosenbrockConstraints>,
+                42,
             );
             let _st = opt.run();
         })
@@ -191,6 +193,7 @@ fn bench_lbfgs_more_thuente(c: &mut Criterion) {
                 black_box(init_pop),
                 RosenbrockFunction,
                 None::<RosenbrockConstraints>,
+                42,
             );
             let _st = opt.run();
         })
@@ -206,6 +209,7 @@ fn bench_lbfgs_golden_section(c: &mut Criterion) {
                 black_box(init_pop),
                 RosenbrockFunction,
                 None::<RosenbrockConstraints>,
+                42,
             );
             let _st = opt.run();
         })
@@ -221,6 +225,7 @@ fn bench_lbfgs_strong_wolfe(c: &mut Criterion) {
                 black_box(init_pop),
                 RosenbrockFunction,
                 None::<RosenbrockConstraints>,
+                42,
             );
             let _st = opt.run();
         })

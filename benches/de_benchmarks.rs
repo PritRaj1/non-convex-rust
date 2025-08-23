@@ -48,6 +48,7 @@ fn bench_de_unconstrained(c: &mut Criterion) {
                 black_box(init_pop),
                 Kbf,
                 None::<KbfConstraints>,
+                42,
             );
             let _st = opt.run();
         })
@@ -63,6 +64,7 @@ fn bench_de_constrained(c: &mut Criterion) {
                 black_box(init_pop),
                 Kbf,
                 Some(KbfConstraints),
+                42,
             );
             let _st = opt.run();
         })

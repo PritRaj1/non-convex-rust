@@ -37,6 +37,7 @@ fn bench_adam_unconstrained(c: &mut Criterion) {
                 black_box(init_pop),
                 RosenbrockFunction,
                 None::<RosenbrockConstraints>,
+                42,
             );
             let _st = opt.run();
         })
@@ -71,6 +72,7 @@ fn bench_adam_constrained(c: &mut Criterion) {
                 black_box(init_pop),
                 RosenbrockFunction,
                 Some(RosenbrockConstraints),
+                42,
             );
             let _st = opt.run();
         })

@@ -113,6 +113,7 @@ fn bench_nm_unconstrained(c: &mut Criterion) {
                 black_box(init_simplex),
                 Kbf,
                 None::<KbfConstraints>,
+                42,
             );
             let _st = opt.run();
         })
@@ -170,6 +171,7 @@ fn bench_nm_constrained(c: &mut Criterion) {
                 black_box(init_simplex),
                 Kbf,
                 Some(KbfConstraints),
+                42,
             );
             let _st = opt.run();
         })

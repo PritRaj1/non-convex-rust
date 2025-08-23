@@ -90,7 +90,8 @@ let mut opt = NonConvexOpt::new(
     config,
     init_x, // Initial population - must be from nalgebra
     obj_f,  // Objective function
-    Some(constraints) // Optional constraints
+    Some(constraints), // Optional constraints
+    42 // Seed for rng
 );
 
 // Unconstrained optimization
@@ -98,7 +99,8 @@ let mut opt = NonConvexOpt::new(
     config,
     init_x,
     obj_f,
-    None::<EmptyConstraints>
+    None::<EmptyConstraints>,
+    42
 );
 
 let result = opt.run();
