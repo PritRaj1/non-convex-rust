@@ -1,5 +1,5 @@
 use nalgebra::{allocator::Allocator, DefaultAllocator, Dim, OVector};
-use rand::Rng;
+use rand::{rngs::StdRng, Rng, SeedableRng};
 
 use crate::utils::opt_prob::{FloatNumber as FloatNum, OptProb};
 
@@ -34,6 +34,7 @@ where
     pub acceptance_type: AcceptanceType,
     pub prob: OptProb<T, D>,
     k: T, // Boltzmann constant
+    rng: StdRng,
 }
 
 impl<T, D> MetropolisAcceptance<T, D>
@@ -42,7 +43,7 @@ where
     D: Dim,
     DefaultAllocator: Allocator<D>,
 {
-    pub fn new(prob: OptProb<T, D>, generic_x: OVector<T, D>) -> Self {
+    pub fn new(prob: OptProb<T, D>, generic_x: OVector<T, D>, seed: u64) -> Self {
         let acceptance_type = if prob.objective.gradient(&generic_x).is_some() {
             AcceptanceType::MALA
         } else {
@@ -53,11 +54,12 @@ where
             acceptance_type,
             prob,
             k: T::from_f64(1.0).unwrap(),
+            rng: StdRng::seed_from_u64(seed),
         }
     }
 
     pub fn accept(
-        &self,
+        &mut self,
         current_x: &OVector<T, D>,
         current_fitness: T,
         new_x: &OVector<T, D>,
@@ -65,8 +67,6 @@ where
         temperature: T,
         step_size: T,
     ) -> bool {
-        let mut rng = rand::rng();
-
         if new_fitness > current_fitness {
             return true;
         }
@@ -91,6 +91,6 @@ where
             }
         };
 
-        rng.random::<f64>() < r.to_f64().unwrap()
+        self.rng.random::<f64>() < r.to_f64().unwrap()
     }
 }

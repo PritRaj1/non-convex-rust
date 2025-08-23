@@ -1,5 +1,5 @@
 use nalgebra::{allocator::Allocator, DefaultAllocator, Dim, Dyn, OMatrix, OVector, U1};
-use rand::Rng;
+use rand::{rngs::StdRng, Rng, SeedableRng};
 use rayon::prelude::*;
 
 use crate::utils::config::MSPOConf;
@@ -55,45 +55,52 @@ where
     OMatrix<T, Dyn, D>: Send + Sync,
     DefaultAllocator: Allocator<D> + Allocator<U1, D> + Allocator<Dyn, D>,
 {
-    pub fn new(config: SwarmConfig<T, D>) -> Self {
+    pub fn new(config: SwarmConfig<T, D>, seed: u64) -> Self {
+        let base_rng = StdRng::seed_from_u64(seed);
         let particles: Vec<_> = (0..config.num_particles)
             .into_par_iter()
-            .map(|i| {
-                let mut rng = rand::rng();
-                let mut position = OVector::<T, D>::zeros_generic(D::from_usize(config.dim), U1);
-                let fitness;
+            .map_init(
+                || base_rng.clone(),
+                |rng, i| {
+                    let mut position =
+                        OVector::<T, D>::zeros_generic(D::from_usize(config.dim), U1);
+                    let fitness;
 
-                if i < config.init_pop.nrows() {
-                    position = config.init_pop.row(i).transpose();
-                    fitness = config.opt_prob.evaluate(&position);
-                } else {
-                    loop {
-                        let values = (0..config.dim).map(|_| {
-                            let r = T::from_f64(rng.random::<f64>()).unwrap();
-                            config.bounds.0 + (config.bounds.1 - config.bounds.0) * r
-                        });
-                        let position: OVector<T, D> =
-                            OVector::from_iterator_generic(D::from_usize(config.dim), U1, values);
+                    if i < config.init_pop.nrows() {
+                        position = config.init_pop.row(i).transpose();
+                        fitness = config.opt_prob.evaluate(&position);
+                    } else {
+                        loop {
+                            let values = (0..config.dim).map(|_| {
+                                let r = T::from_f64(rng.random::<f64>()).unwrap();
+                                config.bounds.0 + (config.bounds.1 - config.bounds.0) * r
+                            });
+                            let position: OVector<T, D> = OVector::from_iterator_generic(
+                                D::from_usize(config.dim),
+                                U1,
+                                values,
+                            );
 
-                        if config.opt_prob.is_feasible(&position) {
-                            fitness = config.opt_prob.evaluate(&position);
-                            break;
+                            if config.opt_prob.is_feasible(&position) {
+                                fitness = config.opt_prob.evaluate(&position);
+                                break;
+                            }
                         }
                     }
-                }
 
-                let values = (0..config.dim).map(|_| {
-                    let r = T::from_f64(rng.random::<f64>()).unwrap();
-                    (config.bounds.1 - config.bounds.0)
-                        * (r - T::from_f64(0.5).unwrap())
-                        * T::from_f64(0.1).unwrap()
-                });
+                    let values = (0..config.dim).map(|_| {
+                        let r = T::from_f64(rng.random::<f64>()).unwrap();
+                        (config.bounds.1 - config.bounds.0)
+                            * (r - T::from_f64(0.5).unwrap())
+                            * T::from_f64(0.1).unwrap()
+                    });
 
-                let velocity: OVector<T, D> =
-                    OVector::from_iterator_generic(D::from_usize(config.dim), U1, values);
+                    let velocity: OVector<T, D> =
+                        OVector::from_iterator_generic(D::from_usize(config.dim), U1, values);
 
-                Particle::new(position, velocity, fitness)
-            })
+                    Particle::new(position, velocity, fitness, rng.clone())
+                },
+            )
             .collect();
 
         let mut best_fitness = T::neg_infinity();
@@ -258,6 +265,7 @@ pub fn initialize_swarms<T, N, D>(
     init_pop: &OMatrix<T, N, D>,
     opt_prob: &OptProb<T, D>,
     max_iter: usize,
+    seed: u64,
 ) -> Vec<Swarm<T, D>>
 where
     T: FloatNum,
@@ -308,79 +316,92 @@ where
         }
     }
 
-    // Fill remaining if needed
+    let mut fill_rng = StdRng::seed_from_u64(seed + 1000);
     while promising_centers.len() < conf.num_swarms {
         let random_center = OVector::<T, D>::from_iterator_generic(
             D::from_usize(dim),
             U1,
             (0..dim).map(|_| {
-                T::from_f64(conf.x_min + rand::random::<f64>() * (conf.x_max - conf.x_min)).unwrap()
+                T::from_f64(conf.x_min + fill_rng.random::<f64>() * (conf.x_max - conf.x_min))
+                    .unwrap()
             }),
         );
         promising_centers.push(random_center);
     }
 
     // Fill with promising, fallback to random
+    let base_rng = StdRng::seed_from_u64(seed + 2000);
     (0..conf.num_swarms)
         .into_par_iter()
-        .map(|i| {
-            let center = if i < promising_centers.len() {
-                promising_centers[i].clone()
-            } else {
-                OVector::<T, D>::from_iterator_generic(
-                    D::from_usize(dim),
-                    U1,
-                    (0..dim).map(|_| {
-                        T::from_f64(conf.x_min + rand::random::<f64>() * (conf.x_max - conf.x_min))
+        .map_init(
+            || base_rng.clone(),
+            |rng, i| {
+                let center = if i < promising_centers.len() {
+                    promising_centers[i].clone()
+                } else {
+                    OVector::<T, D>::from_iterator_generic(
+                        D::from_usize(dim),
+                        U1,
+                        (0..dim).map(|_| {
+                            T::from_f64(
+                                conf.x_min + rng.random::<f64>() * (conf.x_max - conf.x_min),
+                            )
                             .unwrap()
-                    }),
-                )
-            };
+                        }),
+                    )
+                };
 
-            // Spawn particles around center with controlled spread
-            let radius = T::from_f64(0.15 * (conf.x_max - conf.x_min)).unwrap(); // Smaller radius for better convergence
-            let start_idx = i * pop_per_swarm;
-            let mut swarm_pop: OMatrix<T, Dyn, D> =
-                init_pop.rows(start_idx, particles_per_swarm).into_owned();
+                // Spawn particles around center with controlled spread
+                let radius = T::from_f64(0.15 * (conf.x_max - conf.x_min)).unwrap(); // Smaller radius for better convergence
+                let start_idx = i * pop_per_swarm;
+                let mut swarm_pop: OMatrix<T, Dyn, D> =
+                    init_pop.rows(start_idx, particles_per_swarm).into_owned();
 
-            let particle_adjustments: Vec<_> = (0..particles_per_swarm)
-                .into_par_iter()
-                .map(|j| {
-                    let mut particle_row = Vec::with_capacity(dim);
-                    for k in 0..dim {
-                        let r = T::from_f64(rand::random::<f64>()).unwrap();
-                        let noise = (r - T::from_f64(0.5).unwrap()) * radius;
-                        let adjusted_value = (center[k] + noise).clamp(
+                let particle_adjustments: Vec<_> = (0..particles_per_swarm)
+                    .into_par_iter()
+                    .map_init(
+                        || rng.clone(),
+                        |particle_rng, j| {
+                            let mut particle_row = Vec::with_capacity(dim);
+                            for k in 0..dim {
+                                let r = T::from_f64(particle_rng.random::<f64>()).unwrap();
+                                let noise = (r - T::from_f64(0.5).unwrap()) * radius;
+                                let adjusted_value = (center[k] + noise).clamp(
+                                    T::from_f64(conf.x_min).unwrap(),
+                                    T::from_f64(conf.x_max).unwrap(),
+                                );
+                                particle_row.push(adjusted_value);
+                            }
+                            (j, particle_row)
+                        },
+                    )
+                    .collect();
+
+                for (j, particle_row) in particle_adjustments {
+                    for (k, &value) in particle_row.iter().enumerate() {
+                        swarm_pop[(j, k)] = value;
+                    }
+                }
+
+                Swarm::new(
+                    SwarmConfig {
+                        num_particles: particles_per_swarm,
+                        dim,
+                        c1: T::from_f64(conf.c1).unwrap(),
+                        c2: T::from_f64(conf.c2).unwrap(),
+                        bounds: (
                             T::from_f64(conf.x_min).unwrap(),
                             T::from_f64(conf.x_max).unwrap(),
-                        );
-                        particle_row.push(adjusted_value);
-                    }
-                    (j, particle_row)
-                })
-                .collect();
-
-            for (j, particle_row) in particle_adjustments {
-                for (k, &value) in particle_row.iter().enumerate() {
-                    swarm_pop[(j, k)] = value;
-                }
-            }
-
-            Swarm::new(SwarmConfig {
-                num_particles: particles_per_swarm,
-                dim,
-                c1: T::from_f64(conf.c1).unwrap(),
-                c2: T::from_f64(conf.c2).unwrap(),
-                bounds: (
-                    T::from_f64(conf.x_min).unwrap(),
-                    T::from_f64(conf.x_max).unwrap(),
-                ),
-                opt_prob,
-                init_pop: swarm_pop,
-                inertia_start: T::from_f64(conf.inertia_start).unwrap(),
-                inertia_end: T::from_f64(conf.inertia_end).unwrap(),
-                max_iterations: max_iter,
-            })
-        })
+                        ),
+                        opt_prob,
+                        init_pop: swarm_pop,
+                        inertia_start: T::from_f64(conf.inertia_start).unwrap(),
+                        inertia_end: T::from_f64(conf.inertia_end).unwrap(),
+                        max_iterations: max_iter,
+                    },
+                    seed,
+                )
+            },
+        )
         .collect()
 }

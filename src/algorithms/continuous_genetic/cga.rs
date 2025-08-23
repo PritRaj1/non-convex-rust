@@ -7,7 +7,7 @@ use crate::utils::opt_prob::{FloatNumber as FloatNum, OptProb, OptimizationAlgor
 
 use crate::algorithms::continuous_genetic::{
     crossover::*,
-    mutation::{Gaussian, MutationOperator, NonUniform, Polynomial, Uniform},
+    mutation::{Gaussian, MutationOperator, MutationOperatorEnum, NonUniform, Polynomial, Uniform},
     selection::*,
 };
 
@@ -27,7 +27,7 @@ where
     pub opt_prob: OptProb<T, D>,
     pub selector: Box<dyn SelectionOperator<T, N, D> + Send + Sync>,
     pub crossover: Box<dyn CrossoverOperator<T, N, D> + Send + Sync>,
-    pub mutation: Box<dyn MutationOperator<T, D> + Send + Sync>,
+    pub mutation: MutationOperatorEnum<T, D>,
     cached_bounds_lower: OVector<T, D>,
     cached_bounds_upper: OVector<T, D>,
     bounds_cached: bool,
@@ -53,49 +53,61 @@ where
         init_pop: OMatrix<T, N, D>,
         opt_prob: OptProb<T, D>,
         max_iter: usize,
+        seed: u64,
     ) -> Self {
         let selector: Box<dyn SelectionOperator<T, N, D> + Send + Sync> = match &conf.selection {
             SelectionConf::RouletteWheel(_) => Box::new(RouletteWheel::new(
                 init_pop.nrows(),
                 conf.common.num_parents,
+                seed,
             )),
             SelectionConf::Tournament(tournament) => Box::new(Tournament::new(
                 init_pop.nrows(),
                 conf.common.num_parents,
                 tournament.tournament_size,
+                seed,
             )),
-            SelectionConf::Residual(_) => {
-                Box::new(Residual::new(init_pop.nrows(), conf.common.num_parents))
-            }
+            SelectionConf::Residual(_) => Box::new(Residual::new(
+                init_pop.nrows(),
+                conf.common.num_parents,
+                seed,
+            )),
         };
 
         let crossover: Box<dyn CrossoverOperator<T, N, D> + Send + Sync> = match &conf.crossover {
             CrossoverConf::Random(random) => {
-                Box::new(Random::new(random.crossover_prob, init_pop.nrows()))
+                Box::new(Random::new(random.crossover_prob, init_pop.nrows(), seed))
             }
-            CrossoverConf::Heuristic(heuristic) => {
-                Box::new(Heuristic::new(heuristic.crossover_prob, init_pop.nrows()))
-            }
+            CrossoverConf::Heuristic(heuristic) => Box::new(Heuristic::new(
+                heuristic.crossover_prob,
+                init_pop.nrows(),
+                seed,
+            )),
             CrossoverConf::SimulatedBinary(sbx) => Box::new(SimulatedBinary::new(
                 sbx.crossover_prob,
                 sbx.eta_c,
                 init_pop.nrows(),
+                seed,
             )),
         };
 
-        let mutation: Box<dyn MutationOperator<T, D> + Send + Sync> = match &conf.mutation {
-            MutationConf::Gaussian(gaussian) => {
-                Box::new(Gaussian::new(gaussian.mutation_rate, gaussian.sigma))
-            }
-            MutationConf::Uniform(uniform) => Box::new(Uniform::new(uniform.mutation_rate)),
-            MutationConf::NonUniform(non_uniform) => Box::new(NonUniform::new(
-                non_uniform.mutation_rate,
-                non_uniform.b,
-                max_iter,
-            )),
-            MutationConf::Polynomial(polynomial) => {
-                Box::new(Polynomial::new(polynomial.mutation_rate, polynomial.eta_m))
-            }
+        let mutation: MutationOperatorEnum<T, D> = match &conf.mutation {
+            MutationConf::Gaussian(gaussian) => MutationOperatorEnum::<T, D>::Gaussian(
+                Gaussian::new(gaussian.mutation_rate, gaussian.sigma, seed),
+                std::marker::PhantomData,
+            ),
+            MutationConf::Uniform(uniform) => MutationOperatorEnum::<T, D>::Uniform(
+                Uniform::new(uniform.mutation_rate, seed),
+                std::marker::PhantomData,
+            ),
+            MutationConf::NonUniform(non_uniform) => MutationOperatorEnum::<T, D>::NonUniform(
+                NonUniform::new(non_uniform.mutation_rate, non_uniform.b, max_iter, seed),
+                std::marker::PhantomData,
+            ),
+            MutationConf::Polynomial(polynomial) => MutationOperatorEnum::<T, D>::Polynomial(
+                Polynomial::new(polynomial.mutation_rate, polynomial.eta_m, seed),
+                std::marker::PhantomData,
+            ),
         };
 
         // Calculate initial fitness and constraints in parallel
@@ -278,20 +290,22 @@ where
             (self.cached_bounds_lower[0], self.cached_bounds_upper[0])
         };
 
-        let mutation_op = &self.mutation;
         let generation = self.st.iter;
 
         let mutated_rows: Vec<_> = (0..offspring.nrows())
             .into_par_iter()
-            .map(|i| {
-                let mut individual =
-                    OVector::<T, D>::zeros_generic(D::from_usize(offspring.ncols()), U1);
-                for j in 0..offspring.ncols() {
-                    individual[j] = offspring[(i, j)];
-                }
+            .map_init(
+                || self.mutation.clone(),
+                |mutation, i| {
+                    let mut individual =
+                        OVector::<T, D>::zeros_generic(D::from_usize(offspring.ncols()), U1);
+                    for j in 0..offspring.ncols() {
+                        individual[j] = offspring[(i, j)];
+                    }
 
-                mutation_op.mutate(&individual, bounds, generation)
-            })
+                    mutation.mutate(&individual, bounds, generation)
+                },
+            )
             .collect();
 
         for (i, mutated) in mutated_rows.into_iter().enumerate() {

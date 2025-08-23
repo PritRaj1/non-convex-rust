@@ -1,5 +1,5 @@
 use nalgebra::{allocator::Allocator, DefaultAllocator, Dim, OMatrix, OVector, U1};
-use rand::Rng;
+use rand::{rngs::StdRng, Rng, SeedableRng};
 use rayon::prelude::*;
 use std::collections::VecDeque;
 
@@ -34,6 +34,7 @@ where
     current_perturbation_prob: f64,
     phase: SearchPhase,
     phase_iterations: usize,
+    rng: StdRng,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -51,7 +52,12 @@ where
     OMatrix<T, N, D>: Send + Sync,
     DefaultAllocator: Allocator<D> + Allocator<N, D> + Allocator<U1, D> + Allocator<N>,
 {
-    pub fn new(conf: TabuConf, init_pop: OMatrix<T, U1, D>, opt_prob: OptProb<T, D>) -> Self {
+    pub fn new(
+        conf: TabuConf,
+        init_pop: OMatrix<T, U1, D>,
+        opt_prob: OptProb<T, D>,
+        seed: u64,
+    ) -> Self {
         let init_x = init_pop.row(0).transpose();
         let best_f = opt_prob.evaluate(&init_x);
         let tabu_type = TabuType::from(&conf);
@@ -89,6 +95,7 @@ where
             current_perturbation_prob: conf.common.perturbation_prob,
             phase: SearchPhase::Intensification,
             phase_iterations: 0,
+            rng: StdRng::seed_from_u64(seed),
         }
     }
 
@@ -219,8 +226,10 @@ where
         self.current_perturbation_prob = self.conf.common.perturbation_prob;
 
         // Generate a new random starting position for restart
-        let mut rng = rand::rng();
-        self.x = self.generate_neighbor(&mut rng);
+        let mut local_rng = self.rng.clone();
+        let neighbor = self.generate_neighbor(&mut local_rng);
+        self.rng = local_rng;
+        self.x = neighbor;
 
         // Switch phase
         self.phase = match self.phase {
@@ -275,12 +284,14 @@ where
 
         let neighbors: Vec<_> = (0..self.conf.common.num_neighbors)
             .into_par_iter()
-            .map(|_| {
-                let mut local_rng = rand::rng();
-                let neighbor = self.generate_neighbor(&mut local_rng);
-                let fitness = self.evaluate_neighbor(&neighbor);
-                (neighbor, fitness)
-            })
+            .map_init(
+                || self.rng.clone(),
+                |rng, _| {
+                    let neighbor = self.generate_neighbor(rng);
+                    let fitness = self.evaluate_neighbor(&neighbor);
+                    (neighbor, fitness)
+                },
+            )
             .filter_map(|(neighbor, fitness)| fitness.map(|f| (neighbor, f)))
             .collect();
 

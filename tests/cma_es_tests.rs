@@ -23,7 +23,7 @@ fn test_cmaes_initialization() {
     let constraints = QuadraticConstraints {};
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
 
-    let cmaes = CMAES::new(conf, init_x, opt_prob);
+    let cmaes = CMAES::new(conf, init_x, opt_prob, 42);
 
     let pop: OMatrix<f64, U20, U2> = cmaes.st.pop;
     let fit: OVector<f64, U20> = cmaes.st.fitness;
@@ -53,7 +53,7 @@ fn test_cmaes() {
     let constraints = QuadraticConstraints {};
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
 
-    let mut cmaes: CMAES<f64, U20, U2> = CMAES::new(conf, init_x, opt_prob);
+    let mut cmaes: CMAES<f64, U20, U2> = CMAES::new(conf, init_x, opt_prob, 42);
 
     for _ in 0..20 {
         cmaes.step();

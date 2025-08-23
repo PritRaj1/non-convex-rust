@@ -1,6 +1,6 @@
 use crate::utils::opt_prob::FloatNumber as FloatNum;
 use nalgebra::{allocator::Allocator, DefaultAllocator, Dim, OVector};
-use rand::Rng;
+use rand::{rngs::StdRng, Rng, SeedableRng};
 
 pub struct Archive<T, D>
 where
@@ -11,6 +11,7 @@ where
     pub solutions: Vec<OVector<T, D>>,
     pub fitness: Vec<T>,
     pub max_size: usize,
+    rng: StdRng,
 }
 
 impl<T, D> Archive<T, D>
@@ -19,11 +20,12 @@ where
     D: Dim,
     DefaultAllocator: Allocator<D>,
 {
-    pub fn new(max_size: usize) -> Self {
+    pub fn new(max_size: usize, seed: u64) -> Self {
         Self {
             solutions: Vec::with_capacity(max_size),
             fitness: Vec::with_capacity(max_size),
             max_size,
+            rng: StdRng::seed_from_u64(seed),
         }
     }
 
@@ -45,11 +47,11 @@ where
         }
     }
 
-    pub fn get_random_solution(&self) -> Option<&OVector<T, D>> {
+    pub fn get_random_solution(&mut self) -> Option<&OVector<T, D>> {
         if self.solutions.is_empty() {
             None
         } else {
-            let idx = rand::rng().random_range(0..self.solutions.len());
+            let idx = self.rng.random_range(0..self.solutions.len());
             Some(&self.solutions[idx])
         }
     }

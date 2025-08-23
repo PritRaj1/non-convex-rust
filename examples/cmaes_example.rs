@@ -38,7 +38,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut init_x = SMatrix::<f64, 100, 2>::zeros();
     init_x.row_mut(0).copy_from(&RowVector2::new(4.0, 9.0));
 
-    let mut opt = NonConvexOpt::new(config, init_x, obj_f.clone(), Some(constraints.clone()));
+    let mut opt = NonConvexOpt::new(config, init_x, obj_f.clone(), Some(constraints.clone()), 42);
 
     let resolution = 100;
     let (z_values, min_val, max_val) = create_contour_data(&obj_f, resolution);

@@ -64,7 +64,7 @@ fn test_standard_tabu() {
     let constraints = RosenbrockConstraints {};
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
 
-    let mut tabu: TabuSearch<f64, U1, U2> = TabuSearch::new(tabu_conf, init_x, opt_prob);
+    let mut tabu: TabuSearch<f64, U1, U2> = TabuSearch::new(tabu_conf, init_x, opt_prob, 42);
     let initial_fitness = tabu.st.best_f;
 
     for _ in 0..30 {
@@ -88,7 +88,7 @@ fn test_reactive_tabu() {
     let constraints = RosenbrockConstraints {};
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
 
-    let mut tabu: TabuSearch<f64, U1, U2> = TabuSearch::new(tabu_conf, init_x, opt_prob);
+    let mut tabu: TabuSearch<f64, U1, U2> = TabuSearch::new(tabu_conf, init_x, opt_prob, 42);
     let initial_fitness = tabu.st.best_f;
 
     for _ in 0..10 {
@@ -156,7 +156,7 @@ fn test_frequency_based_tabu() {
     let constraints = RosenbrockConstraints {};
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
 
-    let mut tabu: TabuSearch<f64, U1, U2> = TabuSearch::new(tabu_conf, init_x, opt_prob);
+    let mut tabu: TabuSearch<f64, U1, U2> = TabuSearch::new(tabu_conf, init_x, opt_prob, 42);
     let initial_fitness = tabu.st.best_f;
 
     for _ in 0..10 {
@@ -224,7 +224,7 @@ fn test_quality_based_tabu() {
     let constraints = RosenbrockConstraints {};
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
 
-    let mut tabu: TabuSearch<f64, U1, U2> = TabuSearch::new(tabu_conf, init_x, opt_prob);
+    let mut tabu: TabuSearch<f64, U1, U2> = TabuSearch::new(tabu_conf, init_x, opt_prob, 42);
     let initial_fitness = tabu.st.best_f;
 
     for _ in 0..10 {
@@ -287,7 +287,7 @@ fn test_gaussian_neighborhood() {
     let constraints = RosenbrockConstraints {};
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
 
-    let mut tabu: TabuSearch<f64, U1, U2> = TabuSearch::new(tabu_conf, init_x, opt_prob);
+    let mut tabu: TabuSearch<f64, U1, U2> = TabuSearch::new(tabu_conf, init_x, opt_prob, 42);
     let initial_fitness = tabu.st.best_f;
 
     for _ in 0..10 {
@@ -353,7 +353,7 @@ fn test_adaptive_neighborhood() {
     let constraints = RosenbrockConstraints {};
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
 
-    let mut tabu: TabuSearch<f64, U1, U2> = TabuSearch::new(tabu_conf, init_x, opt_prob);
+    let mut tabu: TabuSearch<f64, U1, U2> = TabuSearch::new(tabu_conf, init_x, opt_prob, 42);
     let initial_fitness = tabu.st.best_f;
 
     for _ in 0..10 {

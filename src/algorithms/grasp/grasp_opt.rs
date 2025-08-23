@@ -1,5 +1,5 @@
 use nalgebra::{allocator::Allocator, DefaultAllocator, Dim, OMatrix, OVector, U1};
-use rand::Rng;
+use rand::{rngs::StdRng, Rng, SeedableRng};
 use rayon::prelude::*;
 
 use crate::utils::config::GRASPConf;
@@ -21,6 +21,7 @@ where
     cached_upper_bounds: Option<OVector<T, D>>,
     stagnation_count: usize,
     last_improvement: usize,
+    rng: StdRng,
 }
 
 impl<T, N, D> GRASP<T, N, D>
@@ -34,7 +35,12 @@ where
     OMatrix<T, N, D>: Send + Sync,
     DefaultAllocator: Allocator<D> + Allocator<N, D> + Allocator<U1, D> + Allocator<N>,
 {
-    pub fn new(conf: GRASPConf, init_pop: OMatrix<T, U1, D>, opt_prob: OptProb<T, D>) -> Self {
+    pub fn new(
+        conf: GRASPConf,
+        init_pop: OMatrix<T, U1, D>,
+        opt_prob: OptProb<T, D>,
+        seed: u64,
+    ) -> Self {
         let init_x = init_pop.row(0).transpose();
         let best_f = opt_prob.evaluate(&init_x);
         let n = init_x.len();
@@ -70,6 +76,7 @@ where
             cached_upper_bounds,
             stagnation_count: 0,
             last_improvement: 0,
+            rng: StdRng::seed_from_u64(seed),
         }
     }
 
@@ -107,8 +114,7 @@ where
     pub fn construct_solution(&self) -> OVector<T, D> {
         let candidates: Vec<OVector<T, D>> = (0..self.conf.num_candidates)
             .into_par_iter()
-            .map(|_| {
-                let mut rng = rand::rng(); // Create new RNG for each thread
+            .map_init(|| self.rng.clone(), |rng, _i| {
                 let mut candidate =
                     OVector::<T, D>::zeros_generic(D::from_usize(self.st.best_x.len()), U1);
 
@@ -187,27 +193,29 @@ where
             // Generate and evaluate neighborhood in parallel
             let neighbors: Vec<OVector<T, D>> = (0..self.conf.num_neighbors)
                 .into_par_iter()
-                .map(|_| {
-                    let mut rng = rand::rng();
-                    let mut neighbor = current.clone();
+                .map_init(
+                    || self.rng.clone(),
+                    |rng, _i| {
+                        let mut neighbor = current.clone();
 
-                    // Perturb random dimensions
-                    for i in 0..neighbor.len() {
-                        if rng.random_bool(adaptive_perturbation_prob) {
-                            neighbor[i] += T::from_f64(
-                                rng.random_range(-adaptive_step_size..adaptive_step_size),
-                            )
-                            .unwrap();
+                        // Perturb random dimensions
+                        for i in 0..neighbor.len() {
+                            if rng.random_bool(adaptive_perturbation_prob) {
+                                neighbor[i] += T::from_f64(
+                                    rng.random_range(-adaptive_step_size..adaptive_step_size),
+                                )
+                                .unwrap();
+                            }
                         }
-                    }
 
-                    let (lb, ub) = self.get_bounds(&neighbor);
-                    for i in 0..neighbor.len() {
-                        neighbor[i] = neighbor[i].max(lb[i]).min(ub[i]);
-                    }
+                        let (lb, ub) = self.get_bounds(&neighbor);
+                        for i in 0..neighbor.len() {
+                            neighbor[i] = neighbor[i].max(lb[i]).min(ub[i]);
+                        }
 
-                    neighbor
-                })
+                        neighbor
+                    },
+                )
                 .collect();
 
             // Find best feasible neighbor
@@ -233,15 +241,14 @@ where
     }
 
     // Inject diversity to escape local optima
-    fn add_diversity(&self, solution: &OVector<T, D>) -> OVector<T, D> {
+    fn add_diversity(&mut self, solution: &OVector<T, D>) -> OVector<T, D> {
         if self.stagnation_count > 5 {
-            let mut rng = rand::rng();
             let mut diverse_solution = solution.clone();
 
             for i in 0..diverse_solution.len() {
-                if rng.random_bool(self.conf.diversity_prob) {
+                if self.rng.random_bool(self.conf.diversity_prob) {
                     let perturbation = T::from_f64(
-                        rng.random_range(-3.0..3.0)
+                        self.rng.random_range(-3.0..3.0)
                             * self.conf.step_size
                             * self.conf.diversity_strength,
                     )
@@ -266,7 +273,6 @@ where
     }
 
     fn restart(&mut self) {
-        let mut rng = rand::rng();
         let (lb, ub) = self.get_bounds(&self.st.best_x);
 
         // Generate a completely new random solution
@@ -274,9 +280,11 @@ where
             OVector::<T, D>::zeros_generic(D::from_usize(self.st.best_x.len()), U1);
 
         for i in 0..new_solution.len() {
-            new_solution[i] =
-                T::from_f64(rng.random_range(lb[i].to_f64().unwrap()..ub[i].to_f64().unwrap()))
-                    .unwrap();
+            new_solution[i] = T::from_f64(
+                self.rng
+                    .random_range(lb[i].to_f64().unwrap()..ub[i].to_f64().unwrap()),
+            )
+            .unwrap();
         }
 
         self.st.pop.row_mut(0).copy_from(&new_solution.transpose());

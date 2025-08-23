@@ -24,7 +24,7 @@ fn test_sga() {
     let constraints = QuadraticConstraints {};
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
 
-    let mut sga: SGAscent<f64, U1, U2> = SGAscent::new(conf, init_x, opt_prob);
+    let mut sga: SGAscent<f64, U1, U2> = SGAscent::new(conf, init_x, opt_prob, 42);
     let initial_fitness = sga.st.best_f;
 
     for _ in 0..50 {

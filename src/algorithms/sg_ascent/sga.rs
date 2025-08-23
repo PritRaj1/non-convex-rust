@@ -1,4 +1,5 @@
 use nalgebra::{allocator::Allocator, DefaultAllocator, Dim, OMatrix, OVector, U1};
+use rand::{rngs::StdRng, SeedableRng};
 use rand_distr::{Distribution, Normal};
 
 use crate::utils::config::SGAConf;
@@ -19,6 +20,7 @@ where
     pub st: State<T, N, D>,
     velocity: OVector<T, D>,
     current_noise_std: f64,
+    rng: StdRng,
 }
 
 impl<T, N, D> SGAscent<T, N, D>
@@ -30,7 +32,12 @@ where
     OMatrix<T, N, D>: Send + Sync,
     DefaultAllocator: Allocator<D> + Allocator<N, D> + Allocator<U1, D> + Allocator<N>,
 {
-    pub fn new(conf: SGAConf, init_pop: OMatrix<T, U1, D>, opt_prob: OptProb<T, D>) -> Self {
+    pub fn new(
+        conf: SGAConf,
+        init_pop: OMatrix<T, U1, D>,
+        opt_prob: OptProb<T, D>,
+        seed: u64,
+    ) -> Self {
         let init_x: OVector<T, D> = init_pop.row(0).transpose().into_owned();
         let best_f = opt_prob.evaluate(&init_x);
         let learning_rate = conf.learning_rate;
@@ -58,6 +65,7 @@ where
             },
             velocity: OVector::zeros_generic(D::from_usize(n), U1),
             current_noise_std: learning_rate,
+            rng: StdRng::seed_from_u64(seed),
         }
     }
 }
@@ -92,12 +100,11 @@ where
             self.current_noise_std
         };
 
-        let mut rng = rand::rng();
         let noise = OVector::<T, D>::from_iterator_generic(
             D::from_usize(self.x.len()),
             U1,
             (0..self.x.len()).map(|_| {
-                T::from_f64(Normal::new(0.0, noise_std).unwrap().sample(&mut rng)).unwrap()
+                T::from_f64(Normal::new(0.0, noise_std).unwrap().sample(&mut self.rng)).unwrap()
             }),
         );
 

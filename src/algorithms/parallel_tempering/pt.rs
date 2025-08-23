@@ -74,6 +74,7 @@ where
         init_pop: OMatrix<T, N, D>,
         opt_prob: OptProb<T, D>,
         max_iter: usize,
+        seed: u64,
     ) -> Self {
         assert!(
             conf.common.num_replicas > 0,
@@ -99,6 +100,7 @@ where
             opt_prob.clone(),
             &conf.update_conf,
             init_pop.row(0).transpose(),
+            seed,
         );
 
         let temperature_manager = PowerLawScheduler::new(
@@ -115,6 +117,7 @@ where
             conf.common.adaptive_swapping,
             conf.common.random_swap_probability,
             conf.common.swap_rate_smoothing,
+            seed,
         );
 
         let step_size_value = match &conf.update_conf {
@@ -334,22 +337,23 @@ where
                     .into_par_iter()
                     .map(|j| {
                         let x_old = self.replicas[replica_idx].population.row(j).transpose();
-                        let x_new = if matches!(self.metropolis_hastings.move_type, crate::algorithms::parallel_tempering::metropolis_hastings::MoveType::PCN) {
+                        let mut local_mh = self.metropolis_hastings.clone();
+                        let x_new = if matches!(local_mh.move_type, crate::algorithms::parallel_tempering::metropolis_hastings::MoveType::PCN) {
                             let variance_param = T::from_f64(1.0).unwrap() / ComplexField::sqrt(T::from_usize(self.st.iter).unwrap() + T::from_f64(1.0).unwrap());
-                            self.metropolis_hastings.local_move_pcn_with_variance(
+                            local_mh.local_move_pcn_with_variance(
                                 &x_old,
                                 &self.covariance_matrices[replica_idx],
                                 variance_param,
                             )
-                        } else if matches!(self.metropolis_hastings.move_type, crate::algorithms::parallel_tempering::metropolis_hastings::MoveType::MALA) && self.metropolis_hastings.mala_use_preconditioning {
-                            self.metropolis_hastings.local_move_with_covariance(
+                        } else if matches!(local_mh.move_type, crate::algorithms::parallel_tempering::metropolis_hastings::MoveType::MALA) && local_mh.mala_use_preconditioning {
+                            local_mh.local_move_with_covariance(
                                 &x_old,
                                 &self.replicas[replica_idx].step_sizes[j],
                                 &self.covariance_matrices[replica_idx],
                                 temperature,
                             )
                         } else {
-                            self.metropolis_hastings.local_move(
+                            local_mh.local_move(
                                 &x_old,
                                 &self.replicas[replica_idx].step_sizes[j],
                                 temperature,
@@ -359,7 +363,7 @@ where
                         let fitness_new = self.opt_prob.evaluate(&x_new);
                         let constr_new = self.opt_prob.is_feasible(&x_new);
 
-                        let accepted = self.metropolis_hastings.accept_reject(
+                        let accepted = local_mh.accept_reject(
                             &x_old,
                             &x_new,
                             constr_new,

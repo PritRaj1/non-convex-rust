@@ -1,4 +1,5 @@
 use nalgebra::{allocator::Allocator, DefaultAllocator, Dim, OMatrix, OVector, U1};
+use rand::{rngs::StdRng, SeedableRng};
 use rayon::prelude::*;
 use std::collections::VecDeque;
 
@@ -31,6 +32,7 @@ where
     success_history: VecDeque<bool>,
     parameter_adaptation: ParameterAdaptationType,
     bounds_cache: BoundsCache<T, D>,
+    rng: StdRng,
 }
 
 impl<T, N, D> DE<T, N, D>
@@ -44,7 +46,12 @@ where
     OMatrix<T, N, D>: Send + Sync,
     DefaultAllocator: Allocator<D> + Allocator<N> + Allocator<N, D>,
 {
-    pub fn new(conf: DEConf, init_pop: OMatrix<T, N, D>, opt_prob: OptProb<T, D>) -> Self {
+    pub fn new(
+        conf: DEConf,
+        init_pop: OMatrix<T, N, D>,
+        opt_prob: OptProb<T, D>,
+        seed: u64,
+    ) -> Self {
         let population_size = init_pop.nrows();
         let mut fitness = OVector::<T, N>::zeros_generic(N::from_usize(population_size), U1);
         let mut constraints =
@@ -90,9 +97,10 @@ where
             }
             MutationType::Adaptive(adaptive) => {
                 if adaptive.use_jade {
-                    ParameterAdaptationType::JADE(JADEParameterAdaptation::new(
+                    ParameterAdaptationType::JADE(Box::new(JADEParameterAdaptation::new(
                         adaptive.memory_size,
-                    ))
+                        seed,
+                    )))
                 } else {
                     ParameterAdaptationType::Standard(StandardParameterAdaptation::new(
                         (adaptive.f_min + adaptive.f_max) / 2.0,
@@ -117,10 +125,11 @@ where
                 iter: 1,
             },
             opt_prob,
-            archive: Archive::new(archive_size),
+            archive: Archive::new(archive_size, seed),
             success_history: VecDeque::with_capacity(success_history_size),
             parameter_adaptation,
             bounds_cache: BoundsCache::new(init_pop.ncols()),
+            rng: StdRng::seed_from_u64(seed),
         }
     }
 
@@ -168,42 +177,47 @@ where
 
         let trials: Vec<_> = (0..pop_size)
             .into_par_iter()
-            .map(|i| {
-                let strategy = match &self.conf.mutation_type {
-                    MutationType::Standard(standard) => &standard.strategy,
-                    MutationType::Adaptive(adaptive) => &adaptive.strategy,
-                };
+            .map_init(
+                || self.rng.clone(),
+                |rng, i| {
+                    let strategy = match &self.conf.mutation_type {
+                        MutationType::Standard(standard) => &standard.strategy,
+                        MutationType::Adaptive(adaptive) => &adaptive.strategy,
+                    };
 
-                let strategy: &dyn MutationStrategy<T, N, D> = match strategy {
-                    DEStrategy::Rand1Bin => &Rand1Bin,
-                    DEStrategy::Best1Bin => &Best1Bin,
-                    DEStrategy::RandToBest1Bin => &RandToBest1Bin,
-                    DEStrategy::Best2Bin => &Best2Bin,
-                    DEStrategy::Rand2Bin => &Rand2Bin,
-                };
+                    let strategy: &dyn MutationStrategy<T, N, D> = match strategy {
+                        DEStrategy::Rand1Bin => &Rand1Bin,
+                        DEStrategy::Best1Bin => &Best1Bin,
+                        DEStrategy::RandToBest1Bin => &RandToBest1Bin,
+                        DEStrategy::Best2Bin => &Best2Bin,
+                        DEStrategy::Rand2Bin => &Rand2Bin,
+                    };
 
-                let (f, cr) = self.parameter_adaptation.generate_parameters();
+                    let mut local_pa = self.parameter_adaptation.clone();
+                    let (f, cr) = local_pa.generate_parameters();
 
-                let trial = strategy.generate_trial(
-                    &self.st.pop,
-                    Some(&self.st.best_x),
-                    i,
-                    T::from_f64(f).unwrap(),
-                    T::from_f64(cr).unwrap(),
-                );
+                    let trial = strategy.generate_trial(
+                        &self.st.pop,
+                        Some(&self.st.best_x),
+                        i,
+                        T::from_f64(f).unwrap(),
+                        T::from_f64(cr).unwrap(),
+                        rng,
+                    );
 
-                let fitness = self.opt_prob.evaluate(&trial);
-                let constraint = self.opt_prob.is_feasible(&trial);
+                    let fitness = self.opt_prob.evaluate(&trial);
+                    let constraint = self.opt_prob.is_feasible(&trial);
 
-                let success = self.select_trial(
-                    fitness,
-                    constraint,
-                    self.st.fitness[i],
-                    self.st.constraints[i],
-                );
+                    let success = self.select_trial(
+                        fitness,
+                        constraint,
+                        self.st.fitness[i],
+                        self.st.constraints[i],
+                    );
 
-                (i, trial, fitness, constraint, success, f, cr)
-            })
+                    (i, trial, fitness, constraint, success, f, cr)
+                },
+            )
             .collect();
 
         let mut successes = Vec::new();

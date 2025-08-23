@@ -22,6 +22,7 @@ fn test_cga() {
         init_pop.clone(),
         RosenbrockObjective { a: 1.0, b: 1.0 },
         Some(RosenbrockConstraints {}),
+        42,
     );
 
     let initial_best_fitness: f64 = init_pop
@@ -54,6 +55,7 @@ fn test_pt() {
         init_pop.clone(),
         RosenbrockObjective { a: 1.0, b: 1.0 },
         Some(RosenbrockConstraints {}),
+        42,
     );
 
     let initial_best_fitness: f64 = init_pop

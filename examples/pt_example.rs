@@ -103,7 +103,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    let mut opt = NonConvexOpt::new(config, init_pop, obj_f.clone(), Some(constraints.clone()));
+    let mut opt = NonConvexOpt::new(
+        config,
+        init_pop,
+        obj_f.clone(),
+        Some(constraints.clone()),
+        42,
+    );
 
     let resolution = 100;
     let (z_values, min_val, max_val) = create_contour_data(&obj_f, resolution);

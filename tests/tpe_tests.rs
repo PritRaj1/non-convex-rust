@@ -117,7 +117,7 @@ fn test_basic_opt() {
     let constraints = RosenbrockConstraints {};
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
 
-    let mut tpe: TPE<f64, U5, U2> = TPE::new(conf, init_pop, opt_prob, 50);
+    let mut tpe: TPE<f64, U5, U2> = TPE::new(conf, init_pop, opt_prob, 50, 42);
     let initial_fitness = tpe.st.best_f;
 
     for _ in 0..20 {
@@ -144,7 +144,7 @@ fn test_restart() {
     let constraints = RosenbrockConstraints {};
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
 
-    let mut tpe: TPE<f64, U5, U2> = TPE::new(conf, init_pop, opt_prob, 10);
+    let mut tpe: TPE<f64, U5, U2> = TPE::new(conf, init_pop, opt_prob, 10, 42);
     let initial_restart_count = tpe.restart_counter;
 
     for _ in 0..30 {
@@ -171,7 +171,7 @@ fn test_adaptive_gamma() {
     let constraints = RosenbrockConstraints {};
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
 
-    let mut tpe: TPE<f64, U5, U2> = TPE::new(conf, init_pop, opt_prob, 50);
+    let mut tpe: TPE<f64, U5, U2> = TPE::new(conf, init_pop, opt_prob, 50, 42);
     let initial_gamma = tpe.current_gamma;
 
     for _ in 0..20 {
@@ -201,7 +201,7 @@ fn test_thompson_sampling() {
     let constraints = RosenbrockConstraints {};
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
 
-    let mut tpe: TPE<f64, U5, U2> = TPE::new(conf, init_pop, opt_prob, 50);
+    let mut tpe: TPE<f64, U5, U2> = TPE::new(conf, init_pop, opt_prob, 50, 42);
 
     for _ in 0..20 {
         tpe.step();
@@ -227,7 +227,7 @@ fn test_hybrid_sampling() {
     let constraints = RosenbrockConstraints {};
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
 
-    let mut tpe: TPE<f64, U5, U2> = TPE::new(conf, init_pop, opt_prob, 50);
+    let mut tpe: TPE<f64, U5, U2> = TPE::new(conf, init_pop, opt_prob, 50, 42);
 
     for _ in 0..20 {
         tpe.step();
@@ -253,7 +253,7 @@ fn test_adaptive_bandwidth() {
     let constraints = RosenbrockConstraints {};
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
 
-    let mut tpe: TPE<f64, U5, U2> = TPE::new(conf, init_pop, opt_prob, 50);
+    let mut tpe: TPE<f64, U5, U2> = TPE::new(conf, init_pop, opt_prob, 50, 42);
 
     for _ in 0..20 {
         tpe.step();
@@ -279,7 +279,7 @@ fn test_cross_validation_bandwidth() {
     let constraints = RosenbrockConstraints {};
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
 
-    let mut tpe: TPE<f64, U5, U2> = TPE::new(conf, init_pop, opt_prob, 50);
+    let mut tpe: TPE<f64, U5, U2> = TPE::new(conf, init_pop, opt_prob, 50, 42);
 
     for _ in 0..20 {
         tpe.step();
@@ -305,7 +305,7 @@ fn test_ucb_acquisition() {
     let constraints = RosenbrockConstraints {};
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
 
-    let mut tpe: TPE<f64, U5, U2> = TPE::new(conf, init_pop, opt_prob, 50);
+    let mut tpe: TPE<f64, U5, U2> = TPE::new(conf, init_pop, opt_prob, 50, 42);
 
     for _ in 0..20 {
         tpe.step();
@@ -331,7 +331,7 @@ fn test_entropy_search_acquisition() {
     let constraints = RosenbrockConstraints {};
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
 
-    let mut tpe: TPE<f64, U5, U2> = TPE::new(conf, init_pop, opt_prob, 50);
+    let mut tpe: TPE<f64, U5, U2> = TPE::new(conf, init_pop, opt_prob, 50, 42);
 
     for _ in 0..20 {
         tpe.step();
@@ -355,7 +355,7 @@ fn test_performance_stats() {
     let constraints = RosenbrockConstraints {};
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
 
-    let mut tpe: TPE<f64, U5, U2> = TPE::new(conf, init_pop, opt_prob, 50);
+    let mut tpe: TPE<f64, U5, U2> = TPE::new(conf, init_pop, opt_prob, 50, 42);
 
     for _ in 0..10 {
         tpe.step();

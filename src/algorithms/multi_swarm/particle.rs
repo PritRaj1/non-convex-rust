@@ -1,6 +1,6 @@
 use crate::utils::opt_prob::{FloatNumber as FloatNum, OptProb};
 use nalgebra::{allocator::Allocator, DefaultAllocator, Dim, OVector, U1};
-use rand::Rng;
+use rand::{rngs::StdRng, Rng};
 
 pub struct Particle<T, D>
 where
@@ -14,6 +14,7 @@ where
     pub best_fitness: T,
     pub improvement_counter: usize,
     pub stagnation_counter: usize,
+    rng: StdRng,
 }
 
 impl<T, D> Particle<T, D>
@@ -22,7 +23,7 @@ where
     D: Dim + Send + Sync,
     DefaultAllocator: Allocator<D> + Allocator<U1, D> + Allocator<U1>,
 {
-    pub fn new(position: OVector<T, D>, velocity: OVector<T, D>, fitness: T) -> Self {
+    pub fn new(position: OVector<T, D>, velocity: OVector<T, D>, fitness: T, rng: StdRng) -> Self {
         Self {
             position: position.clone(),
             velocity,
@@ -30,6 +31,7 @@ where
             best_fitness: fitness,
             improvement_counter: 0,
             stagnation_counter: 0,
+            rng,
         }
     }
 
@@ -42,11 +44,9 @@ where
         opt_prob: &OptProb<T, D>,
         bounds: (T, T),
     ) {
-        let mut rng = rand::rng();
-
         for i in 0..self.velocity.len() {
-            let r1 = T::from_f64(rng.random::<f64>()).unwrap();
-            let r2 = T::from_f64(rng.random::<f64>()).unwrap();
+            let r1 = T::from_f64(self.rng.random::<f64>()).unwrap();
+            let r2 = T::from_f64(self.rng.random::<f64>()).unwrap();
 
             let cognitive = c1 * r1 * (self.best_position[i] - self.position[i]);
             let social = c2 * r2 * (global_best[i] - self.position[i]);

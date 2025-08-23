@@ -53,7 +53,7 @@ fn test_nm_new() {
     let constraints = QuadraticConstraints {};
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
 
-    let nm = NelderMead::new(conf, init_simplex.clone(), opt_prob);
+    let nm = NelderMead::new(conf, init_simplex.clone(), opt_prob, 42);
 
     assert_eq!(nm.simplex.len(), 3);
     for i in 0..3 {
@@ -104,7 +104,7 @@ fn test_nm_centroid() {
     let constraints = QuadraticConstraints {};
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
 
-    let nm = NelderMead::new(conf, init_simplex, opt_prob);
+    let nm = NelderMead::new(conf, init_simplex, opt_prob, 42);
 
     // Calculate centroid manually for comparison
     let mut expected_centroid = DVector::zeros(2);

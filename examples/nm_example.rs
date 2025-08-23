@@ -72,6 +72,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         init_simplex,
         obj_f.clone(),
         Some(constraints.clone()),
+        42,
     );
 
     let resolution = 100;

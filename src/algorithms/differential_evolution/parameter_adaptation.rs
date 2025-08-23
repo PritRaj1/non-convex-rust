@@ -1,12 +1,13 @@
-use rand::Rng;
+use rand::{rngs::StdRng, Rng, SeedableRng};
 
+#[derive(Clone)]
 pub enum ParameterAdaptationType {
-    JADE(JADEParameterAdaptation),
+    JADE(Box<JADEParameterAdaptation>),
     Standard(StandardParameterAdaptation),
 }
 
 impl ParameterAdaptationType {
-    pub fn generate_parameters(&self) -> (f64, f64) {
+    pub fn generate_parameters(&mut self) -> (f64, f64) {
         match self {
             ParameterAdaptationType::JADE(jade) => jade.generate_jade_parameters(),
             ParameterAdaptationType::Standard(standard) => standard.get_parameters(),
@@ -32,6 +33,7 @@ impl ParameterAdaptationType {
     }
 }
 
+#[derive(Clone)]
 pub struct JADEParameterAdaptation {
     pub f_memory: Vec<f64>,
     pub cr_memory: Vec<f64>,
@@ -39,17 +41,19 @@ pub struct JADEParameterAdaptation {
     pub successful_f: Vec<f64>,
     pub successful_cr: Vec<f64>,
     pub memory_size: usize,
+    rng: StdRng,
 }
 
 impl JADEParameterAdaptation {
-    pub fn new(memory_size: usize) -> Self {
+    pub fn new(memory_size: usize, seed: u64) -> Self {
+        let mut rng = StdRng::seed_from_u64(seed);
         let mut f_memory = vec![0.5; memory_size];
         let mut cr_memory = vec![0.5; memory_size];
 
         // Initialize with random values
         for i in 0..memory_size {
-            f_memory[i] = rand::random::<f64>() * 0.5 + 0.25;
-            cr_memory[i] = rand::random::<f64>() * 0.5 + 0.25;
+            f_memory[i] = rng.random::<f64>() * 0.5 + 0.25;
+            cr_memory[i] = rng.random::<f64>() * 0.5 + 0.25;
         }
 
         Self {
@@ -59,17 +63,17 @@ impl JADEParameterAdaptation {
             successful_f: Vec::new(),
             successful_cr: Vec::new(),
             memory_size,
+            rng,
         }
     }
 
-    pub fn generate_jade_parameters(&self) -> (f64, f64) {
-        let mut rng = rand::rng();
-        let memory_idx = rng.random_range(0..self.f_memory.len()); // Random mem index
+    pub fn generate_jade_parameters(&mut self) -> (f64, f64) {
+        let memory_idx = self.rng.random_range(0..self.f_memory.len()); // Random mem index
 
         // Sample from Cauchy distribution around memory value
         let f_memory = self.f_memory[memory_idx];
         let f = loop {
-            let f_candidate = f_memory + 0.1 * (2.0 * rng.random::<f64>() - 1.0);
+            let f_candidate = f_memory + 0.1 * (2.0 * self.rng.random::<f64>() - 1.0);
             if (0.1..=1.0).contains(&f_candidate) {
                 break f_candidate;
             }
@@ -78,7 +82,7 @@ impl JADEParameterAdaptation {
         // CR using normal distribution
         let cr_memory = self.cr_memory[memory_idx];
         let cr = loop {
-            let cr_candidate = cr_memory + 0.1 * (2.0 * rng.random::<f64>() - 1.0);
+            let cr_candidate = cr_memory + 0.1 * (2.0 * self.rng.random::<f64>() - 1.0);
             if (0.0..=1.0).contains(&cr_candidate) {
                 break cr_candidate;
             }
@@ -125,6 +129,7 @@ impl JADEParameterAdaptation {
     }
 }
 
+#[derive(Clone)]
 pub struct StandardParameterAdaptation {
     pub current_f: f64,
     pub current_cr: f64,

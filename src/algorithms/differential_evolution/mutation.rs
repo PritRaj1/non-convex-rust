@@ -1,5 +1,5 @@
 use nalgebra::{allocator::Allocator, DefaultAllocator, Dim, OMatrix, OVector};
-use rand::Rng;
+use rand::{rngs::StdRng, Rng};
 
 use crate::utils::opt_prob::FloatNumber as FloatNum;
 
@@ -20,6 +20,7 @@ where
         target_idx: usize,
         f: T,
         cr: T,
+        rng: &mut StdRng,
     ) -> OVector<T, D>;
 }
 
@@ -29,8 +30,12 @@ pub struct RandToBest1Bin;
 pub struct Best2Bin;
 pub struct Rand2Bin;
 
-fn get_random_indices(count: usize, exclude: usize, pop_size: usize) -> Vec<usize> {
-    let mut rng = rand::rng();
+fn get_random_indices(
+    count: usize,
+    exclude: usize,
+    pop_size: usize,
+    rng: &mut StdRng,
+) -> Vec<usize> {
     let mut indices = Vec::new();
     while indices.len() < count {
         let idx = rng.random_range(0..pop_size);
@@ -41,14 +46,18 @@ fn get_random_indices(count: usize, exclude: usize, pop_size: usize) -> Vec<usiz
     indices
 }
 
-fn crossover<T, D>(donor: OVector<T, D>, target: OVector<T, D>, cr: T) -> OVector<T, D>
+fn crossover<T, D>(
+    donor: OVector<T, D>,
+    target: OVector<T, D>,
+    cr: T,
+    rng: &mut StdRng,
+) -> OVector<T, D>
 where
     T: FloatNum,
     D: Dim,
     OVector<T, D>: Send + Sync,
     DefaultAllocator: Allocator<D>,
 {
-    let mut rng = rand::rng();
     let dim = donor.len();
     let mut trial = target.clone();
     let j_rand = rng.random_range(0..dim);
@@ -78,14 +87,15 @@ where
         target_idx: usize,
         f: T,
         cr: T,
+        rng: &mut StdRng,
     ) -> OVector<T, D> {
-        let indices = get_random_indices(3, target_idx, population.nrows());
+        let indices = get_random_indices(3, target_idx, population.nrows(), rng);
         let x_r1 = population.row(indices[0]).transpose();
         let x_r2 = population.row(indices[1]).transpose();
         let x_r3 = population.row(indices[2]).transpose();
 
         let donor = x_r1 + (x_r2 - x_r3) * f;
-        crossover(donor, population.row(target_idx).transpose(), cr)
+        crossover(donor, population.row(target_idx).transpose(), cr, rng)
     }
 }
 
@@ -106,14 +116,15 @@ where
         target_idx: usize,
         f: T,
         cr: T,
+        rng: &mut StdRng,
     ) -> OVector<T, D> {
         let best_x = best_x.expect("Best1Bin requires best_x");
-        let indices = get_random_indices(2, target_idx, population.nrows());
+        let indices = get_random_indices(2, target_idx, population.nrows(), rng);
         let x_r1 = population.row(indices[0]).transpose();
         let x_r2 = population.row(indices[1]).transpose();
 
         let donor = best_x + (x_r1 - x_r2) * f;
-        crossover(donor, population.row(target_idx).transpose(), cr)
+        crossover(donor, population.row(target_idx).transpose(), cr, rng)
     }
 }
 
@@ -134,15 +145,16 @@ where
         target_idx: usize,
         f: T,
         cr: T,
+        rng: &mut StdRng,
     ) -> OVector<T, D> {
         let best_x = best_x.expect("RandToBest1Bin requires best_x");
-        let indices = get_random_indices(2, target_idx, population.nrows());
+        let indices = get_random_indices(2, target_idx, population.nrows(), rng);
         let x_r1 = population.row(indices[0]).transpose();
         let x_r2 = population.row(indices[1]).transpose();
         let x_i = population.row(target_idx).transpose();
 
         let donor = x_i.clone() + (best_x - &x_i) * f + (x_r1 - x_r2) * f;
-        crossover(donor, x_i, cr)
+        crossover(donor, x_i, cr, rng)
     }
 }
 
@@ -163,16 +175,17 @@ where
         target_idx: usize,
         f: T,
         cr: T,
+        rng: &mut StdRng,
     ) -> OVector<T, D> {
         let best_x = best_x.expect("Best2Bin requires best_x");
-        let indices = get_random_indices(4, target_idx, population.nrows());
+        let indices = get_random_indices(4, target_idx, population.nrows(), rng);
         let x_r1 = population.row(indices[0]).transpose();
         let x_r2 = population.row(indices[1]).transpose();
         let x_r3 = population.row(indices[2]).transpose();
         let x_r4 = population.row(indices[3]).transpose();
 
         let donor = best_x + (x_r1 + x_r2 - x_r3 - x_r4) * f;
-        crossover(donor, population.row(target_idx).transpose(), cr)
+        crossover(donor, population.row(target_idx).transpose(), cr, rng)
     }
 }
 
@@ -193,8 +206,9 @@ where
         target_idx: usize,
         f: T,
         cr: T,
+        rng: &mut StdRng,
     ) -> OVector<T, D> {
-        let indices = get_random_indices(5, target_idx, population.nrows());
+        let indices = get_random_indices(5, target_idx, population.nrows(), rng);
         let x_r1 = population.row(indices[0]).transpose();
         let x_r2 = population.row(indices[1]).transpose();
         let x_r3 = population.row(indices[2]).transpose();
@@ -202,6 +216,6 @@ where
         let x_r5 = population.row(indices[4]).transpose();
 
         let donor = x_r1 + (x_r2 + x_r3 - x_r4 - x_r5) * f;
-        crossover(donor, population.row(target_idx).transpose(), cr)
+        crossover(donor, population.row(target_idx).transpose(), cr, rng)
     }
 }

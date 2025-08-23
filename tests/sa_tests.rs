@@ -39,7 +39,7 @@ fn test_sa_basic() {
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
 
     let mut sa: SimulatedAnnealing<f64, U1, U2> =
-        SimulatedAnnealing::new(conf, init_x, opt_prob, 50);
+        SimulatedAnnealing::new(conf, init_x, opt_prob, 50, 42);
     let initial_fitness = sa.st.best_f;
 
     for _ in 0..100 {
@@ -79,7 +79,7 @@ fn test_sa_cooling() {
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
 
     let mut sa: SimulatedAnnealing<f64, U1, U2> =
-        SimulatedAnnealing::new(conf, init_x, opt_prob, 50);
+        SimulatedAnnealing::new(conf, init_x, opt_prob, 50, 42);
     let initial_temp = sa.temperature;
 
     for _ in 0..5 {
@@ -122,7 +122,7 @@ fn test_sa_neighbor_generation() {
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
 
     let mut sa: SimulatedAnnealing<f64, U1, U2> =
-        SimulatedAnnealing::new(conf, init_x, opt_prob, 50);
+        SimulatedAnnealing::new(conf, init_x, opt_prob, 50, 42);
 
     sa.step();
     assert!(sa.st.best_x.iter().all(|&x| (-5.0..=5.0).contains(&x)));
@@ -157,7 +157,7 @@ fn test_sa_with_constraints() {
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
 
     let mut sa: SimulatedAnnealing<f64, U1, U2> =
-        SimulatedAnnealing::new(conf, init_x, opt_prob, 50);
+        SimulatedAnnealing::new(conf, init_x, opt_prob, 50, 42);
 
     for _ in 0..10 {
         sa.step();
@@ -194,7 +194,7 @@ fn test_sa_acceptance() {
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
 
     let mut sa: SimulatedAnnealing<f64, U1, U2> =
-        SimulatedAnnealing::new(conf, init_x, opt_prob, 50);
+        SimulatedAnnealing::new(conf, init_x, opt_prob, 50, 42);
     let initial_x = sa.st.best_x;
 
     sa.step();

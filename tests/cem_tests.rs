@@ -42,7 +42,7 @@ fn test_basic_cem() {
 
     let obj_f = RosenbrockObjective { a: 1.0, b: 100.0 };
     let constraints = RosenbrockConstraints {};
-    let mut opt = NonConvexOpt::new(config, init_pop, obj_f, Some(constraints.clone()));
+    let mut opt = NonConvexOpt::new(config, init_pop, obj_f, Some(constraints.clone()), 42);
 
     for _ in 0..5 {
         opt.step();
@@ -98,7 +98,7 @@ fn test_cem_convergence() {
 
     let obj_f = QuadraticObjective { a: 1.0, b: 1.0 };
     let constraints = QuadraticConstraints {};
-    let mut opt = NonConvexOpt::new(config, init_pop, obj_f, Some(constraints));
+    let mut opt = NonConvexOpt::new(config, init_pop, obj_f, Some(constraints), 42);
 
     let mut best_fitness_history = Vec::new();
 

@@ -1,5 +1,5 @@
 use nalgebra::{allocator::Allocator, DefaultAllocator, Dim, OMatrix, OVector, U1};
-use rand;
+use rand::{rngs::StdRng, Rng, SeedableRng};
 use rayon::prelude::*;
 
 use crate::utils::alg_conf::tpe_conf::{BandwidthMethod, SamplingStrategy, TPEConf};
@@ -53,6 +53,7 @@ where
     pub candidate_cache: Vec<OVector<T, D>>,
     pub meta_optimization_history: Vec<(T, T)>, // (gamma, performance)
     pub meta_optimization_iter: usize,
+    rng: StdRng,
 }
 
 impl<T, N, D> TPE<T, N, D>
@@ -71,6 +72,7 @@ where
         init_pop: OMatrix<T, N, D>,
         opt_prob: OptProb<T, D>,
         stagnation_window: usize,
+        seed: u64,
     ) -> Self {
         let n = init_pop.ncols();
         let population_size = init_pop.nrows();
@@ -179,6 +181,7 @@ where
 
             meta_optimization_history: Vec::new(),
             meta_optimization_iter: 0,
+            rng: StdRng::seed_from_u64(seed),
         }
     }
 
@@ -234,15 +237,18 @@ where
 
         let candidates: Vec<OVector<T, D>> = (0..n_candidates)
             .into_par_iter()
-            .map(|_| {
-                let mut candidate = OVector::<T, D>::zeros_generic(D::from_usize(n), U1);
+            .map_init(
+                || self.rng.clone(),
+                |rng, _| {
+                    let mut candidate = OVector::<T, D>::zeros_generic(D::from_usize(n), U1);
 
-                for j in 0..n {
-                    let range = ub[j] - lb[j];
-                    candidate[j] = lb[j] + T::from_f64(rand::random::<f64>()).unwrap() * range;
-                }
-                candidate
-            })
+                    for j in 0..n {
+                        let range = ub[j] - lb[j];
+                        candidate[j] = lb[j] + T::from_f64(rng.random::<f64>()).unwrap() * range;
+                    }
+                    candidate
+                },
+            )
             .collect();
 
         candidates
@@ -300,11 +306,11 @@ where
 
             if !self.best_observations.is_empty() {
                 let random_idx =
-                    (rand::random::<f64>() * self.best_observations.len() as f64) as usize;
+                    (self.rng.random::<f64>() * (self.best_observations.len() as f64)) as usize;
                 let base_point = &self.best_observations[random_idx].0;
 
                 for j in 0..n {
-                    let noise = T::from_f64(rand::random::<f64>() * 2.0 - 1.0).unwrap()
+                    let noise = T::from_f64((self.rng.random::<f64>() * 2.0) - 1.0).unwrap()
                         * self.adaptive_noise_scale;
                     candidate[j] = base_point[j] + noise;
                 }
@@ -317,7 +323,7 @@ where
                 let (lb, ub) = self.get_bounds(&candidate);
                 for j in 0..n {
                     let range = ub[j] - lb[j];
-                    candidate[j] = lb[j] + T::from_f64(rand::random::<f64>()).unwrap() * range;
+                    candidate[j] = lb[j] + T::from_f64(self.rng.random::<f64>()).unwrap() * range;
                 }
             }
 
@@ -373,7 +379,7 @@ where
             let (lb, ub) = self.get_bounds(&OVector::<T, D>::zeros_generic(D::from_usize(n), U1));
             for j in 0..n {
                 let range = ub[j] - lb[j];
-                best_candidate[j] = lb[j] + T::from_f64(rand::random::<f64>()).unwrap() * range;
+                best_candidate[j] = lb[j] + T::from_f64(self.rng.random::<f64>()).unwrap() * range;
             }
         }
 
@@ -394,7 +400,7 @@ where
             let mut new_candidate = best_candidate.clone();
 
             for j in 0..n {
-                let perturbation = T::from_f64(rand::random::<f64>() * 2.0 - 1.0).unwrap()
+                let perturbation = T::from_f64((self.rng.random::<f64>() * 2.0) - 1.0).unwrap()
                     * self.adaptive_noise_scale
                     * T::from_f64(0.1).unwrap();
                 new_candidate[j] += perturbation;
@@ -420,11 +426,12 @@ where
 
         // KDE approx with adaptive noise around initial best
         if !self.best_observations.is_empty() {
-            let random_idx = (rand::random::<f64>() * self.best_observations.len() as f64) as usize;
+            let random_idx =
+                (self.rng.random::<f64>() * (self.best_observations.len() as f64)) as usize;
             let base_point = &self.best_observations[random_idx].0;
 
             for j in 0..n {
-                let noise = T::from_f64(rand::random::<f64>() * 2.0 - 1.0).unwrap()
+                let noise = T::from_f64((self.rng.random::<f64>() * 2.0) - 1.0).unwrap()
                     * self.adaptive_noise_scale;
                 candidate[j] = base_point[j] + noise;
             }
@@ -448,7 +455,7 @@ where
 
             for j in 0..n {
                 let range = ub[j] - lb[j];
-                candidate[j] = lb[j] + T::from_f64(rand::random::<f64>()).unwrap() * range;
+                candidate[j] = lb[j] + T::from_f64(self.rng.random::<f64>()).unwrap() * range;
             }
 
             if self.opt_prob.is_feasible(&candidate) {
@@ -461,7 +468,7 @@ where
         let (lb, ub) = self.get_bounds(&candidate);
         for j in 0..n {
             let range = ub[j] - lb[j];
-            candidate[j] = lb[j] + T::from_f64(rand::random::<f64>()).unwrap() * range;
+            candidate[j] = lb[j] + T::from_f64(self.rng.random::<f64>()).unwrap() * range;
         }
         candidate
     }
@@ -501,7 +508,7 @@ where
         for i in 0..population_size {
             let mut x = self.st.pop.row(i).transpose();
             for j in 0..x.len() {
-                let perturbation = T::from_f64(rand::random::<f64>() * 2.0 - 1.0).unwrap()
+                let perturbation = T::from_f64((self.rng.random::<f64>() * 2.0) - 1.0).unwrap()
                     * self.adaptive_noise_scale;
                 x[j] += perturbation;
             }

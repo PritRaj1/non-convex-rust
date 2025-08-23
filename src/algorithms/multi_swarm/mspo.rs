@@ -47,6 +47,7 @@ where
         init_pop: OMatrix<T, N, D>,
         opt_prob: OptProb<T, D>,
         max_iter: usize,
+        seed: u64,
     ) -> Self {
         let dim = init_pop.ncols();
         let total_particles = init_pop.nrows();
@@ -57,7 +58,7 @@ where
 
         let (best_x, best_fitness) = find_best_solution(&init_pop, &opt_prob);
 
-        let swarms = initialize_swarms(&conf, dim, &init_pop, &opt_prob, max_iter);
+        let swarms = initialize_swarms(&conf, dim, &init_pop, &opt_prob, max_iter, seed);
         let (fitness, constraints): (Vec<T>, Vec<bool>) = (0..init_pop.nrows())
             .into_par_iter()
             .map(|i| {

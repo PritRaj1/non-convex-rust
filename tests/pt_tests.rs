@@ -27,8 +27,8 @@ fn test_metropolis_hastings_accept_reject() {
     let x_old = DVector::from_vec(vec![0.1, 0.1]); // High Rosenbrock value
     let x_new = DVector::from_vec(vec![0.95, 0.95]); // Lower Rosenbrock value, but closer to optimum
 
-    let mh: MetropolisHastings<f64, nalgebra::Dyn> =
-        MetropolisHastings::new(opt_prob, &UpdateConf::Auto(AutoConf {}), x_old.clone());
+    let mut mh: MetropolisHastings<f64, nalgebra::Dyn> =
+        MetropolisHastings::new(opt_prob, &UpdateConf::Auto(AutoConf {}), x_old.clone(), 42);
     let constraints_new = true;
 
     let x_better = DVector::from_vec(vec![0.95, 0.9025]); // Closer to Rosenbrock optimum [1,1]
@@ -47,7 +47,8 @@ fn test_metropolis_hastings_local_move() {
 
     let x_old = DVector::from_vec(vec![0.5, 0.5]);
     let step_size = DMatrix::identity(2, 2);
-    let mh = MetropolisHastings::new(opt_prob, &UpdateConf::Auto(AutoConf {}), x_old.clone());
+    let mut mh =
+        MetropolisHastings::new(opt_prob, &UpdateConf::Auto(AutoConf {}), x_old.clone(), 42);
     let x_new = mh.local_move(&x_old, &step_size, 1.0);
 
     assert_eq!(x_old.len(), x_new.len());
@@ -83,7 +84,7 @@ fn test_pcn_local_move() {
         preconditioner: 1.0,
     };
 
-    let mh = MetropolisHastings::new(opt_prob, &UpdateConf::PCN(pcn_conf), x_old.clone());
+    let mut mh = MetropolisHastings::new(opt_prob, &UpdateConf::PCN(pcn_conf), x_old.clone(), 42);
     let x_new = mh.local_move(&x_old, &step_size, 1.0);
 
     assert_eq!(x_old.len(), x_new.len());
@@ -104,7 +105,7 @@ fn test_mala_local_move() {
         use_preconditioning: false,
     };
 
-    let mh = MetropolisHastings::new(opt_prob, &UpdateConf::MALA(mala_conf), x_old.clone());
+    let mut mh = MetropolisHastings::new(opt_prob, &UpdateConf::MALA(mala_conf), x_old.clone(), 42);
     let x_new = mh.local_move(&x_old, &step_size, 1.0);
 
     assert_eq!(x_old.len(), x_new.len());
@@ -124,10 +125,11 @@ fn test_metropolis_hastings_config() {
         random_walk_step_size: 0.05,
     };
 
-    let mh = MetropolisHastings::new(
+    let mut mh = MetropolisHastings::new(
         opt_prob,
         &UpdateConf::MetropolisHastings(mh_conf),
         x_old.clone(),
+        42,
     );
     let x_new = mh.local_move(&x_old, &step_size, 1.0);
 
@@ -146,7 +148,7 @@ fn test_pt_swap() {
     let obj_f = RosenbrockObjective { a: 1.0, b: 1.0 };
     let constraints = RosenbrockConstraints {};
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
-    let mut pt = PT::new(pt_conf, init_pop, opt_prob, 5);
+    let mut pt = PT::new(pt_conf, init_pop, opt_prob, 5, 42);
 
     pt.swap();
 
@@ -167,7 +169,7 @@ fn test_pt_step() {
     let obj_f = RosenbrockObjective { a: 1.0, b: 1.0 };
     let constraints = RosenbrockConstraints {};
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
-    let mut pt = PT::new(pt_conf, init_pop, opt_prob, 5);
+    let mut pt = PT::new(pt_conf, init_pop, opt_prob, 5, 42);
 
     for _ in 0..5 {
         pt.step();
@@ -188,7 +190,7 @@ fn test_different_update_configurations() {
     let obj_f_pcn = RosenbrockObjective { a: 1.0, b: 1.0 }; // No gradients needed
     let constraints_pcn = RosenbrockConstraints {};
     let opt_prob_pcn = OptProb::new(Box::new(obj_f_pcn), Some(Box::new(constraints_pcn)));
-    let pt_pcn = PT::new(pt_conf_pcn, init_pop.clone(), opt_prob_pcn, 5);
+    let pt_pcn = PT::new(pt_conf_pcn, init_pop.clone(), opt_prob_pcn, 5, 42);
 
     let mala_conf = Config::new(include_str!("jsons/pt_mala.json")).unwrap();
     let pt_conf_mala = match mala_conf.alg_conf {
@@ -199,7 +201,7 @@ fn test_different_update_configurations() {
     let obj_f_mala = QuadraticObjective { a: 1.0, b: 1.0 }; // Has gradients
     let constraints_mala = QuadraticConstraints {};
     let opt_prob_mala = OptProb::new(Box::new(obj_f_mala), Some(Box::new(constraints_mala)));
-    let pt_mala = PT::new(pt_conf_mala, init_pop.clone(), opt_prob_mala, 5);
+    let pt_mala = PT::new(pt_conf_mala, init_pop.clone(), opt_prob_mala, 5, 42);
 
     let mh_conf = Config::new(include_str!("jsons/pt_mh.json")).unwrap();
     let pt_conf_mh = match mh_conf.alg_conf {
@@ -207,10 +209,10 @@ fn test_different_update_configurations() {
         _ => panic!("Expected PTConf"),
     };
 
-    let obj_f_mh = RosenbrockObjective { a: 1.0, b: 1.0 }; // No gradients needed
+    let obj_f_mala = RosenbrockObjective { a: 1.0, b: 1.0 }; // No gradients needed
     let constraints_mh = RosenbrockConstraints {};
-    let opt_prob_mh = OptProb::new(Box::new(obj_f_mh), Some(Box::new(constraints_mh)));
-    let pt_mh = PT::new(pt_conf_mh, init_pop, opt_prob_mh, 5);
+    let opt_prob_mh = OptProb::new(Box::new(obj_f_mala), Some(Box::new(constraints_mh)));
+    let pt_mh = PT::new(pt_conf_mh, init_pop, opt_prob_mh, 5, 42);
 
     assert_eq!(pt_pcn.get_num_replicas(), 10);
     assert_eq!(pt_mala.get_num_replicas(), 10);
@@ -249,7 +251,7 @@ fn create_test_pt_pcn() -> PT<f64, nalgebra::Dyn, nalgebra::Dyn> {
     let constraints = QuadraticConstraints {};
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
 
-    PT::new(pt_conf, init_pop, opt_prob, 20)
+    PT::new(pt_conf, init_pop, opt_prob, 20, 42)
 }
 
 #[test]

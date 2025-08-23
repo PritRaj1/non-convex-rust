@@ -40,6 +40,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         SMatrix::<f64, 1, 2>::from_row_slice(&[4.0, 9.0]),
         obj_f.clone(),
         Some(constraints.clone()),
+        42,
     );
 
     let resolution = 100;

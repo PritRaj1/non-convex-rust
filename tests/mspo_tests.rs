@@ -2,6 +2,7 @@ mod common;
 
 use common::fcns::{RosenbrockConstraints, RosenbrockObjective};
 use nalgebra::{DMatrix, DVector};
+use rand::{rngs::StdRng, SeedableRng};
 
 use non_convex_opt::algorithms::multi_swarm::{
     mspo::MSPO,
@@ -17,7 +18,8 @@ use non_convex_opt::utils::{
 fn test_particle_update() {
     let position = DVector::from_vec(vec![0.5f64, 0.5]);
     let velocity = DVector::from_vec(vec![0.1, 0.1]);
-    let mut particle = Particle::new(position, velocity, 0.0);
+    let rng = StdRng::seed_from_u64(42);
+    let mut particle = Particle::new(position, velocity, 0.0, rng);
 
     let global_best = DVector::from_vec(vec![1.0, 1.0]);
     let obj_f = RosenbrockObjective { a: 1.0, b: 1.0 };
@@ -46,18 +48,21 @@ fn test_swarm_initialization() {
     // Create initial population
     let init_pop = DMatrix::from_vec(5, 2, vec![0.5, 0.5, 0.6, 0.6, 0.4, 0.4, 0.3, 0.3, 0.7, 0.7]);
 
-    let swarm = Swarm::new(SwarmConfig {
-        num_particles: 10,
-        dim: 2,
-        c1: 2.05,
-        c2: 2.05,
-        bounds: (-10.0, 10.0),
-        opt_prob: &opt_prob,
-        init_pop,
-        inertia_start: 0.9,
-        inertia_end: 0.4,
-        max_iterations: 100,
-    });
+    let swarm = Swarm::new(
+        SwarmConfig {
+            num_particles: 10,
+            dim: 2,
+            c1: 2.05,
+            c2: 2.05,
+            bounds: (-10.0, 10.0),
+            opt_prob: &opt_prob,
+            init_pop,
+            inertia_start: 0.9,
+            inertia_end: 0.4,
+            max_iterations: 100,
+        },
+        42,
+    );
 
     assert_eq!(swarm.particles.len(), 10);
     assert!(swarm.global_best_position.len() == 2);
@@ -79,18 +84,21 @@ fn test_swarm_update() {
 
     let init_pop = DMatrix::from_vec(5, 2, vec![0.5, 0.5, 0.6, 0.6, 0.4, 0.4, 0.3, 0.3, 0.7, 0.7]);
 
-    let mut swarm = Swarm::new(SwarmConfig {
-        num_particles: 10,
-        dim: 2,
-        c1: 2.05,
-        c2: 2.05,
-        bounds: (-10.0, 10.0),
-        opt_prob: &opt_prob,
-        init_pop,
-        inertia_start: 0.9,
-        inertia_end: 0.4,
-        max_iterations: 100,
-    });
+    let mut swarm = Swarm::new(
+        SwarmConfig {
+            num_particles: 10,
+            dim: 2,
+            c1: 2.05,
+            c2: 2.05,
+            bounds: (-10.0, 10.0),
+            opt_prob: &opt_prob,
+            init_pop,
+            inertia_start: 0.9,
+            inertia_end: 0.4,
+            max_iterations: 100,
+        },
+        42,
+    );
 
     let initial_best = swarm.global_best_fitness;
     swarm.update(&opt_prob);
@@ -149,7 +157,7 @@ fn test_mspo() {
     let constraints = RosenbrockConstraints {};
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
 
-    let mut mspo = MSPO::new(mspo_conf, init_pop, opt_prob, 100);
+    let mut mspo = MSPO::new(mspo_conf, init_pop, opt_prob, 100, 42);
     let initial_fitness = mspo.st.best_f;
 
     for _ in 0..100 {

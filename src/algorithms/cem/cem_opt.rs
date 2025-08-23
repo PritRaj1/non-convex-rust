@@ -1,6 +1,6 @@
 use nalgebra::{allocator::Allocator, DefaultAllocator, Dim, OMatrix, OVector, RealField, U1};
 use num_traits::Float;
-use rand::{self, Rng};
+use rand::{self, rngs::StdRng, Rng, SeedableRng};
 use rand_distr::{Distribution, Normal};
 use rayon::prelude::*;
 use std::iter::Sum;
@@ -37,6 +37,8 @@ where
     pub restart_counter: usize,
     pub last_restart_iter: usize,
     pub stagnation_window: usize,
+
+    rng: StdRng,
 }
 
 impl<T, N, D> CEM<T, N, D>
@@ -56,6 +58,7 @@ where
         init_pop: OMatrix<T, N, D>,
         opt_prob: OptProb<T, D>,
         stagnation_window: usize,
+        seed: u64,
     ) -> Self {
         let n = init_pop.ncols();
         let population_size = init_pop.nrows();
@@ -135,6 +138,7 @@ where
             restart_counter: 0,
             last_restart_iter: 0,
             stagnation_window,
+            rng: StdRng::seed_from_u64(seed),
         }
     }
 
@@ -222,13 +226,12 @@ where
 
     fn perform_restart(&mut self) {
         let n = self.mean.len();
-        let mut rng = rand::rng();
 
         let mean_copy = self.mean.clone();
         let (lb, ub) = self.get_bounds(&mean_copy);
         for i in 0..n {
             let range = ub[i] - lb[i];
-            self.mean[i] = lb[i] + T::from_f64(rng.random::<f64>()).unwrap() * range;
+            self.mean[i] = lb[i] + T::from_f64(self.rng.random::<f64>()).unwrap() * range;
         }
 
         let initial_std = T::from_f64(self.conf.common.initial_std).unwrap();
@@ -236,7 +239,7 @@ where
 
         // Inject diversity into std
         for i in 0..n {
-            let noise = T::from_f64(rng.random_range(0.5..1.5)).unwrap();
+            let noise = T::from_f64(self.rng.random_range(0.5..1.5)).unwrap();
             self.std_dev[i] *= noise;
         }
 
@@ -322,7 +325,7 @@ where
         let mut z = OVector::<T, D>::zeros_generic(D::from_usize(n), U1);
         let normal = Normal::new(0.0, 1.0).unwrap();
         for i in 0..n {
-            z[i] = T::from_f64(normal.sample(&mut rand::rng())).unwrap();
+            z[i] = T::from_f64(normal.sample(&mut self.rng)).unwrap();
         }
 
         if self.cached_cholesky.is_none() || self.covariance_changed {

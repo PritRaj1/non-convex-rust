@@ -35,7 +35,7 @@ fn test_de_basic() {
     let constraints = RosenbrockConstraints {};
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
 
-    let mut de = DE::new(conf, init_pop.clone(), opt_prob);
+    let mut de = DE::new(conf, init_pop.clone(), opt_prob, 42);
     let initial_fitness = de.st.best_f;
 
     for _ in 0..50 {
@@ -75,7 +75,7 @@ fn test_adaptive_de() {
     let constraints = RosenbrockConstraints {};
     let opt_prob = OptProb::new(Box::new(obj_f), Some(Box::new(constraints)));
 
-    let mut de = DE::new(conf, init_pop.clone(), opt_prob);
+    let mut de = DE::new(conf, init_pop.clone(), opt_prob, 42);
     let initial_fitness = de.st.best_f;
 
     // Run for more iterations to ensure improvement

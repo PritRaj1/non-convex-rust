@@ -1,7 +1,7 @@
 use nalgebra::{
     allocator::Allocator, DefaultAllocator, Dim, DimSub, Dyn, OMatrix, OVector, RealField, U1,
 };
-use rand;
+use rand::{rngs::StdRng, SeedableRng};
 use rand_distr::{Distribution, Normal};
 
 use crate::utils::config::CMAESConf;
@@ -57,6 +57,8 @@ where
     pub damps: T,                                  // Damping for sigma
     pub chi_n: T,                                  // Expected norm of N(0,I)
     pub weights_negative: Option<OVector<T, Dyn>>, // Negative weights for Active CMA-ES
+
+    rng: StdRng,
 }
 
 impl<T, N, D> CMAES<T, N, D>
@@ -74,15 +76,19 @@ where
         + Allocator<U1, D>
         + Allocator<<D as DimSub<nalgebra::Const<1>>>::Output>,
 {
-    pub fn new(conf: CMAESConf, init_pop: OMatrix<T, N, D>, opt_prob: OptProb<T, D>) -> Self {
+    pub fn new(
+        conf: CMAESConf,
+        init_pop: OMatrix<T, N, D>,
+        opt_prob: OptProb<T, D>,
+        seed: u64,
+    ) -> Self {
         let init_x: OVector<T, D> = init_pop.row(0).transpose().into_owned();
 
         let n = init_x.len();
         let params = Parameters::new(&conf, &init_x, init_pop.nrows());
 
-        // Initial population
+        let mut rng = StdRng::seed_from_u64(seed);
         let normal = Normal::new(0.0, 1.0).unwrap();
-        let mut rng = rand::rng();
         let mut samples = Vec::with_capacity(params.lambda);
 
         for _ in 0..params.lambda {
@@ -158,16 +164,16 @@ where
             cmu_neg: params.cmu_neg,
             damps: params.damps,
             chi_n: params.chi_n,
+            rng,
         }
     }
 
-    fn generate_samples(&self, n: usize) -> Vec<OVector<T, D>> {
+    fn generate_samples(&mut self, n: usize) -> Vec<OVector<T, D>> {
         let normal = Normal::new(0.0, 1.0).unwrap();
-        let mut rng = rand::rng();
 
         (0..self.lambda)
             .map(|_| {
-                let iter = (0..n).map(|_| T::from_f64(normal.sample(&mut rng)).unwrap());
+                let iter = (0..n).map(|_| T::from_f64(normal.sample(&mut self.rng)).unwrap());
                 OVector::<T, D>::from_iterator_generic(D::from_usize(n), U1, iter)
             })
             .collect()

@@ -2,7 +2,7 @@ use nalgebra::{
     allocator::Allocator, ComplexField, DefaultAllocator, Dim, DimSub, OMatrix, OVector, RealField,
     U1,
 };
-use rand::Rng;
+use rand::{rngs::StdRng, Rng, SeedableRng};
 use rand_distr::StandardNormal;
 
 use crate::utils::alg_conf::pt_conf::UpdateConf;
@@ -30,6 +30,7 @@ where
     pub mala_use_preconditioning: bool,
     pub pcn_step_size: T,
     pub pcn_preconditioner: T,
+    pub rng: StdRng,
 }
 
 impl<T, D> MetropolisHastings<T, D>
@@ -39,7 +40,12 @@ where
     DefaultAllocator:
         Allocator<D> + Allocator<D, D> + Allocator<<D as DimSub<nalgebra::Const<1>>>::Output>,
 {
-    pub fn new(prob: OptProb<T, D>, update_conf: &UpdateConf, generic_x: OVector<T, D>) -> Self {
+    pub fn new(
+        prob: OptProb<T, D>,
+        update_conf: &UpdateConf,
+        generic_x: OVector<T, D>,
+        seed: u64,
+    ) -> Self {
         let k = T::from_f64(1.0).unwrap(); // Boltzmann constant
 
         // MALA needs gradients, PCN and Metropolis-Hastings don't
@@ -140,11 +146,12 @@ where
             mala_use_preconditioning,
             pcn_step_size,
             pcn_preconditioner,
+            rng: StdRng::seed_from_u64(seed),
         }
     }
 
     pub fn local_move(
-        &self,
+        &mut self,
         x_old: &OVector<T, D>,
         step_size: &OMatrix<T, D, D>,
         t: T,
@@ -164,7 +171,7 @@ where
     }
 
     pub fn local_move_with_covariance(
-        &self,
+        &mut self,
         x_old: &OVector<T, D>,
         step_size: &OMatrix<T, D, D>,
         covariance_matrix: &OMatrix<T, D, D>,
@@ -189,33 +196,38 @@ where
     }
 
     fn local_move_random_drift(
-        &self,
+        &mut self,
         x_old: &OVector<T, D>,
         step_size: &OMatrix<T, D, D>,
     ) -> OVector<T, D> {
         let mut x_new = x_old.clone();
         let random_vec =
             OVector::<T, D>::from_fn_generic(D::from_usize(x_old.len()), U1, |_, _| {
-                T::from_f64(rand::rng().sample::<f64, _>(StandardNormal)).unwrap()
+                T::from_f64(self.rng.sample::<f64, _>(StandardNormal)).unwrap()
             });
         x_new += random_vec.component_mul(&step_size.diagonal());
         x_new
     }
 
-    fn local_move_mala(&self, x_old: &OVector<T, D>, grad: &OVector<T, D>, t: T) -> OVector<T, D> {
+    fn local_move_mala(
+        &mut self,
+        x_old: &OVector<T, D>,
+        grad: &OVector<T, D>,
+        t: T,
+    ) -> OVector<T, D> {
         let t_for_step = T::from_f64(1.0).unwrap() - t;
         let step = self.mala_step_size * RealField::max(t_for_step, T::from_f64(0.01).unwrap());
         let drift = grad * step;
 
         let noise = OVector::<T, D>::from_fn_generic(D::from_usize(x_old.len()), U1, |_, _| {
-            T::from_f64(rand::rng().sample::<f64, _>(StandardNormal)).unwrap()
+            T::from_f64(self.rng.sample::<f64, _>(StandardNormal)).unwrap()
         }) * ComplexField::sqrt(step * T::from_f64(2.0).unwrap());
 
         x_old + drift + noise
     }
 
     fn local_move_mala_preconditioned(
-        &self,
+        &mut self,
         x_old: &OVector<T, D>,
         grad: &OVector<T, D>,
         covariance_matrix: &OMatrix<T, D, D>,
@@ -229,7 +241,7 @@ where
 
         // Preconditioned noise: √(2τA) ξ_k
         let xi = OVector::<T, D>::from_fn_generic(D::from_usize(x_old.len()), U1, |_, _| {
-            T::from_f64(rand::rng().sample::<f64, _>(StandardNormal)).unwrap()
+            T::from_f64(self.rng.sample::<f64, _>(StandardNormal)).unwrap()
         });
 
         let scaled_covariance = covariance_matrix * (step * T::from_f64(2.0).unwrap());
@@ -255,7 +267,7 @@ where
     }
 
     fn local_move_pcn(
-        &self,
+        &mut self,
         x_old: &OVector<T, D>,
         covariance_matrix: &OMatrix<T, D, D>,
     ) -> OVector<T, D> {
@@ -265,7 +277,7 @@ where
     // Update for pCN: X'_{n+1} = √(1-β²) X_n + β ε_{n+1}
     // where ε_{n+1} ~ μ₀ (reference Gaussian measure)
     pub fn local_move_pcn_with_variance(
-        &self,
+        &mut self,
         x_old: &OVector<T, D>,
         covariance_matrix: &OMatrix<T, D, D>,
         variance_param: T,
@@ -282,7 +294,7 @@ where
 
         // Second term: β * ε_{n+1} where ε_{n+1} ~ N(0, C₀)
         let xi = OVector::<T, D>::from_fn_generic(D::from_usize(x_old.len()), U1, |_, _| {
-            T::from_f64(rand::rng().sample::<f64, _>(StandardNormal)).unwrap()
+            T::from_f64(self.rng.sample::<f64, _>(StandardNormal)).unwrap()
         });
 
         let scaled_covariance = covariance_matrix * (variance_param * variance_param);
@@ -309,7 +321,7 @@ where
     }
 
     pub fn accept_reject(
-        &self,
+        &mut self,
         x_old: &OVector<T, D>,
         x_new: &OVector<T, D>,
         constraints_new: bool,
@@ -331,11 +343,11 @@ where
         let t_inverted = T::from_f64(1.0).unwrap() - t;
         let t_safe = RealField::max(t_inverted, T::from_f64(1e-10).unwrap());
         let acceptance_prob = ComplexField::exp(delta_e / (self.k * t_safe));
-        rand::rng().random::<f64>() < acceptance_prob.to_f64().unwrap()
+        self.rng.random::<f64>() < acceptance_prob.to_f64().unwrap()
     }
 
     pub fn accept_replica_exchange<N>(
-        &self,
+        &mut self,
         fitness_i: &OVector<T, N>,
         fitness_j: &OVector<T, N>,
         t_i: T,
@@ -374,7 +386,7 @@ where
             ComplexField::exp(log_acceptance)
         };
 
-        rand::rng().random::<f64>() < acceptance_prob.to_f64().unwrap()
+        self.rng.random::<f64>() < acceptance_prob.to_f64().unwrap()
     }
 
     /// Update step size based on Parks et al. (1990) approach

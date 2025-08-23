@@ -1,5 +1,5 @@
 use nalgebra::{allocator::Allocator, DefaultAllocator, Dim, OMatrix, OVector, U1};
-use rand::Rng;
+use rand::{rngs::StdRng, Rng, SeedableRng};
 use rayon::prelude::*;
 use std::collections::VecDeque;
 
@@ -42,6 +42,7 @@ where
     pub cooling_schedule: Box<dyn CoolingSchedule<T> + Send + Sync>,
     pub acceptance: MetropolisAcceptance<T, D>,
     pub stagnation_window: usize,
+    rng: StdRng,
 }
 
 impl<T, N, D> SimulatedAnnealing<T, N, D>
@@ -58,6 +59,7 @@ where
         init_pop: OMatrix<T, U1, D>,
         opt_prob: OptProb<T, D>,
         stagnation_window: usize,
+        seed: u64,
     ) -> Self {
         let init_x = init_pop.row(0).transpose();
         let best_f = opt_prob.evaluate(&init_x);
@@ -108,10 +110,12 @@ where
                 opt_prob.clone(),
                 init_x.clone(),
                 T::from_f64(conf.step_size).unwrap(),
+                seed,
             ),
             cooling_schedule,
-            acceptance: MetropolisAcceptance::new(opt_prob, init_x),
+            acceptance: MetropolisAcceptance::new(opt_prob, init_x, seed),
             stagnation_window,
+            rng: StdRng::seed_from_u64(seed),
         }
     }
 
@@ -157,11 +161,10 @@ where
         let current_best_f = self.st.best_f;
 
         // Reset to best known solution with some perturbation
-        let mut rng = rand::rng();
         let dim = current_best.len();
 
         for i in 0..dim {
-            let perturbation = T::from_f64(rng.random_range(-0.1..0.1)).unwrap();
+            let perturbation = T::from_f64(self.rng.random_range(-0.1..0.1)).unwrap();
             self.x[i] = current_best[i] + perturbation;
         }
 
@@ -267,8 +270,8 @@ where
         let neighbors: Vec<_> = (0..self.conf.num_neighbors)
             .into_par_iter()
             .map(|_| {
-                self.neighbor_gen
-                    .generate(&self.x, step_size_f64, bounds, self.temperature)
+                let mut local_ng = self.neighbor_gen.clone();
+                local_ng.generate(&self.x, step_size_f64, bounds, self.temperature)
             })
             .collect();
 

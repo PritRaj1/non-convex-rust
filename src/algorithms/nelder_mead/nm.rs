@@ -1,5 +1,5 @@
 use nalgebra::{allocator::Allocator, DefaultAllocator, Dim, OMatrix, OVector, U1};
-use rand::Rng;
+use rand::{rngs::StdRng, Rng, SeedableRng};
 use rayon::prelude::*;
 use std::collections::VecDeque;
 
@@ -18,14 +18,10 @@ where
     pub st: State<T, N, D>,
     pub opt_prob: OptProb<T, D>,
     pub simplex: Vec<OVector<T, D>>,
-
-    // Adaptive
     current_alpha: f64,
     current_gamma: f64,
     current_rho: f64,
     current_sigma: f64,
-
-    // Stagnation checks
     success_history: VecDeque<bool>,
     improvement_history: VecDeque<f64>,
     operation_success_counts: [usize; 4], // [reflection, expansion, contraction, shrink]
@@ -33,6 +29,7 @@ where
     last_improvement: T,
     restart_counter: usize,
     last_restart_iter: usize,
+    rng: StdRng,
 }
 
 impl<T, N, D> NelderMead<T, N, D>
@@ -43,7 +40,12 @@ where
     OVector<T, D>: Send + Sync,
     DefaultAllocator: Allocator<D> + Allocator<N, D> + Allocator<N> + Allocator<D, U1>,
 {
-    pub fn new(conf: NelderMeadConf, init_x: OMatrix<T, N, D>, opt_prob: OptProb<T, D>) -> Self {
+    pub fn new(
+        conf: NelderMeadConf,
+        init_x: OMatrix<T, N, D>,
+        opt_prob: OptProb<T, D>,
+        seed: u64,
+    ) -> Self {
         let n: usize = init_x.ncols();
         assert_eq!(
             init_x.nrows(),
@@ -104,6 +106,7 @@ where
             last_improvement: fitness_values[best_idx],
             restart_counter: 0,
             last_restart_iter: 0,
+            rng: StdRng::seed_from_u64(seed),
         }
     }
 
@@ -368,10 +371,9 @@ where
 
         for _i in 1..simplex_size {
             let mut new_vertex = current_best.clone();
-            let mut rng = rand::rng();
 
             for j in 0..dim {
-                let perturbation = T::from_f64(rng.random_range(-0.1..0.1)).unwrap();
+                let perturbation = T::from_f64(self.rng.random_range(-0.1..0.1)).unwrap();
                 new_vertex[j] += perturbation;
             }
 

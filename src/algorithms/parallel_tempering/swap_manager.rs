@@ -1,5 +1,5 @@
 use nalgebra::{allocator::Allocator, DefaultAllocator, Dim, DimSub, OMatrix, OVector, RealField};
-use rand::Rng;
+use rand::{rngs::StdRng, Rng, SeedableRng};
 
 use crate::algorithms::parallel_tempering::metropolis_hastings::MetropolisHastings;
 use crate::utils::opt_prob::FloatNumber as FloatNum;
@@ -27,6 +27,7 @@ where
     random_swap_probability: f64,
     swap_rate_smoothing: f64,
     _phantom: std::marker::PhantomData<N>,
+    rng: StdRng,
 }
 
 impl<T, N, D> SwapManager<T, N, D>
@@ -51,6 +52,7 @@ where
         adaptive_swapping: bool,
         random_swap_probability: f64,
         swap_rate_smoothing: f64,
+        seed: u64,
     ) -> Self {
         Self {
             metropolis_hastings,
@@ -59,6 +61,7 @@ where
             random_swap_probability,
             swap_rate_smoothing,
             _phantom: std::marker::PhantomData,
+            rng: StdRng::seed_from_u64(seed),
         }
     }
 
@@ -98,7 +101,7 @@ where
                 + (1.0 - self.swap_rate_smoothing) * self.swap_acceptance_rates[i];
         }
 
-        if self.adaptive_swapping && rand::rng().random::<f64>() < self.random_swap_probability {
+        if self.adaptive_swapping && self.rng.random::<f64>() < self.random_swap_probability {
             self.attempt_random_swap(
                 populations,
                 fitnesses,
@@ -111,7 +114,7 @@ where
 
     /// Attempt random non-adjacent swaps
     fn attempt_random_swap(
-        &self,
+        &mut self,
         populations: &mut [OMatrix<T, N, D>],
         fitnesses: &mut [OVector<T, N>],
         constraints: &mut [OVector<bool, N>],
@@ -123,11 +126,11 @@ where
             return;
         }
 
-        let i = rand::rng().random_range(0..n);
-        let mut j = rand::rng().random_range(0..n);
+        let i = self.rng.random_range(0..n);
+        let mut j = self.rng.random_range(0..n);
 
         while j == i || j == i.wrapping_sub(1) || j == i + 1 {
-            j = rand::rng().random_range(0..n);
+            j = self.rng.random_range(0..n);
         }
 
         let t_i = temperatures[i];

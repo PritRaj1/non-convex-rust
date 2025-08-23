@@ -1,5 +1,5 @@
 use nalgebra::{allocator::Allocator, DefaultAllocator, Dim, Dyn, OMatrix, OVector, U1};
-use rand::Rng;
+use rand::{rngs::StdRng, Rng, SeedableRng};
 use rayon::prelude::*;
 
 use crate::utils::opt_prob::FloatNumber as FloatNum;
@@ -15,7 +15,7 @@ where
     DefaultAllocator: Allocator<N> + Allocator<N, D> + Allocator<Dyn, D>,
 {
     fn select(
-        &self,
+        &mut self,
         population: &OMatrix<T, N, D>,
         fitness: &OVector<T, N>,
         constraints: &OVector<bool, N>,
@@ -25,13 +25,15 @@ where
 pub struct RouletteWheel {
     pub population_size: usize,
     pub num_parents: usize,
+    rng: StdRng,
 }
 
 impl RouletteWheel {
-    pub fn new(population_size: usize, num_parents: usize) -> Self {
+    pub fn new(population_size: usize, num_parents: usize, seed: u64) -> Self {
         RouletteWheel {
             population_size,
             num_parents,
+            rng: StdRng::seed_from_u64(seed),
         }
     }
 }
@@ -47,7 +49,7 @@ where
     DefaultAllocator: Allocator<N> + Allocator<N, D> + Allocator<Dyn, D>,
 {
     fn select(
-        &self,
+        &mut self,
         population: &OMatrix<T, N, D>,
         fitness: &OVector<T, N>,
         constraints: &OVector<bool, N>,
@@ -70,10 +72,9 @@ where
             Dyn::from_usize(self.num_parents),
             D::from_usize(population.ncols()),
         );
-        let mut rng = rand::rng();
 
         for i in 0..self.num_parents {
-            let r = T::from_f64(rng.random_range(0.0..1.0)).unwrap();
+            let r = T::from_f64(self.rng.random_range(0.0..1.0)).unwrap();
             let mut cumsum = T::zero();
             let mut selected_individual = false;
 
@@ -108,14 +109,21 @@ pub struct Tournament {
     pub population_size: usize,
     pub num_parents: usize,
     pub tournament_size: usize,
+    rng: StdRng,
 }
 
 impl Tournament {
-    pub fn new(population_size: usize, num_parents: usize, tournament_size: usize) -> Self {
+    pub fn new(
+        population_size: usize,
+        num_parents: usize,
+        tournament_size: usize,
+        seed: u64,
+    ) -> Self {
         Tournament {
             population_size,
             num_parents,
             tournament_size,
+            rng: StdRng::seed_from_u64(seed),
         }
     }
 }
@@ -131,7 +139,7 @@ where
     DefaultAllocator: Allocator<Dyn, D> + Allocator<N, D> + Allocator<N>,
 {
     fn select(
-        &self,
+        &mut self,
         population: &OMatrix<T, N, D>,
         fitness: &OVector<T, N>,
         constraints: &OVector<bool, N>,
@@ -154,27 +162,29 @@ where
 
         let selected_indices: Vec<usize> = (0..self.num_parents)
             .into_par_iter()
-            .map(|_| {
-                let mut local_rng = rand::rng();
-                let mut tournament_indices = Vec::new();
+            .map_init(
+                || self.rng.clone(),
+                |rng, _| {
+                    let mut tournament_indices = Vec::new();
 
-                let effective_tournament_size = self.tournament_size.min(valid_indices.len());
-                for _ in 0..effective_tournament_size {
-                    let random_idx = local_rng.random_range(0..valid_indices.len());
-                    tournament_indices.push(valid_indices[random_idx]);
-                }
-
-                let mut best_idx = tournament_indices[0];
-                let mut best_fitness = fitness[best_idx];
-
-                for &idx in &tournament_indices[1..] {
-                    if fitness[idx] > best_fitness {
-                        best_idx = idx;
-                        best_fitness = fitness[idx];
+                    let effective_tournament_size = self.tournament_size.min(valid_indices.len());
+                    for _ in 0..effective_tournament_size {
+                        let random_idx = rng.random_range(0..valid_indices.len());
+                        tournament_indices.push(valid_indices[random_idx]);
                     }
-                }
-                best_idx
-            })
+
+                    let mut best_idx = tournament_indices[0];
+                    let mut best_fitness = fitness[best_idx];
+
+                    for &idx in &tournament_indices[1..] {
+                        if fitness[idx] > best_fitness {
+                            best_idx = idx;
+                            best_fitness = fitness[idx];
+                        }
+                    }
+                    best_idx
+                },
+            )
             .collect();
 
         // Copy selected individuals to result matrix
@@ -189,13 +199,15 @@ where
 pub struct Residual {
     pub population_size: usize,
     pub num_parents: usize,
+    rng: StdRng,
 }
 
 impl Residual {
-    pub fn new(population_size: usize, num_parents: usize) -> Self {
+    pub fn new(population_size: usize, num_parents: usize, seed: u64) -> Self {
         Residual {
             population_size,
             num_parents,
+            rng: StdRng::seed_from_u64(seed),
         }
     }
 }
@@ -211,7 +223,7 @@ where
     DefaultAllocator: Allocator<Dyn, D> + Allocator<N, D> + Allocator<N>,
 {
     fn select(
-        &self,
+        &mut self,
         population: &OMatrix<T, N, D>,
         fitness: &OVector<T, N>,
         constraints: &OVector<bool, N>,
@@ -220,7 +232,6 @@ where
             Dyn::from_usize(self.num_parents),
             D::from_usize(population.ncols()),
         );
-        let mut rng = rand::rng();
 
         let fitness_vec: Vec<T> = (0..fitness.len()).map(|i| fitness[i]).collect();
         let constraints_vec: Vec<bool> = (0..constraints.len()).map(|i| constraints[i]).collect();
@@ -278,7 +289,7 @@ where
 
             if total_residual <= T::zero() {
                 // If all residuals are zero, select randomly
-                let idx = remaining_indices[rng.random_range(0..remaining_indices.len())];
+                let idx = remaining_indices[self.rng.random_range(0..remaining_indices.len())];
                 selected.set_row(parent_index, &population.row(idx));
                 parent_index += 1;
                 remaining_spots -= 1;
@@ -288,7 +299,7 @@ where
                     remaining_indices.swap_remove(pos);
                 }
             } else {
-                let r = rng.random::<f64>();
+                let r = self.rng.random::<f64>();
                 let mut cumsum = T::zero();
 
                 for &idx in &remaining_indices {

@@ -69,6 +69,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         ]),
         obj_f.clone(),
         Some(constraints.clone()),
+        42,
     );
 
     let resolution = 100;

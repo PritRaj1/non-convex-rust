@@ -87,6 +87,7 @@ where
         init_pop: OMatrix<T, N, D>,
         obj_f: F,
         constr_f: Option<G>,
+        seed: u64,
     ) -> Self {
         let opt_prob = OptProb::new(
             Box::new(obj_f),
@@ -102,14 +103,20 @@ where
                 init_pop,
                 opt_prob,
                 conf.opt_conf.max_iter,
+                seed,
             )),
-            AlgConf::PT(pt_conf) => {
-                Box::new(PT::new(pt_conf, init_pop, opt_prob, conf.opt_conf.max_iter))
-            }
+            AlgConf::PT(pt_conf) => Box::new(PT::new(
+                pt_conf,
+                init_pop,
+                opt_prob,
+                conf.opt_conf.max_iter,
+                seed,
+            )),
             AlgConf::TS(ts_conf) => Box::new(TabuSearch::new(
                 ts_conf,
                 init_pop.row(0).into_owned(),
                 opt_prob,
+                seed,
             )),
             AlgConf::Adam(adam_conf) => {
                 Box::new(Adam::new(adam_conf, init_pop.row(0).into_owned(), opt_prob))
@@ -118,13 +125,15 @@ where
                 grasp_conf,
                 init_pop.row(0).into_owned(),
                 opt_prob,
+                seed,
             )),
             AlgConf::SGA(sga_conf) => Box::new(SGAscent::new(
                 sga_conf,
                 init_pop.row(0).into_owned(),
                 opt_prob,
+                seed,
             )),
-            AlgConf::NM(nm_conf) => Box::new(NelderMead::new(nm_conf, init_pop, opt_prob)),
+            AlgConf::NM(nm_conf) => Box::new(NelderMead::new(nm_conf, init_pop, opt_prob, seed)),
             AlgConf::LBFGS(lbfgs_conf) => Box::new(LBFGS::new(
                 lbfgs_conf,
                 init_pop.row(0).into_owned(),
@@ -135,26 +144,32 @@ where
                 init_pop,
                 opt_prob,
                 conf.opt_conf.max_iter,
+                seed,
             )),
             AlgConf::SA(sa_conf) => Box::new(SimulatedAnnealing::new(
                 sa_conf,
                 init_pop.row(0).into_owned(),
                 opt_prob,
                 conf.opt_conf.stagnation_window,
+                seed,
             )),
-            AlgConf::DE(de_conf) => Box::new(DE::new(de_conf, init_pop, opt_prob)),
-            AlgConf::CMAES(cma_es_conf) => Box::new(CMAES::new(cma_es_conf, init_pop, opt_prob)),
+            AlgConf::DE(de_conf) => Box::new(DE::new(de_conf, init_pop, opt_prob, seed)),
+            AlgConf::CMAES(cma_es_conf) => {
+                Box::new(CMAES::new(cma_es_conf, init_pop, opt_prob, seed))
+            }
             AlgConf::TPE(tpe_conf) => Box::new(TPE::new(
                 tpe_conf,
                 init_pop,
                 opt_prob,
                 conf.opt_conf.stagnation_window,
+                seed,
             )),
             AlgConf::CEM(cem_conf) => Box::new(CEM::new(
                 cem_conf,
                 init_pop,
                 opt_prob,
                 conf.opt_conf.stagnation_window,
+                seed,
             )),
         };
 
