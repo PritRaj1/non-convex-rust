@@ -22,6 +22,7 @@ where
     stagnation_count: usize,
     last_improvement: usize,
     rng: StdRng,
+    seed: u64,
 }
 
 impl<T, N, D> GRASP<T, N, D>
@@ -77,6 +78,7 @@ where
             stagnation_count: 0,
             last_improvement: 0,
             rng: StdRng::seed_from_u64(seed),
+            seed,
         }
     }
 
@@ -114,7 +116,10 @@ where
     pub fn construct_solution(&self) -> OVector<T, D> {
         let candidates: Vec<OVector<T, D>> = (0..self.conf.num_candidates)
             .into_par_iter()
-            .map_init(|| self.rng.clone(), |rng, _i| {
+            .map_init(                || {
+                    let thread_id = rayon::current_thread_index().unwrap_or(0);
+                    StdRng::seed_from_u64(self.seed + self.st.iter as u64 * 1000 + thread_id as u64)
+                }, |rng, _i| {
                 let mut candidate =
                     OVector::<T, D>::zeros_generic(D::from_usize(self.st.best_x.len()), U1);
 
@@ -194,7 +199,11 @@ where
             let neighbors: Vec<OVector<T, D>> = (0..self.conf.num_neighbors)
                 .into_par_iter()
                 .map_init(
-                    || self.rng.clone(),
+
+                    || {
+                        let thread_id = rayon::current_thread_index().unwrap_or(0);
+                        StdRng::seed_from_u64(self.seed + self.st.iter as u64 * 1000 + thread_id as u64)
+                    },
                     |rng, _i| {
                         let mut neighbor = current.clone();
 

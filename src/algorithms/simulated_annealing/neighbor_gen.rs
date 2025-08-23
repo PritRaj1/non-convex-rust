@@ -22,6 +22,7 @@ where
     pub prob: OptProb<T, D>,
     pub mala_step_size: T,
     rng: StdRng,
+    seed: u64,
 }
 
 impl<T, D> GaussianGenerator<T, D>
@@ -48,6 +49,7 @@ where
             prob,
             mala_step_size,
             rng: StdRng::seed_from_u64(seed),
+            seed,
         }
     }
 
@@ -75,7 +77,11 @@ where
         let steps: Vec<T> = (0..current.len())
             .into_par_iter()
             .map_init(
-                || self.rng.clone(),
+                || {
+                    let thread_id = rayon::current_thread_index().unwrap_or(0);
+                    // Note: iteration would need to be passed in, using a counter for now
+                    StdRng::seed_from_u64(self.seed + thread_id as u64)
+                },
                 |rng, _| T::from_f64(rng.sample(Normal::new(0.0, step_size).unwrap())).unwrap(),
             )
             .collect();

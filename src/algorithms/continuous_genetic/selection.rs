@@ -109,7 +109,7 @@ pub struct Tournament {
     pub population_size: usize,
     pub num_parents: usize,
     pub tournament_size: usize,
-    rng: StdRng,
+    seed: u64,
 }
 
 impl Tournament {
@@ -123,7 +123,7 @@ impl Tournament {
             population_size,
             num_parents,
             tournament_size,
-            rng: StdRng::seed_from_u64(seed),
+            seed,
         }
     }
 }
@@ -163,7 +163,10 @@ where
         let selected_indices: Vec<usize> = (0..self.num_parents)
             .into_par_iter()
             .map_init(
-                || self.rng.clone(),
+                || {
+                    let thread_id = rayon::current_thread_index().unwrap_or(0);
+                    StdRng::seed_from_u64(self.seed + thread_id as u64)
+                },
                 |rng, _| {
                     let mut tournament_indices = Vec::new();
 

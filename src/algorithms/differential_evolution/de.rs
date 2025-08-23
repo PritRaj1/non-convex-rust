@@ -32,7 +32,7 @@ where
     success_history: VecDeque<bool>,
     parameter_adaptation: ParameterAdaptationType,
     bounds_cache: BoundsCache<T, D>,
-    rng: StdRng,
+    seed: u64,
 }
 
 impl<T, N, D> DE<T, N, D>
@@ -129,7 +129,7 @@ where
             success_history: VecDeque::with_capacity(success_history_size),
             parameter_adaptation,
             bounds_cache: BoundsCache::new(init_pop.ncols()),
-            rng: StdRng::seed_from_u64(seed),
+            seed,
         }
     }
 
@@ -178,7 +178,10 @@ where
         let trials: Vec<_> = (0..pop_size)
             .into_par_iter()
             .map_init(
-                || self.rng.clone(),
+                || {
+                    let thread_id = rayon::current_thread_index().unwrap_or(0);
+                    StdRng::seed_from_u64(self.seed + self.st.iter as u64 * 1000 + thread_id as u64)
+                },
                 |rng, i| {
                     let strategy = match &self.conf.mutation_type {
                         MutationType::Standard(standard) => &standard.strategy,

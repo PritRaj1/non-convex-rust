@@ -54,6 +54,7 @@ where
     pub meta_optimization_history: Vec<(T, T)>, // (gamma, performance)
     pub meta_optimization_iter: usize,
     rng: StdRng,
+    seed: u64,
 }
 
 impl<T, N, D> TPE<T, N, D>
@@ -182,6 +183,7 @@ where
             meta_optimization_history: Vec::new(),
             meta_optimization_iter: 0,
             rng: StdRng::seed_from_u64(seed),
+            seed,
         }
     }
 
@@ -238,7 +240,12 @@ where
         let candidates: Vec<OVector<T, D>> = (0..n_candidates)
             .into_par_iter()
             .map_init(
-                || self.rng.clone(),
+                || {
+                    let thread_id = rayon::current_thread_index().unwrap_or(0);
+                    StdRng::seed_from_u64(
+                        self.seed + self.iteration as u64 * 1000 + thread_id as u64,
+                    )
+                },
                 |rng, _| {
                     let mut candidate = OVector::<T, D>::zeros_generic(D::from_usize(n), U1);
 

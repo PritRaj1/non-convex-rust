@@ -35,6 +35,7 @@ where
     phase: SearchPhase,
     phase_iterations: usize,
     rng: StdRng,
+    seed: u64,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -96,6 +97,7 @@ where
             phase: SearchPhase::Intensification,
             phase_iterations: 0,
             rng: StdRng::seed_from_u64(seed),
+            seed,
         }
     }
 
@@ -285,7 +287,10 @@ where
         let neighbors: Vec<_> = (0..self.conf.common.num_neighbors)
             .into_par_iter()
             .map_init(
-                || self.rng.clone(),
+                || {
+                    let thread_id = rayon::current_thread_index().unwrap_or(0);
+                    StdRng::seed_from_u64(self.seed + self.st.iter as u64 * 1000 + thread_id as u64)
+                },
                 |rng, _| {
                     let neighbor = self.generate_neighbor(rng);
                     let fitness = self.evaluate_neighbor(&neighbor);

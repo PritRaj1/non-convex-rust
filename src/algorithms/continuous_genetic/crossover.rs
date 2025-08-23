@@ -20,7 +20,7 @@ where
 pub struct Random {
     pub crossover_prob: f64, // F64 for RNG
     pub population_size: usize,
-    rng: StdRng,
+    seed: u64,
 }
 
 impl Random {
@@ -28,7 +28,7 @@ impl Random {
         Self {
             crossover_prob,
             population_size,
-            rng: StdRng::seed_from_u64(seed),
+            seed,
         }
     }
 }
@@ -52,7 +52,10 @@ where
         let offspring_rows: Vec<_> = (0..self.population_size)
             .into_par_iter()
             .map_init(
-                || self.rng.clone(),
+                || {
+                    let thread_id = rayon::current_thread_index().unwrap_or(0);
+                    StdRng::seed_from_u64(self.seed + thread_id as u64)
+                },
                 |rng, _| {
                     if rng.random::<f64>() <= crossover_prob && num_parents >= 2 {
                         // Select two different parents
@@ -102,7 +105,7 @@ where
 pub struct Heuristic {
     pub crossover_prob: f64,
     pub population_size: usize,
-    rng: StdRng,
+    seed: u64,
 }
 
 impl Heuristic {
@@ -110,7 +113,7 @@ impl Heuristic {
         Self {
             crossover_prob,
             population_size,
-            rng: StdRng::seed_from_u64(seed),
+            seed,
         }
     }
 }
@@ -134,7 +137,10 @@ where
         let offspring_rows: Vec<_> = (0..self.population_size)
             .into_par_iter()
             .map_init(
-                || self.rng.clone(),
+                || {
+                    let thread_id = rayon::current_thread_index().unwrap_or(0);
+                    StdRng::seed_from_u64(self.seed + thread_id as u64)
+                },
                 |rng, _| {
                     if rng.random::<f64>() <= crossover_prob && num_parents >= 2 {
                         // Select two different parents
@@ -185,7 +191,7 @@ pub struct SimulatedBinary {
     pub crossover_prob: f64,
     pub eta_c: f64, // Distribution index
     pub population_size: usize,
-    rng: StdRng,
+    seed: u64,
 }
 
 impl SimulatedBinary {
@@ -194,7 +200,7 @@ impl SimulatedBinary {
             crossover_prob,
             eta_c,
             population_size,
-            rng: StdRng::seed_from_u64(seed),
+            seed,
         }
     }
 }
@@ -220,7 +226,10 @@ where
         let offspring_rows: Vec<_> = (0..self.population_size)
             .into_par_iter()
             .map_init(
-                || self.rng.clone(),
+                || {
+                    let thread_id = rayon::current_thread_index().unwrap_or(0);
+                    StdRng::seed_from_u64(self.seed + thread_id as u64)
+                },
                 |rng, _| {
                     if rng.random::<f64>() <= crossover_prob && num_parents >= 2 {
                         // Select two different parents

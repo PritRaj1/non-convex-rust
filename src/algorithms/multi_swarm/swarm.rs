@@ -56,11 +56,14 @@ where
     DefaultAllocator: Allocator<D> + Allocator<U1, D> + Allocator<Dyn, D>,
 {
     pub fn new(config: SwarmConfig<T, D>, seed: u64) -> Self {
-        let base_rng = StdRng::seed_from_u64(seed);
+        let _base_rng = StdRng::seed_from_u64(seed);
         let particles: Vec<_> = (0..config.num_particles)
             .into_par_iter()
             .map_init(
-                || base_rng.clone(),
+                || {
+                    let thread_id = rayon::current_thread_index().unwrap_or(0);
+                    StdRng::seed_from_u64(seed + thread_id as u64)
+                },
                 |rng, i| {
                     let mut position =
                         OVector::<T, D>::zeros_generic(D::from_usize(config.dim), U1);
@@ -330,11 +333,14 @@ where
     }
 
     // Fill with promising, fallback to random
-    let base_rng = StdRng::seed_from_u64(seed + 2000);
+    let _base_rng = StdRng::seed_from_u64(seed + 2000);
     (0..conf.num_swarms)
         .into_par_iter()
         .map_init(
-            || base_rng.clone(),
+            || {
+                let thread_id = rayon::current_thread_index().unwrap_or(0);
+                StdRng::seed_from_u64(seed + 2000 + thread_id as u64)
+            },
             |rng, i| {
                 let center = if i < promising_centers.len() {
                     promising_centers[i].clone()
@@ -360,7 +366,10 @@ where
                 let particle_adjustments: Vec<_> = (0..particles_per_swarm)
                     .into_par_iter()
                     .map_init(
-                        || rng.clone(),
+                        || {
+                            let thread_id = rayon::current_thread_index().unwrap_or(0);
+                            StdRng::seed_from_u64(seed + 3000 + thread_id as u64)
+                        },
                         |particle_rng, j| {
                             let mut particle_row = Vec::with_capacity(dim);
                             for k in 0..dim {
