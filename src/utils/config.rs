@@ -9,6 +9,7 @@ pub use crate::utils::alg_conf::{
     cem_conf::CEMConf,
     cga_conf::{CGAConf, CommonConf, CrossoverConf, MutationConf, SelectionConf},
     cmaes_conf::CMAESConf,
+    cmcgs_conf::CMCGSConf,
     de_conf::{DEConf, DEStrategy},
     grasp_conf::GRASPConf,
     lbfgs_conf::{
@@ -40,6 +41,7 @@ pub enum AlgConf {
     CMAES(CMAESConf),
     TPE(TPEConf),
     CEM(CEMConf),
+    CMCGS(CMCGSConf),
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
@@ -92,12 +94,10 @@ pub enum ConfigError {
 
 // Have the option to load config from a json
 impl Config {
-    // Deserialize the json to config
     pub fn new(config: &str) -> Result<Self, ConfigError> {
         serde_json::from_str(config).map_err(|e| ConfigError::DeserializationError(e.to_string()))
     }
 
-    // Serialize the config to json
     pub fn to_json(&self) -> Result<String, ConfigError> {
         serde_json::to_string(self).map_err(|e| ConfigError::SerializationError(e.to_string()))
     }

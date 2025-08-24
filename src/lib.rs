@@ -5,7 +5,7 @@ pub mod utils;
 use crate::utils::config::{AlgConf, Config, OptConf};
 
 use crate::algorithms::{
-    adam::adam_opt::Adam, cem::cem_opt::CEM, cma_es::cma_es_opt::CMAES,
+    adam::adam_opt::Adam, cem::cem_opt::CEM, cma_es::cma_es_opt::CMAES, cmcgs::cmcgs_opt::CMCGS,
     continuous_genetic::cga::CGA, differential_evolution::de::DE, grasp::grasp_opt::GRASP,
     limited_memory_bfgs::lbfgs::LBFGS, multi_swarm::mspo::MSPO, nelder_mead::nm::NelderMead,
     parallel_tempering::pt::PT, sg_ascent::sga::SGAscent,
@@ -171,6 +171,9 @@ where
                 conf.opt_conf.stagnation_window,
                 seed,
             )),
+            AlgConf::CMCGS(cmcgs_conf) => {
+                Box::new(CMCGS::new(cmcgs_conf, init_pop, opt_prob, seed))
+            }
         };
 
         Self {

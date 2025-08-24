@@ -169,4 +169,10 @@ where
     fn get_replica_temperatures(&self) -> Option<Vec<T>> {
         None
     }
+    fn get_cmcgs_tree(&self) -> Option<&crate::algorithms::cmcgs::graph::CMCGSGraph<T, D>>
+    where
+        <DefaultAllocator as nalgebra::allocator::Allocator<D>>::Buffer<T>: Send + Sync,
+    {
+        None
+    }
 }

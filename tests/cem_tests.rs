@@ -9,7 +9,7 @@ use non_convex_opt::utils::opt_prob::BooleanConstraintFunction;
 use non_convex_opt::NonConvexOpt;
 
 #[test]
-fn test_basic_cem() {
+fn test_cem() {
     let config_json = r#"
     {
         "opt_conf": {

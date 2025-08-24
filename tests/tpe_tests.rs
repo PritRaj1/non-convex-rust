@@ -63,7 +63,7 @@ fn create_test_conf(
 }
 
 #[test]
-fn test_basic_opt() {
+fn test_basic() {
     let conf = TPEConf {
         n_initial_random: 10,
         n_ei_candidates: 50,
