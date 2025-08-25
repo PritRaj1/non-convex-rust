@@ -1,5 +1,4 @@
 use nalgebra::{allocator::Allocator, DefaultAllocator, Dim, OVector};
-use rand::prelude::*;
 
 use crate::algorithms::cmcgs::gaussian_distributions::{
     GaussianActionPolicy, GaussianStateDistribution,
@@ -87,34 +86,5 @@ where
         if !self.children.contains(&child_id) {
             self.children.push(child_id);
         }
-    }
-
-    pub fn get_state_probability(&self, state: &OVector<T, D>) -> T {
-        self.state_distribution.probability_density(state)
-    }
-
-    pub fn update_state_distribution(&mut self, states: &[OVector<T, D>]) {
-        self.state_distribution.update_from_states(states);
-    }
-
-    pub fn update_action_policy(&mut self, actions: &[OVector<T, D>], returns: &[T]) {
-        self.action_policy
-            .update_from_elite_experiences(actions, returns);
-    }
-
-    pub fn update_action_policy_from_policy(&mut self, policy: &GaussianActionPolicy<T, D>) {
-        self.action_policy = policy.clone();
-    }
-
-    pub fn sample_action(&self, rng: &mut impl Rng) -> OVector<T, D> {
-        self.action_policy.sample_action(rng)
-    }
-
-    pub fn get_action_policy(&self) -> &GaussianActionPolicy<T, D> {
-        &self.action_policy
-    }
-
-    pub fn get_state_distribution(&self) -> &GaussianStateDistribution<T, D> {
-        &self.state_distribution
     }
 }

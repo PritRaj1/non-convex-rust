@@ -16,7 +16,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config_json = r#"
     {
         "opt_conf": {
-            "max_iter": 50,
+            "max_iter": 100,
             "rtol": "1e-6",
             "atol": "0.0",
             "rtol_max_iter_fraction": 1.0
@@ -55,7 +55,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let color_palette = get_color_palette();
     let mut encoder = setup_gif("examples/gifs/cmcgs_kbf.gif")?;
 
-    for frame in 0..50 {
+    for frame in 0..100 {
         let mut chart = setup_chart(ChartParams {
             frame,
             algorithm_name: "CMCGS",

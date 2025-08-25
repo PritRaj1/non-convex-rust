@@ -160,7 +160,7 @@ where
     /// Sample action from node policy π_q(a) - Gaussian distribution
     fn sample_from_node_policy(&mut self, node_id: usize) -> OVector<T, D> {
         if let Some(node) = self.graph.get_node(node_id) {
-            return node.sample_action(&mut self.rng.clone());
+            return node.action_policy.sample_action(&mut self.rng.clone());
         }
 
         self.generate_random_action() // Fallback: random action
@@ -199,8 +199,8 @@ where
             let node_b = &self.graph.get_node(b).unwrap();
 
             // Select node: 𝑞 ← arg max_{𝑞 ∈ 𝑄_{𝑡+1}} 𝑝_𝑞(𝒔_{𝑡+1})
-            let prob_a = node_a.get_state_probability(state);
-            let prob_b = node_b.get_state_probability(state);
+            let prob_a = node_a.state_distribution.probability_density(state);
+            let prob_b = node_b.state_distribution.probability_density(state);
 
             prob_a
                 .partial_cmp(&prob_b)
@@ -227,6 +227,12 @@ where
                 let new_node_id = self
                     .graph
                     .add_placeholder_node(new_depth, placeholder_state);
+
+                // Connect new node to parent nodes in previous layer
+                let parent_nodes = self.graph.get_nodes_at_depth(current_depth);
+                for &parent_id in &parent_nodes {
+                    self.graph.connect_nodes(parent_id, new_node_id);
+                }
 
                 self.node_replay_buffers.get_or_create_buffer(new_node_id);
             }
@@ -298,7 +304,7 @@ where
                     .iter()
                     .map(|e| e.state.clone())
                     .collect();
-                node.update_state_distribution(&states);
+                node.state_distribution.update_from_states(&states);
 
                 // Update action policy π_q(a) only if |D_q| > m/2
                 if buffer.has_sufficient_experience(self.conf.expansion_threshold / 2) {
@@ -313,7 +319,8 @@ where
                         .map(|e| e.return_value)
                         .collect();
 
-                    node.update_action_policy(&actions, &returns);
+                    node.action_policy
+                        .update_from_elite_experiences(&actions, &returns);
                 }
             }
         }
@@ -321,7 +328,7 @@ where
 
     // Cluster states and add new nodes if less than desired min(𝑛max, ⌊𝑛𝑡/𝑚⌋)
     fn width_expansion_phase(&mut self) {
-        for layer in 1..self.graph.get_max_depth() {
+        for layer in 0..self.graph.get_max_depth() {
             let transitions_at_timestep = self.replay_buffer.count_transitions_at_timestep(layer);
             let desired_nodes = (transitions_at_timestep / self.conf.expansion_threshold)
                 .min(self.conf.max_nodes_per_layer);
@@ -338,10 +345,10 @@ where
             }
         }
 
-        // Update root distributions
+        // Update root distributions if width expansion occurred
         let root_id = self.graph.get_root_id();
         if let Some(buffer) = self.node_replay_buffers.get_buffer(root_id) {
-            if buffer.has_sufficient_experience(1) {
+            if buffer.has_sufficient_experience(self.conf.expansion_threshold / 2) {
                 self.update_node_distributions(root_id);
             }
         }
@@ -389,10 +396,10 @@ where
                 .filter_map(|&node_id| self.graph.get_node(node_id).map(|node| (node_id, node)))
                 .min_by(|(_, node_a), (_, node_b)| {
                     let dist_a = node_a
-                        .get_state_distribution()
+                        .state_distribution
                         .distance_to_centroid(&experience.state);
                     let dist_b = node_b
-                        .get_state_distribution()
+                        .state_distribution
                         .distance_to_centroid(&experience.state);
                     dist_a
                         .partial_cmp(&dist_b)

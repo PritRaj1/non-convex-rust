@@ -127,7 +127,7 @@ where
             let mut new_node =
                 CMCGSGraphNode::new(self.next_node_id, depth, centroid.len(), action_bounds);
 
-            new_node.update_state_distribution(&[centroid]);
+            new_node.state_distribution.update_from_states(&[centroid]);
 
             if depth == 0 {
                 self.roots.push(self.next_node_id);

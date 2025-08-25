@@ -213,7 +213,7 @@ fn test_cmcgs_gaussian_policy_updates() {
     let root_id = cmcgs.graph.get_root_id();
 
     let initial_node = cmcgs.graph.get_node(root_id).unwrap();
-    let initial_action_policy = initial_node.get_action_policy();
+    let initial_action_policy = &initial_node.action_policy;
     let initial_mean = initial_action_policy.mean;
     let initial_variance = initial_action_policy.variance;
 
@@ -223,7 +223,7 @@ fn test_cmcgs_gaussian_policy_updates() {
 
     let current_root_id = cmcgs.graph.get_root_id();
     let updated_node = cmcgs.graph.get_node(current_root_id).unwrap();
-    let updated_action_policy = updated_node.get_action_policy();
+    let updated_action_policy = &updated_node.action_policy;
     let updated_mean = updated_action_policy.mean;
     let updated_variance = updated_action_policy.variance;
 
