@@ -84,6 +84,7 @@ impl<T: FloatNum> Parameters<T> {
         }
     }
 
+    // Log-linear ranked weights
     fn compute_weights(mu: usize, lambda: usize) -> OVector<T, Dyn>
     where
         DefaultAllocator: Allocator<Dyn>,

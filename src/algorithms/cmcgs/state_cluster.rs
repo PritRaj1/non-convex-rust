@@ -15,6 +15,7 @@ where
     pub radius: T,
     pub size: usize,
     pub quality: T,
+    dirty: bool, // Cache-like dirty bool: indicates need recalculation
 }
 
 impl<T, D> StateCluster<T, D>
@@ -31,6 +32,7 @@ where
             radius: T::from_f64(0.1).unwrap(),
             size: 1,
             quality: T::zero(),
+            dirty: false,
         }
     }
 
@@ -47,27 +49,7 @@ where
     pub fn add_state(&mut self, state: OVector<T, D>) {
         self.states.push(state);
         self.size = self.states.len();
-
-        // Update centroid (simple average)
-        let mut new_centroid =
-            OVector::<T, D>::zeros_generic(D::from_usize(self.centroid.len()), nalgebra::U1);
-
-        for state in &self.states {
-            new_centroid += state;
-        }
-        new_centroid /= T::from_usize(self.size).unwrap();
-
-        self.centroid = new_centroid;
-
-        // Update radius to encompass all states
-        let mut max_distance = T::zero();
-        for state in &self.states {
-            let distance = self.distance_to_centroid(state);
-            if distance > max_distance {
-                max_distance = distance;
-            }
-        }
-        self.radius = max_distance;
+        self.dirty = true;
     }
 
     pub fn add_state_with_reward(&mut self, state: OVector<T, D>, reward: T) {
@@ -82,6 +64,21 @@ where
         &self.centroid
     }
 
+    pub fn get_centroid(&self) -> OVector<T, D> {
+        if self.dirty {
+            let mut new_centroid =
+                OVector::<T, D>::zeros_generic(D::from_usize(self.centroid.len()), nalgebra::U1);
+
+            for state in &self.states {
+                new_centroid += state;
+            }
+            new_centroid /= T::from_usize(self.size).unwrap();
+            new_centroid
+        } else {
+            self.centroid.clone()
+        }
+    }
+
     pub fn can_merge_with(&self, other: &Self, merge_threshold: T) -> bool {
         let distance = self.distance_to_centroid(&other.centroid);
         distance <= merge_threshold
@@ -90,25 +87,7 @@ where
     pub fn merge_with(&mut self, other: &Self) {
         self.states.extend(other.states.clone());
         self.size = self.states.len();
-
-        let mut new_centroid =
-            OVector::<T, D>::zeros_generic(D::from_usize(self.centroid.len()), nalgebra::U1);
-
-        for state in &self.states {
-            new_centroid += state;
-        }
-        new_centroid /= T::from_usize(self.size).unwrap();
-
-        self.centroid = new_centroid;
-
-        let mut max_distance = T::zero();
-        for state in &self.states {
-            let distance = self.distance_to_centroid(state);
-            if distance > max_distance {
-                max_distance = distance;
-            }
-        }
-        self.radius = max_distance;
+        self.dirty = true;
 
         // Update quality (weighted average)
         let total_quality = self.quality + other.quality;
@@ -217,85 +196,107 @@ where
             return Vec::new();
         }
 
-        let mut new_clusters = Vec::new();
-        for &state in &states {
-            let cluster = StateCluster::new(state.clone());
-            new_clusters.push(cluster);
-        }
+        let desired_clusters = desired_clusters.min(states.len()).min(self.max_clusters);
 
-        // Merge clusters until we have the desired number
-        while new_clusters.len() > desired_clusters {
-            let pairs: Vec<_> = (0..new_clusters.len())
-                .flat_map(|i| (i + 1..new_clusters.len()).map(move |j| (i, j)))
-                .collect();
-
-            let best_pair = pairs.par_iter().min_by(|&&(i1, j1), &&(i2, j2)| {
-                let dist1 = new_clusters[i1].distance_to_centroid(&new_clusters[j1].centroid);
-                let dist2 = new_clusters[i2].distance_to_centroid(&new_clusters[j2].centroid);
-                dist1
-                    .partial_cmp(&dist2)
-                    .unwrap_or(std::cmp::Ordering::Equal)
-            });
-
-            // Merge clusters i and j, keeping the one with lower index
-            if let Some(&(i, j)) = best_pair {
-                let other_cluster = new_clusters.remove(j);
-                new_clusters[i].merge_with(&other_cluster);
+        if desired_clusters <= 1 {
+            let states_vec: Vec<_> = states.into_iter().cloned().collect();
+            if let Some(first_state) = states_vec.first() {
+                return vec![StateCluster::new(first_state.clone())];
             } else {
-                break;
+                return Vec::new();
             }
         }
 
-        // Must contain at least m/2 states
-        new_clusters.retain(|cluster| cluster.size >= states.len() / 2);
-
-        new_clusters
+        self.ward_linkage_clustering(states, desired_clusters)
     }
 
-    fn merge_clusters_if_needed(&mut self) {
-        while self.clusters.len() > self.max_clusters {
-            // Parallel search for best pair to merge
-            let pairs: Vec<_> = (0..self.clusters.len())
-                .flat_map(|i| (i + 1..self.clusters.len()).map(move |j| (i, j)))
-                .collect();
-
-            let best_pair = pairs.par_iter().min_by(|&&(i1, j1), &&(i2, j2)| {
-                let dist1 = self.clusters[i1].distance_to_centroid(&self.clusters[j1].centroid);
-                let dist2 = self.clusters[i2].distance_to_centroid(&self.clusters[j2].centroid);
-                dist1
-                    .partial_cmp(&dist2)
-                    .unwrap_or(std::cmp::Ordering::Equal)
-            });
-
-            if let Some(&(i, j)) = best_pair {
-                let other_cluster = self.clusters.remove(j);
-                self.clusters[i].merge_with(&other_cluster);
-            } else {
-                break;
-            }
-        }
+    pub fn clear(&mut self) {
+        self.clusters.clear();
     }
 
     pub fn get_best_cluster(&self) -> Option<&StateCluster<T, D>> {
-        self.clusters.par_iter().max_by(|a, b| {
+        self.clusters.iter().max_by(|a, b| {
             a.quality
                 .partial_cmp(&b.quality)
                 .unwrap_or(std::cmp::Ordering::Equal)
         })
     }
 
-    pub fn get_clusters_by_quality(&self) -> Vec<&StateCluster<T, D>> {
-        let mut clusters: Vec<_> = self.clusters.iter().collect();
-        clusters.par_sort_by(|a, b| {
-            b.quality
-                .partial_cmp(&a.quality)
-                .unwrap_or(std::cmp::Ordering::Equal)
-        });
-        clusters
+    // If clusters are too close, merge them
+    fn merge_clusters_if_needed(&mut self) {
+        let mut i = 0;
+        while i < self.clusters.len() {
+            let mut j = i + 1;
+            while j < self.clusters.len() {
+                if self.clusters[i].can_merge_with(&self.clusters[j], self.merge_threshold) {
+                    let cluster_j = self.clusters.remove(j);
+                    self.clusters[i].merge_with(&cluster_j);
+                } else {
+                    j += 1;
+                }
+            }
+            i += 1;
+        }
     }
 
-    pub fn clear(&mut self) {
-        self.clusters.clear();
+    // Use Ward linkage agglomerative clustering
+    fn ward_linkage_clustering(
+        &self,
+        states: Vec<&OVector<T, D>>,
+        k: usize,
+    ) -> Vec<StateCluster<T, D>> {
+        if states.is_empty() || k == 0 {
+            return Vec::new();
+        }
+
+        let n_states = states.len();
+        if n_states <= k {
+            return states
+                .into_iter()
+                .map(|state| StateCluster::new(state.clone()))
+                .collect();
+        }
+
+        let mut clusters: Vec<OVector<T, D>> = states.into_iter().cloned().collect();
+
+        // Merge clusters until we have k clusters
+        while clusters.len() > k {
+            let (best_i, best_j) = self.find_best_ward_merge(&clusters);
+            let centroid_i = clusters[best_i].clone();
+            let centroid_j = clusters.remove(best_j);
+            clusters[best_i] = (centroid_i + centroid_j) / T::from_f64(2.0).unwrap();
+        }
+
+        clusters
+            .into_iter()
+            .map(|centroid| StateCluster::new(centroid))
+            .collect()
+    }
+
+    fn find_best_ward_merge(&self, clusters: &[OVector<T, D>]) -> (usize, usize) {
+        let n_clusters = clusters.len();
+        let mut best_merge = (0, 1);
+        let mut best_increase = T::infinity();
+
+        for i in 0..n_clusters {
+            for j in (i + 1)..n_clusters {
+                let increase = self.ward_linkage_increase(&clusters[i], &clusters[j]);
+                if increase < best_increase {
+                    best_increase = increase;
+                    best_merge = (i, j);
+                }
+            }
+        }
+
+        best_merge
+    }
+
+    // Minimise increase in within-cluster sum of squares
+    fn ward_linkage_increase(&self, cluster_a: &OVector<T, D>, cluster_b: &OVector<T, D>) -> T {
+        let centroid_combined = (cluster_a + cluster_b) / T::from_f64(2.0).unwrap();
+        let diff_a = cluster_a - &centroid_combined;
+        let diff_b = cluster_b - &centroid_combined;
+        diff_a.dot(&diff_a) + diff_b.dot(&diff_b)
     }
 }
 

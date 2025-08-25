@@ -11,7 +11,7 @@
 
 ## Flow
 
-It maintains and adapts a covariance matrix, C, capturing the shape of the search distribution. It tracks evolution paths (pc for covariance, ps for step size) and uses this to adapt C using rank-1 (pc·pcᵀ) and rank-μ (weighted differences) updates.
+It maintains and adapts a covariance matrix in eigendecomposition form, $C = B \times D^2 \times B^T$, capturing the shape of the search distribution and enabling sampling by, $x = \text{mean} + \sigma \times B \times D \times z$, (where $z$ is Gaussian noise). It tracks evolution paths (pc for covariance, ps for step size) and uses this to adapt C using rank-1 (pc·pcᵀ) and rank-μ (weighted differences) updates.
 
 ### Evolution Paths
 

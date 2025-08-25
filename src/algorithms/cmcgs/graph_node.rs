@@ -1,7 +1,9 @@
 use nalgebra::{allocator::Allocator, DefaultAllocator, Dim, OVector};
 use rand::prelude::*;
 
-use super::gaussian_distributions::{GaussianActionPolicy, GaussianStateDistribution};
+use crate::algorithms::cmcgs::gaussian_distributions::{
+    GaussianActionPolicy, GaussianStateDistribution,
+};
 use crate::utils::opt_prob::FloatNumber as FloatNum;
 
 #[derive(Clone, Debug)]
@@ -100,23 +102,19 @@ where
             .update_from_elite_experiences(actions, returns);
     }
 
-    pub fn sample_action(&self, rng: &mut impl Rng) -> OVector<T, D> {
-        self.action_policy.sample_action(rng)
+    pub fn update_action_policy_from_policy(&mut self, policy: &GaussianActionPolicy<T, D>) {
+        self.action_policy = policy.clone();
     }
 
-    pub fn get_state_distribution(&self) -> &GaussianStateDistribution<T, D> {
-        &self.state_distribution
+    pub fn sample_action(&self, rng: &mut impl Rng) -> OVector<T, D> {
+        self.action_policy.sample_action(rng)
     }
 
     pub fn get_action_policy(&self) -> &GaussianActionPolicy<T, D> {
         &self.action_policy
     }
 
-    pub fn get_state_distribution_mut(&mut self) -> &mut GaussianStateDistribution<T, D> {
-        &mut self.state_distribution
-    }
-
-    pub fn get_action_policy_mut(&mut self) -> &mut GaussianActionPolicy<T, D> {
-        &mut self.action_policy
+    pub fn get_state_distribution(&self) -> &GaussianStateDistribution<T, D> {
+        &self.state_distribution
     }
 }

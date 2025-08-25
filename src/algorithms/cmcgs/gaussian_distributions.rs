@@ -98,6 +98,17 @@ where
         }
     }
 
+    pub fn distance_to_centroid(&self, state: &OVector<T, D>) -> T {
+        let diff = state - &self.mean;
+        let mut distance_squared = T::zero();
+
+        for i in 0..state.len() {
+            distance_squared += diff[i] * diff[i];
+        }
+
+        distance_squared.sqrt()
+    }
+
     pub fn sample(&self, rng: &mut impl Rng) -> OVector<T, D> {
         let mut sample = OVector::zeros_generic(D::from_usize(self.mean.len()), nalgebra::U1);
 

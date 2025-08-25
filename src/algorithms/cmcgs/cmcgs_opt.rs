@@ -22,7 +22,7 @@ where
     OVector<T, N>: Send + Sync,
     OVector<bool, N>: Send + Sync,
     OMatrix<T, N, D>: Send + Sync,
-    DefaultAllocator: Allocator<D> + Allocator<N, D> + Allocator<N>,
+    DefaultAllocator: Allocator<D> + Allocator<N, D> + Allocator<N> + Allocator<U1, D>,
 {
     pub conf: CMCGSConf,
     pub opt_prob: OptProb<T, D>,
@@ -31,14 +31,9 @@ where
     pub node_replay_buffers: NodeReplayBufferManager<T, D>,
     pub state_cluster_manager: StateClusterManager<T, D>,
     pub graph: CMCGSGraph<T, D>,
-    pub iteration_count: usize,
-    pub last_improvement: usize,
     pub stagnation_count: usize,
     pub restart_count: usize,
     pub rng: StdRng,
-    pub seed: u64,
-    pub cached_lower_bounds: Option<OVector<T, D>>,
-    pub cached_upper_bounds: Option<OVector<T, D>>,
 }
 
 impl<T, N, D> CMCGS<T, N, D>
@@ -50,11 +45,11 @@ where
     OVector<T, N>: Send + Sync,
     OVector<bool, N>: Send + Sync,
     OMatrix<T, N, D>: Send + Sync,
-    DefaultAllocator: Allocator<D> + Allocator<N, D> + Allocator<N>,
+    DefaultAllocator: Allocator<D> + Allocator<N, D> + Allocator<N> + Allocator<U1, D>,
 {
     pub fn new(
         conf: CMCGSConf,
-        init_pop: OMatrix<T, N, D>,
+        init_pop: OMatrix<T, U1, D>,
         opt_prob: OptProb<T, D>,
         seed: u64,
     ) -> Self {
@@ -62,15 +57,12 @@ where
         let best_f = opt_prob.evaluate(&init_x);
         let n = init_x.len();
 
-        let cached_lower_bounds = opt_prob.objective.x_lower_bound(&init_x);
-        let cached_upper_bounds = opt_prob.objective.x_upper_bound(&init_x);
-
         let replay_buffer = ReplayBuffer::new(10000);
         let node_replay_buffers = NodeReplayBufferManager::new(1000);
         let state_cluster_manager = StateClusterManager::new();
         let graph = CMCGSGraph::new();
 
-        Self {
+        let mut cmcgs = Self {
             conf,
             opt_prob: opt_prob.clone(),
             st: State {
@@ -93,15 +85,13 @@ where
             node_replay_buffers,
             state_cluster_manager,
             graph,
-            iteration_count: 0,
-            last_improvement: 0,
             stagnation_count: 0,
             restart_count: 0,
             rng: StdRng::seed_from_u64(seed),
-            seed,
-            cached_lower_bounds,
-            cached_upper_bounds,
-        }
+        };
+
+        cmcgs.initialize_graph();
+        cmcgs
     }
 
     fn initialize_graph(&mut self) {
@@ -117,15 +107,6 @@ where
         self.node_replay_buffers.get_or_create_buffer(root_node_id);
     }
 
-    fn perform_cmcgs_iteration(&mut self) -> T {
-        let (trajectory, final_state, _final_node) = self.selection_phase();
-        self.depth_expansion_phase();
-        let rollout_return = self.simulation_phase(&final_state);
-        self.backup_phase(&trajectory, rollout_return);
-        self.width_expansion_phase();
-        rollout_return
-    }
-
     // Traverse graph with epsilon-greedy to select next node
     fn selection_phase(&mut self) -> (Vec<TrajectoryEntry<T, D>>, OVector<T, D>, usize) {
         let mut trajectory = Vec::new();
@@ -134,6 +115,10 @@ where
         let mut depth = 0;
 
         while !self.is_terminal_state(&current_state) && depth < self.conf.max_depth {
+            if let Some(node) = self.graph.get_node_mut(current_node_id) {
+                node.update(T::zero()); // Mark as visited
+            }
+
             let action = if self.rng.random::<f64>() < self.conf.epsilon {
                 self.sample_from_node_policy(current_node_id)
             } else {
@@ -153,7 +138,15 @@ where
                 break;
             }
 
-            current_node_id = self.select_next_node(depth + 1, &next_state);
+            // Check if there are nodes at the next depth
+            let next_depth = depth + 1;
+            let next_layer_nodes = self.graph.get_nodes_at_depth(next_depth);
+
+            if next_layer_nodes.is_empty() {
+                break; // Stay at current
+            }
+
+            current_node_id = self.select_next_node(next_depth, &next_state);
             current_state = next_state;
             depth += 1;
         }
@@ -174,9 +167,10 @@ where
     fn sample_greedy_action_with_noise(&mut self, node_id: usize) -> OVector<T, D> {
         if let Some(buffer) = self.node_replay_buffers.get_buffer(node_id) {
             if !buffer.is_empty() {
-                let top_experiences = buffer.get_top_experiences(1);
-                if let Some(top_exp) = top_experiences.first() {
-                    let top_action = &top_exp.action;
+                let top_experiences = buffer.get_top_experiences(self.conf.top_experiences_count);
+                if !top_experiences.is_empty() {
+                    let selected_idx = self.rng.random_range(0..top_experiences.len());
+                    let top_action = &top_experiences[selected_idx].action;
                     let noise_std = T::from_f64(0.1).unwrap(); // E_top from paper
 
                     let mut noisy_action = top_action.clone();
@@ -201,6 +195,7 @@ where
             let node_a = &self.graph.get_node(a).unwrap();
             let node_b = &self.graph.get_node(b).unwrap();
 
+            // Select node: 𝑞 ← arg max_{𝑞 ∈ 𝑄_{𝑡+1}} 𝑝_𝑞(𝒔_{𝑡+1})
             let prob_a = node_a.get_state_probability(state);
             let prob_b = node_b.get_state_probability(state);
 
@@ -219,19 +214,12 @@ where
         let current_depth = self.graph.get_max_depth();
 
         if current_depth < self.conf.max_depth {
-            let last_layer_nodes = self.graph.get_nodes_at_depth(current_depth - 1);
-            let total_experience: usize = last_layer_nodes
-                .par_iter()
-                .map(|&node_id| {
-                    self.node_replay_buffers
-                        .get_buffer(node_id)
-                        .map(|buffer| buffer.len())
-                        .unwrap_or(0)
-                })
-                .sum();
+            let timestep_experience = self
+                .replay_buffer
+                .count_transitions_at_timestep(current_depth);
 
-            if total_experience > self.conf.expansion_threshold {
-                let new_depth = current_depth;
+            if timestep_experience > self.conf.expansion_threshold {
+                let new_depth = current_depth + 1;
                 let placeholder_state = self.generate_random_state();
                 let new_node_id = self
                     .graph
@@ -270,13 +258,14 @@ where
 
     // Update node distributions and replay buffers
     fn backup_phase(&mut self, trajectory: &[TrajectoryEntry<T, D>], rollout_return: T) {
-        for (state, action, next_state, node_id) in trajectory {
+        for (timestep, (state, action, next_state, node_id)) in trajectory.iter().enumerate() {
             let experience = ExperienceTuple {
                 state: state.clone(),
                 action: action.clone(),
                 next_state: next_state.clone(),
                 return_value: rollout_return,
                 node_id: *node_id,
+                timestep,
             };
 
             self.replay_buffer.add_experience(experience.clone());
@@ -306,24 +295,28 @@ where
                     .collect();
                 node.update_state_distribution(&states);
 
-                let actions: Vec<_> = buffer
-                    .get_experiences()
-                    .iter()
-                    .map(|e| e.action.clone())
-                    .collect();
-                let returns: Vec<_> = buffer
-                    .get_experiences()
-                    .iter()
-                    .map(|e| e.return_value)
-                    .collect();
-                node.update_action_policy(&actions, &returns);
+                // Update action policy π_q(a) only if |D_q| > m/2
+                if buffer.has_sufficient_experience(self.conf.expansion_threshold / 2) {
+                    let actions: Vec<_> = buffer
+                        .get_experiences()
+                        .iter()
+                        .map(|e| e.action.clone())
+                        .collect();
+                    let returns: Vec<_> = buffer
+                        .get_experiences()
+                        .iter()
+                        .map(|e| e.return_value)
+                        .collect();
+
+                    node.update_action_policy(&actions, &returns);
+                }
             }
         }
     }
 
-    // Cluster states and add new nodes if less than desired min(n_max, ⌊n_t/m⌋)
+    // Cluster states and add new nodes if less than desired min(𝑛max, ⌊𝑛𝑡/𝑚⌋)
     fn width_expansion_phase(&mut self) {
-        for layer in 0..self.graph.get_max_depth() {
+        for layer in 1..self.graph.get_max_depth() {
             let transitions_at_timestep = self.replay_buffer.count_transitions_at_timestep(layer);
             let desired_nodes = (transitions_at_timestep / self.conf.expansion_threshold)
                 .min(self.conf.max_nodes_per_layer);
@@ -339,32 +332,28 @@ where
                 }
             }
         }
+
+        // Update root distributions
+        let root_id = self.graph.get_root_id();
+        if let Some(buffer) = self.node_replay_buffers.get_buffer(root_id) {
+            if buffer.has_sufficient_experience(1) {
+                self.update_node_distributions(root_id);
+            }
+        }
     }
 
     fn cluster_states_in_layer(
         &mut self,
         layer: usize,
     ) -> Vec<crate::algorithms::cmcgs::state_cluster::StateCluster<T, D>> {
-        let layer_nodes = self.graph.get_nodes_at_depth(layer);
-        let mut all_states = Vec::new();
-
-        for &node_id in &layer_nodes {
-            if let Some(buffer) = self.node_replay_buffers.get_buffer(node_id) {
-                for experience in buffer.get_experiences() {
-                    all_states.push(experience.state.clone());
-                }
-            }
-        }
-
+        let all_states = self.replay_buffer.get_states_at_timestep(layer);
         if all_states.len() < (self.conf.expansion_threshold / 2) {
-            return Vec::new(); // Not enough data for clustering
+            return Vec::new(); // Not enough data for clustering (m/2)
         }
 
-        // Simple agglomerative clustering
-        self.state_cluster_manager.cluster_states_in_layer(
-            all_states.iter().collect(),
-            layer_nodes.len() + 1, // Try to add one more cluster
-        )
+        let desired_clusters = self.graph.get_layer_size(layer) + 1; // Try to add one more cluster
+        self.state_cluster_manager
+            .cluster_states_in_layer(all_states.iter().collect(), desired_clusters)
     }
 
     fn reassign_experiences_to_nodes(&mut self, layer: usize) {
@@ -373,42 +362,48 @@ where
             return;
         }
 
-        // Match experience to node based on state similarity
-        let layer_experiences: Vec<_> = self
+        // Get all experiences at this timestep from the main replay buffer
+        let timestep_experiences: Vec<_> = self
             .replay_buffer
             .get_experiences()
             .par_iter()
-            .filter_map(|e| {
-                let closest_node = layer_nodes.par_iter().min_by(|&&a, &&b| {
-                    let node_a = self.graph.get_node(a).unwrap();
-                    let node_b = self.graph.get_node(b).unwrap();
-                    let dist_a = node_a.get_state_probability(&e.state);
-                    let dist_b = node_b.get_state_probability(&e.state);
+            .filter(|e| e.timestep == layer)
+            .collect();
+
+        // Clear existing node replay buffers for this layer
+        for &node_id in &layer_nodes {
+            if let Some(buffer) = self.node_replay_buffers.get_buffer_mut(node_id) {
+                buffer.clear();
+            }
+        }
+
+        // Reassign experiences to nodes based on state similarity to cluster centroids
+        for experience in timestep_experiences {
+            let closest_node = layer_nodes
+                .par_iter()
+                .filter_map(|&node_id| self.graph.get_node(node_id).map(|node| (node_id, node)))
+                .min_by(|(_, node_a), (_, node_b)| {
+                    let dist_a = node_a
+                        .get_state_distribution()
+                        .distance_to_centroid(&experience.state);
+                    let dist_b = node_b
+                        .get_state_distribution()
+                        .distance_to_centroid(&experience.state);
                     dist_a
                         .partial_cmp(&dist_b)
                         .unwrap_or(std::cmp::Ordering::Equal)
-                })?;
+                });
 
-                Some((e.clone(), *closest_node))
-            })
-            .collect();
-
-        // Batch reassign experiences to nodes
-        for (experience, node_id) in layer_experiences {
-            self.node_replay_buffers.add_experience(node_id, experience);
+            if let Some((node_id, _)) = closest_node {
+                self.node_replay_buffers
+                    .add_experience(node_id, experience.clone());
+            }
         }
     }
 
     // Check if state is infeasible
     fn is_terminal_state(&self, state: &OVector<T, D>) -> bool {
-        if let (Some(lower), Some(upper)) = (&self.cached_lower_bounds, &self.cached_upper_bounds) {
-            for i in 0..state.len() {
-                if state[i] < lower[i] || state[i] > upper[i] {
-                    return true;
-                }
-            }
-        }
-        false
+        !self.opt_prob.is_feasible(state)
     }
 
     fn apply_dynamics_model(
@@ -417,16 +412,23 @@ where
         action: &OVector<T, D>,
     ) -> (OVector<T, D>, T) {
         let next_state = state + action; // s_{t+1} = s_t + a_t
-        let reward = -next_state.norm(); // Negative distance for minimization (reward = -cost)
+        let reward = if self.opt_prob.is_feasible(&next_state) {
+            self.opt_prob.evaluate(&next_state)
+        } else {
+            T::from_f64(-1000.0).unwrap()
+        };
         (next_state, reward)
     }
 
     fn generate_random_state(&mut self) -> OVector<T, D> {
         let dim = D::try_to_usize().unwrap_or(2);
         let mut state = OVector::zeros_generic(D::from_usize(dim), U1::from_usize(1));
+        let (lb, ub) = self.get_bounds(&self.st.best_x);
 
         for i in 0..dim {
-            state[i] = T::from_f64(self.rng.random_range(-5.0..5.0)).unwrap();
+            let lower = lb[i].to_f64().unwrap_or(-1.0);
+            let upper = ub[i].to_f64().unwrap_or(1.0);
+            state[i] = T::from_f64(self.rng.random_range(lower..upper)).unwrap();
         }
 
         state
@@ -436,11 +438,43 @@ where
         let dim = D::try_to_usize().unwrap_or(2);
         let mut action = OVector::zeros_generic(D::from_usize(dim), U1::from_usize(1));
 
+        // Actions should be in a reasonable range for the problem
         for i in 0..dim {
-            action[i] = T::from_f64(self.rng.random_range(-1.0..1.0)).unwrap();
+            action[i] = T::from_f64(self.rng.random_range(-0.5..0.5)).unwrap();
         }
 
         action
+    }
+
+    // Choose first action of highest-return trajectory OR fallback to average of top actions
+    pub fn get_best_action(&self) -> Option<OVector<T, D>> {
+        let root_id = self.graph.get_root_id();
+        if let Some(buffer) = self.node_replay_buffers.get_buffer(root_id) {
+            if buffer.has_sufficient_experience(1) {
+                let top_experiences = buffer.get_top_experiences(self.conf.top_experiences_count);
+                if !top_experiences.is_empty() {
+                    if true {
+                        return Some(top_experiences[0].action.clone());
+                    } else {
+                        return Some(self.average_top_actions(&top_experiences));
+                    }
+                }
+            }
+        }
+        None
+    }
+
+    fn average_top_actions(&self, top_experiences: &[&ExperienceTuple<T, D>]) -> OVector<T, D> {
+        if top_experiences.is_empty() {
+            let dim = D::try_to_usize().unwrap_or(2);
+            return OVector::<T, D>::zeros_generic(D::from_usize(dim), U1);
+        }
+
+        let mut avg_action = top_experiences[0].action.clone();
+        for experience in top_experiences.iter().skip(1) {
+            avg_action += &experience.action;
+        }
+        avg_action / T::from_f64(top_experiences.len() as f64).unwrap()
     }
 
     fn should_restart(&self) -> bool {
@@ -485,60 +519,56 @@ where
         self.node_replay_buffers.clear();
         self.state_cluster_manager.clear();
         self.graph.clear();
+        self.initialize_graph();
 
         self.state_cluster_manager
             .add_state_with_reward(new_solution.clone(), self.st.fitness[0]);
     }
 
+    // Defaults to [-5.0, 5.0] if no bounds are provided
     fn get_bounds(&self, candidate: &OVector<T, D>) -> (OVector<T, D>, OVector<T, D>) {
-        if let (Some(lb), Some(ub)) = (&self.cached_lower_bounds, &self.cached_upper_bounds) {
-            (lb.clone(), ub.clone())
-        } else {
-            let lb = self
-                .opt_prob
-                .objective
-                .x_lower_bound(candidate)
-                .unwrap_or_else(|| {
-                    OVector::<T, D>::from_element_generic(
-                        D::from_usize(candidate.len()),
-                        U1,
-                        T::from_f64(-10.0).unwrap(),
-                    )
-                });
-            let ub = self
-                .opt_prob
-                .objective
-                .x_upper_bound(candidate)
-                .unwrap_or_else(|| {
-                    OVector::<T, D>::from_element_generic(
-                        D::from_usize(candidate.len()),
-                        U1,
-                        T::from_f64(10.0).unwrap(),
-                    )
-                });
-            (lb, ub)
-        }
+        let lower_bounds = self
+            .opt_prob
+            .objective
+            .x_lower_bound(candidate)
+            .unwrap_or_else(|| {
+                OVector::<T, D>::from_element_generic(
+                    D::from_usize(candidate.len()),
+                    U1,
+                    T::from_f64(-5.0).unwrap(),
+                )
+            });
+        let upper_bounds = self
+            .opt_prob
+            .objective
+            .x_upper_bound(candidate)
+            .unwrap_or_else(|| {
+                OVector::<T, D>::from_element_generic(
+                    D::from_usize(candidate.len()),
+                    U1,
+                    T::from_f64(5.0).unwrap(),
+                )
+            });
+        (lower_bounds, upper_bounds)
     }
 
     fn update_best_solution(&mut self) {
         if let Some(best_cluster) = self.state_cluster_manager.get_best_cluster() {
-            let new_state = best_cluster.centroid.clone();
+            let best_state = best_cluster.centroid().clone();
+            let best_f = self.opt_prob.evaluate(&best_state);
 
-            if self.opt_prob.is_feasible(&new_state) {
-                let fitness = self.opt_prob.evaluate(&new_state);
-
-                if fitness > self.st.best_f {
-                    self.st.best_f = fitness;
-                    self.st.best_x = new_state.clone();
-                }
-
-                // Update population with current best solution
-                for i in 0..new_state.len() {
-                    self.st.pop[(0, i)] = new_state[i];
-                }
-                self.st.fitness[0] = fitness;
-                self.st.constraints[0] = self.opt_prob.is_feasible(&new_state);
+            if best_f > self.st.best_f {
+                self.st.best_x = best_state.clone();
+                self.st.best_f = best_f;
+                self.st.pop.row_mut(0).copy_from(&best_state.transpose());
+                self.st.fitness[0] = best_f;
+                self.st.constraints[0] = self.opt_prob.is_feasible(&best_state);
+                self.stagnation_count = 0; // Reset stagnation counter on improvement
+            } else {
+                self.stagnation_count += 1; // Increment stagnation counter
             }
+        } else {
+            self.stagnation_count += 1; // No improvement if no cluster found
         }
     }
 }
@@ -552,7 +582,7 @@ where
     OVector<T, N>: Send + Sync,
     OVector<bool, N>: Send + Sync,
     OMatrix<T, N, D>: Send + Sync,
-    DefaultAllocator: Allocator<D> + Allocator<N, D> + Allocator<N>,
+    DefaultAllocator: Allocator<D> + Allocator<N, D> + Allocator<N> + Allocator<U1, D>,
 {
     fn step(&mut self) {
         if self.should_restart() {
@@ -560,43 +590,19 @@ where
             return;
         }
 
-        if self.iteration_count == 0 {
-            self.initialize_graph();
-        }
-
-        for _ in 0..self.conf.simulation_count {
-            self.perform_cmcgs_iteration();
-        }
-
-        let old_best_f = self.st.best_f;
+        let (trajectory, final_state, _final_node) = self.selection_phase();
+        self.depth_expansion_phase();
+        let _rollout_return = self.simulation_phase(&final_state);
+        self.backup_phase(&trajectory, _rollout_return);
+        self.width_expansion_phase();
         self.update_best_solution();
-
-        if self.st.best_f > old_best_f {
-            self.last_improvement = self.iteration_count;
-            self.stagnation_count = 0;
-        } else {
-            self.stagnation_count += 1;
-        }
-
-        // Ensure population is always updated with current best solution
-        if self.st.best_f > old_best_f {
-            // If we found a better solution, update population
-            for i in 0..self.st.best_x.len() {
-                self.st.pop[(0, i)] = self.st.best_x[i];
-            }
-            self.st.fitness[0] = self.st.best_f;
-            self.st.constraints[0] = self.opt_prob.is_feasible(&self.st.best_x);
-        }
-
-        self.iteration_count += 1;
-        self.st.iter = self.iteration_count;
     }
 
     fn state(&self) -> &State<T, N, D> {
         &self.st
     }
 
-    fn get_cmcgs_tree(&self) -> Option<&super::graph::CMCGSGraph<T, D>> {
+    fn get_cmcgs_tree(&self) -> Option<&CMCGSGraph<T, D>> {
         Some(&self.graph)
     }
 }

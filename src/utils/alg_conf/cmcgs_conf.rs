@@ -29,6 +29,8 @@ pub struct CMCGSConf {
     pub epsilon: f64,
     #[serde(default = "default_discount_factor")]
     pub discount_factor: f64,
+    #[serde(default = "default_top_experiences_count")]
+    pub top_experiences_count: usize,
 }
 
 fn default_max_depth() -> usize {
@@ -71,6 +73,9 @@ fn default_epsilon() -> f64 {
 fn default_discount_factor() -> f64 {
     0.99
 }
+fn default_top_experiences_count() -> usize {
+    5
+}
 
 impl Default for CMCGSConf {
     fn default() -> Self {
@@ -89,6 +94,7 @@ impl Default for CMCGSConf {
             max_nodes_per_layer: default_max_nodes_per_layer(),
             epsilon: default_epsilon(),
             discount_factor: default_discount_factor(),
+            top_experiences_count: default_top_experiences_count(),
         }
     }
 }

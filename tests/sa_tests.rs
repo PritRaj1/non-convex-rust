@@ -11,7 +11,7 @@ use non_convex_opt::utils::{
 };
 
 #[test]
-fn test_sa_basic() {
+fn test_sa() {
     let conf = SAConf {
         initial_temp: 1000.0,
         cooling_rate: 0.95,

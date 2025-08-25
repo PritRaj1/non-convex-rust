@@ -218,7 +218,7 @@ where
             &results,
         );
 
-        // Sort and update mean
+        // Update mean with weighted recombination
         let indices = sort(&self.st.fitness, &self.st.constraints, self.lambda);
         let old_mean = self.mean.clone();
         self.mean = OVector::zeros_generic(D::from_usize(n), U1);

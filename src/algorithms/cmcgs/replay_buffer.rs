@@ -15,6 +15,7 @@ where
     pub next_state: OVector<T, D>,
     pub return_value: T,
     pub node_id: usize,
+    pub timestep: usize,
 }
 
 pub struct ReplayBuffer<T, D>
@@ -56,8 +57,16 @@ where
     pub fn count_transitions_at_timestep(&self, timestep: usize) -> usize {
         self.experiences
             .par_iter()
-            .filter(|e| e.node_id == timestep)
+            .filter(|e| e.timestep == timestep)
             .count()
+    }
+
+    pub fn get_states_at_timestep(&self, timestep: usize) -> Vec<OVector<T, D>> {
+        self.experiences
+            .par_iter()
+            .filter(|e| e.timestep == timestep)
+            .map(|e| e.state.clone())
+            .collect()
     }
 
     pub fn clear(&mut self) {

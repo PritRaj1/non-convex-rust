@@ -171,9 +171,12 @@ where
                 conf.opt_conf.stagnation_window,
                 seed,
             )),
-            AlgConf::CMCGS(cmcgs_conf) => {
-                Box::new(CMCGS::new(cmcgs_conf, init_pop, opt_prob, seed))
-            }
+            AlgConf::CMCGS(cmcgs_conf) => Box::new(CMCGS::new(
+                cmcgs_conf,
+                init_pop.row(0).into_owned(),
+                opt_prob,
+                seed,
+            )),
         };
 
         Self {
