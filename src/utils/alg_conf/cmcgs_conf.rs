@@ -31,6 +31,8 @@ pub struct CMCGSConf {
     pub discount_factor: f64,
     #[serde(default = "default_top_experiences_count")]
     pub top_experiences_count: usize,
+    #[serde(default = "default_restart_max_attempts")]
+    pub restart_max_attempts: usize,
 }
 
 fn default_max_depth() -> usize {
@@ -76,6 +78,9 @@ fn default_discount_factor() -> f64 {
 fn default_top_experiences_count() -> usize {
     5
 }
+fn default_restart_max_attempts() -> usize {
+    100
+}
 
 impl Default for CMCGSConf {
     fn default() -> Self {
@@ -95,6 +100,7 @@ impl Default for CMCGSConf {
             epsilon: default_epsilon(),
             discount_factor: default_discount_factor(),
             top_experiences_count: default_top_experiences_count(),
+            restart_max_attempts: default_restart_max_attempts(),
         }
     }
 }

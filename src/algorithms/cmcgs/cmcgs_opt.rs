@@ -451,35 +451,18 @@ where
         action
     }
 
-    // Choose first action of highest-return trajectory OR fallback to average of top actions
+    // Choose first action of highest-return trajectory
     pub fn get_best_action(&self) -> Option<OVector<T, D>> {
         let root_id = self.graph.get_root_id();
         if let Some(buffer) = self.node_replay_buffers.get_buffer(root_id) {
-            if buffer.has_sufficient_experience(1) {
+            if buffer.has_sufficient_experience(self.conf.top_experiences_count) {
                 let top_experiences = buffer.get_top_experiences(self.conf.top_experiences_count);
                 if !top_experiences.is_empty() {
-                    if true {
-                        return Some(top_experiences[0].action.clone());
-                    } else {
-                        return Some(self.average_top_actions(&top_experiences));
-                    }
+                    return Some(top_experiences[0].action.clone());
                 }
             }
         }
         None
-    }
-
-    fn average_top_actions(&self, top_experiences: &[&ExperienceTuple<T, D>]) -> OVector<T, D> {
-        if top_experiences.is_empty() {
-            let dim = D::try_to_usize().unwrap_or(2);
-            return OVector::<T, D>::zeros_generic(D::from_usize(dim), U1);
-        }
-
-        let mut avg_action = top_experiences[0].action.clone();
-        for experience in top_experiences.iter().skip(1) {
-            avg_action += &experience.action;
-        }
-        avg_action / T::from_f64(top_experiences.len() as f64).unwrap()
     }
 
     fn should_restart(&self) -> bool {
@@ -495,7 +478,7 @@ where
             OVector::<T, D>::zeros_generic(D::from_usize(self.st.best_x.len()), U1);
 
         let mut attempts = 0;
-        let max_attempts = 100;
+        let max_attempts = self.conf.restart_max_attempts;
 
         while attempts < max_attempts {
             for i in 0..new_solution.len() {
@@ -558,22 +541,21 @@ where
     }
 
     fn update_best_solution(&mut self) {
-        if let Some(best_cluster) = self.state_cluster_manager.get_best_cluster() {
-            let best_state = best_cluster.centroid().clone();
-            let best_f = self.opt_prob.evaluate(&best_state);
+        if let Some(best_action) = self.get_best_action() {
+            let (next_state, reward) = self.apply_dynamics_model(&self.st.best_x, &best_action);
+            self.st.pop.row_mut(0).copy_from(&next_state.transpose());
 
-            if best_f > self.st.best_f {
-                self.st.best_x = best_state.clone();
-                self.st.best_f = best_f;
-                self.st.pop.row_mut(0).copy_from(&best_state.transpose());
-                self.st.fitness[0] = best_f;
-                self.st.constraints[0] = self.opt_prob.is_feasible(&best_state);
-                self.stagnation_count = 0; // Reset stagnation counter on improvement
+            if reward > self.st.best_f {
+                self.st.best_x = next_state.clone();
+                self.st.best_f = reward;
+                self.st.fitness[0] = reward;
+                self.st.constraints[0] = self.opt_prob.is_feasible(&next_state);
+                self.stagnation_count = 0;
             } else {
-                self.stagnation_count += 1; // Increment stagnation counter
+                self.stagnation_count += 1;
             }
         } else {
-            self.stagnation_count += 1; // No improvement if no cluster found
+            self.stagnation_count += 1;
         }
     }
 }
@@ -595,6 +577,7 @@ where
             return;
         }
 
+        // Run CMCGS planning phases
         let (trajectory, final_state, _final_node) = self.selection_phase();
         self.depth_expansion_phase();
         let _rollout_return = self.simulation_phase(&final_state);

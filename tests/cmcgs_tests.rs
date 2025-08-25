@@ -26,6 +26,7 @@ fn test_cmcgs() {
         epsilon: 0.2,
         discount_factor: 0.9,
         top_experiences_count: 5,
+        restart_max_attempts: 10,
     };
 
     let init_x = OMatrix::<f64, U1, U2>::from_element_generic(U1, U2, 1.0);
@@ -68,6 +69,7 @@ fn test_cmcgs_graph() {
         epsilon: 0.1,
         discount_factor: 0.9,
         top_experiences_count: 5,
+        restart_max_attempts: 10,
     };
 
     let init_x = OMatrix::<f64, U1, U2>::from_element_generic(U1, U2, 1.0);
@@ -101,6 +103,7 @@ fn test_cmcgs_replay_buffer() {
         epsilon: 0.1,
         discount_factor: 0.9,
         top_experiences_count: 5,
+        restart_max_attempts: 10,
     };
 
     let init_x = OMatrix::<f64, U1, U2>::from_element_generic(U1, U2, 1.0);
@@ -137,6 +140,7 @@ fn test_cmcgs_state_clustering() {
         epsilon: 0.1,
         discount_factor: 0.9,
         top_experiences_count: 5,
+        restart_max_attempts: 10,
     };
 
     let init_x = OMatrix::<f64, U1, U2>::from_element_generic(U1, U2, 1.0);
@@ -195,6 +199,7 @@ fn test_cmcgs_gaussian_policy_updates() {
         epsilon: 0.2,
         discount_factor: 0.9,
         top_experiences_count: 5,
+        restart_max_attempts: 10,
     };
 
     let init_x = OMatrix::<f64, U1, U2>::from_element_generic(U1, U2, 1.0);

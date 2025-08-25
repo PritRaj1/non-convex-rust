@@ -16,22 +16,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config_json = r#"
     {
         "opt_conf": {
-            "max_iter": 100,
+            "max_iter": 50,
             "rtol": "1e-6",
-            "atol": "1e-8",
+            "atol": "0.0",
             "rtol_max_iter_fraction": 1.0
         },
         "alg_conf": {
             "CMCGS": {
-                "epsilon": 0.1,
-                "expansion_threshold": 5,
-                "max_nodes_per_layer": 10,
-                "max_depth": 5,
-                "simulation_count": 10,
-                "simulation_steps": 5,
-                "discount_factor": 0.9,
-                "restart_threshold": 20,
-                "top_experiences_count": 3
+                "epsilon": 0.6,
+                "expansion_threshold": 4,
+                "max_nodes_per_layer": 6,
+                "max_depth": 3,
+                "simulation_count": 6,
+                "simulation_steps": 4,
+                "discount_factor": 0.85,
+                "restart_threshold": 8,
+                "top_experiences_count": 2,
+                "restart_max_attempts": 1000
             }
         }
     }"#;
@@ -54,7 +55,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let color_palette = get_color_palette();
     let mut encoder = setup_gif("examples/gifs/cmcgs_kbf.gif")?;
 
-    for frame in 0..100 {
+    for frame in 0..50 {
         let mut chart = setup_chart(ChartParams {
             frame,
             algorithm_name: "CMCGS",
