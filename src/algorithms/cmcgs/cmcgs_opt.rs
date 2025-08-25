@@ -92,6 +92,9 @@ where
 
         cmcgs.initialize_graph();
         cmcgs
+            .state_cluster_manager
+            .add_state_with_reward(init_x.clone(), best_f);
+        cmcgs
     }
 
     fn initialize_graph(&mut self) {
@@ -271,6 +274,8 @@ where
             self.replay_buffer.add_experience(experience.clone());
             self.node_replay_buffers
                 .add_experience(*node_id, experience);
+            self.state_cluster_manager
+                .add_state_with_reward(state.clone(), rollout_return);
 
             let has_sufficient = self
                 .node_replay_buffers

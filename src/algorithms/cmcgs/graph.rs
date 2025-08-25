@@ -93,9 +93,8 @@ where
     pub fn get_nodes_at_depth(&self, depth: usize) -> Vec<usize> {
         self.nodes
             .par_iter()
-            .enumerate()
-            .filter(|(_, node)| node.depth == depth)
-            .map(|(i, _)| i)
+            .filter(|node| node.depth == depth)
+            .map(|node| node.id)
             .collect()
     }
 
