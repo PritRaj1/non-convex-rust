@@ -115,8 +115,44 @@ where
     }
 
     pub fn fit(&mut self, new_observations: &[OVector<T, D>]) {
-        self.observations.extend_from_slice(new_observations);
-        self.bandwidths = Self::compute_bandwidths(&self.observations, &self.bandwidth_conf);
+        if self.should_recompute_bandwidths(new_observations) {
+            self.observations.extend_from_slice(new_observations);
+            self.bandwidths = Self::compute_bandwidths(&self.observations, &self.bandwidth_conf);
+        } else {
+            self.observations.extend_from_slice(new_observations);
+
+            let new_count = new_observations.len();
+            if new_count > 0 {
+                let default_bandwidth = if !self.bandwidths.is_empty() {
+                    self.bandwidths[0]
+                } else {
+                    T::from_f64(1.0).unwrap()
+                };
+                self.bandwidths.extend(vec![default_bandwidth; new_count]);
+            }
+        }
+    }
+
+    // Recompute when enough new observations
+    fn should_recompute_bandwidths(&self, new_observations: &[OVector<T, D>]) -> bool {
+        if self.observations.is_empty() {
+            return true;
+        }
+
+        let new_count = new_observations.len();
+        let existing_count = self.observations.len();
+
+        if new_count > 0
+            && (new_count as f64 / existing_count as f64) > self.bandwidth_conf.cache_threshold
+        {
+            return true;
+        }
+
+        if existing_count < self.bandwidth_conf.min_observations {
+            return true;
+        }
+
+        false
     }
 
     pub fn add_observation(&mut self, observation: OVector<T, D>) {

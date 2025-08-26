@@ -22,6 +22,7 @@ static TPE_CONFIG_JSON: &str = r#"
             "prior_weight": 1.0,
             "kernel_type": "Gaussian",
             "max_history": 1000,
+            "kde_refit_frequency": 5,
             "advanced": {
                 "use_restart_strategy": true,
                 "restart_frequency": 50,
@@ -37,7 +38,9 @@ static TPE_CONFIG_JSON: &str = r#"
                 "cv_folds": 5,
                 "adaptation_rate": 0.1,
                 "min_bandwidth": 1e-6,
-                "max_bandwidth": 10.0
+                "max_bandwidth": 10.0,
+                "cache_threshold": 0.2,
+                "min_observations": 10
             },
             "acquisition": {
                 "acquisition_type": "ExpectedImprovement",

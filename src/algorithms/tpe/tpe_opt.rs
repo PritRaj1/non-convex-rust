@@ -24,8 +24,8 @@ where
     pub conf: TPEConf,
     pub opt_prob: OptProb<T, D>,
     pub st: State<T, N, D>,
-    pub kde_l: KernelDensityEstimator<T, D>,
-    pub kde_g: KernelDensityEstimator<T, D>,
+    pub kde_l: KernelDensityEstimator<T, D>, // p(x | D^(l)) - better observations
+    pub kde_g: KernelDensityEstimator<T, D>, // p(x | D^(g)) - all observations
     pub acquisition: AcquisitionFunctionPtr<T, D>,
     pub observations: Vec<(OVector<T, D>, T)>,
     pub best_observations: Vec<(OVector<T, D>, T)>,
@@ -53,6 +53,11 @@ where
     pub candidate_cache: Vec<OVector<T, D>>,
     pub meta_optimization_history: Vec<(T, T)>, // (gamma, performance)
     pub meta_optimization_iter: usize,
+    pub kde_refit_counter: usize,
+    pub kde_refit_frequency: usize,
+    pub observations_changed: bool,
+    pub last_kde_fit_iter: usize,
+    pub last_observation_count: usize,
     rng: StdRng,
     seed: u64,
 }
@@ -147,6 +152,7 @@ where
         let n_best = (observations.len() as f64 * conf.gamma).floor() as usize;
         let best_observations = observations[..n_best].to_vec(); // Top γ-quantile (best)
         let worst_observations = observations[n_best..].to_vec(); // Bottom (1-γ)-quantile (worst)
+        let observation_count = observations.len();
 
         Self {
             conf: conf.clone(),
@@ -179,9 +185,13 @@ where
             stagnation_window,
             kernel_cache: Vec::new(),
             candidate_cache: Vec::new(),
-
             meta_optimization_history: Vec::new(),
             meta_optimization_iter: 0,
+            kde_refit_counter: 0,
+            kde_refit_frequency: conf.kde_refit_frequency,
+            observations_changed: false,
+            last_kde_fit_iter: 0,
+            last_observation_count: observation_count,
             rng: StdRng::seed_from_u64(seed),
             seed,
         }
@@ -264,22 +274,8 @@ where
     fn sample_tpe_candidates(&mut self, n_candidates: usize) -> Vec<OVector<T, D>> {
         let mut candidates = Vec::with_capacity(n_candidates);
 
-        // Fit KDEs
-        if !self.best_observations.is_empty() {
-            let best_x: Vec<_> = self
-                .best_observations
-                .iter()
-                .map(|(x, _)| x.clone())
-                .collect();
-            self.kde_g.fit(&best_x);
-        }
-        if !self.worst_observations.is_empty() {
-            let worst_x: Vec<_> = self
-                .worst_observations
-                .iter()
-                .map(|(x, _)| x.clone())
-                .collect();
-            self.kde_l.fit(&worst_x);
+        if self.should_refit_kdes() {
+            self.fit_kdes();
         }
 
         match self.conf.sampling.strategy {
@@ -301,6 +297,36 @@ where
         }
 
         candidates
+    }
+
+    // Refit when performance degraded or observations changed significantly
+    fn should_refit_kdes(&self) -> bool {
+        self.last_kde_fit_iter == 0
+            || self.observations_changed
+            || (self.iteration - self.last_kde_fit_iter) >= self.kde_refit_frequency
+            || self.observations.len() != self.last_observation_count
+    }
+
+    fn fit_kdes(&mut self) {
+        // Fit KDE for better observations (l(x))
+        if !self.best_observations.is_empty() {
+            let best_x: Vec<_> = self
+                .best_observations
+                .iter()
+                .map(|(x, _)| x.clone())
+                .collect();
+            self.kde_l.fit(&best_x);
+        }
+
+        // Fit KDE for all observations (g(x))
+        if !self.observations.is_empty() {
+            let all_x: Vec<_> = self.observations.iter().map(|(x, _)| x.clone()).collect();
+            self.kde_g.fit(&all_x);
+        }
+
+        self.last_kde_fit_iter = self.iteration;
+        self.last_observation_count = self.observations.len();
+        self.observations_changed = false;
     }
 
     // Sample posterior with Thompson; fallback random
@@ -749,6 +775,7 @@ where
             as usize;
         self.best_observations = self.observations[..n_best].to_vec();
         self.worst_observations = self.observations[n_best..].to_vec();
+        self.observations_changed = true;
     }
 
     fn update_convergence_metrics(&mut self) {

@@ -16,6 +16,8 @@ pub struct TPEConf {
     pub kernel_type: KernelType,
     #[serde(default = "default_max_history")]
     pub max_history: usize,
+    #[serde(default = "default_kde_refit_frequency")]
+    pub kde_refit_frequency: usize,
     #[serde(default = "default_advanced")]
     pub advanced: AdvancedConf,
     #[serde(default = "default_bandwidth")]
@@ -58,6 +60,10 @@ pub struct BandwidthConf {
     pub min_bandwidth: f64,
     #[serde(default = "default_bandwidth_max")]
     pub max_bandwidth: f64,
+    #[serde(default = "default_bandwidth_cache_threshold")]
+    pub cache_threshold: f64,
+    #[serde(default = "default_bandwidth_min_observations")]
+    pub min_observations: usize,
 }
 
 impl Default for BandwidthConf {
@@ -68,6 +74,8 @@ impl Default for BandwidthConf {
             adaptation_rate: default_bandwidth_adaptation_rate(),
             min_bandwidth: default_bandwidth_min(),
             max_bandwidth: default_bandwidth_max(),
+            cache_threshold: default_bandwidth_cache_threshold(),
+            min_observations: default_bandwidth_min_observations(),
         }
     }
 }
@@ -150,6 +158,10 @@ fn default_max_history() -> usize {
     1000
 }
 
+fn default_kde_refit_frequency() -> usize {
+    10
+}
+
 fn default_use_restart_strategy() -> bool {
     false
 }
@@ -202,6 +214,8 @@ fn default_bandwidth() -> BandwidthConf {
         adaptation_rate: 0.1,
         min_bandwidth: 1e-6,
         max_bandwidth: 10.0,
+        cache_threshold: 0.7,
+        min_observations: 10,
     }
 }
 
@@ -223,6 +237,14 @@ fn default_bandwidth_min() -> f64 {
 
 fn default_bandwidth_max() -> f64 {
     10.0
+}
+
+fn default_bandwidth_cache_threshold() -> f64 {
+    0.7
+}
+
+fn default_bandwidth_min_observations() -> usize {
+    10
 }
 
 fn default_acquisition() -> AcquisitionConf {

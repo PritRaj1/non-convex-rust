@@ -27,6 +27,7 @@ fn create_test_conf(
         prior_weight: 1.0,
         kernel_type,
         max_history: 100,
+        kde_refit_frequency: 10,
         advanced: AdvancedConf {
             use_restart_strategy: use_restart,
             restart_frequency: if use_restart { 25 } else { 100 },
@@ -43,6 +44,8 @@ fn create_test_conf(
             adaptation_rate: 0.1,
             min_bandwidth: 1e-6,
             max_bandwidth: 10.0,
+            cache_threshold: 0.2,
+            min_observations: 10,
         },
         acquisition: AcquisitionConf {
             acquisition_type: AcquisitionType::ExpectedImprovement,
@@ -71,6 +74,7 @@ fn test_basic() {
         prior_weight: 1.0,
         kernel_type: KernelType::Gaussian,
         max_history: 100,
+        kde_refit_frequency: 10,
         advanced: AdvancedConf {
             use_restart_strategy: false,
             restart_frequency: 100,
@@ -87,6 +91,8 @@ fn test_basic() {
             adaptation_rate: 0.1,
             min_bandwidth: 1e-6,
             max_bandwidth: 10.0,
+            cache_threshold: 0.2,
+            min_observations: 10,
         },
         acquisition: AcquisitionConf {
             acquisition_type: AcquisitionType::ExpectedImprovement,
