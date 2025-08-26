@@ -2,6 +2,7 @@ use crate::algorithms::multi_swarm::swarm::Swarm;
 use crate::utils::config::MSPOConf;
 use crate::utils::opt_prob::{FloatNumber as FloatNum, OptProb};
 use nalgebra::{allocator::Allocator, DefaultAllocator, Dim, U1};
+use std::cmp::Ordering::Equal;
 
 pub struct InformationExchange<T, D>
 where
@@ -64,7 +65,9 @@ where
             .enumerate()
             .map(|(j, p)| (j, p.best_fitness))
             .collect();
-        best_particles.sort_by(|(_, f1), (_, f2)| f2.partial_cmp(f1).unwrap());
+        best_particles.sort_by(|(_, f1), (_, f2)| {
+            f2.partial_cmp(f1).unwrap_or(Equal)
+        });
 
         // Exchange best particles with target swarm's worst particles
         for (k, (source_particle_idx, _)) in best_particles
