@@ -28,6 +28,11 @@ pub fn generate_initial_point(_config: &BenchmarkConfig) -> SMatrix<f64, 1, 2> {
     SMatrix::<f64, 1, 2>::from_fn(|_, _| random::<f64>() * 10.0)
 }
 
+#[allow(dead_code)]
+pub fn generate_initial_simplex(_config: &BenchmarkConfig) -> SMatrix<f64, 3, 2> {
+    SMatrix::<f64, 3, 2>::from_fn(|_, _| random::<f64>() * 10.0)
+}
+
 fn is_population_based(config: &Config) -> bool {
     matches!(
         &config.alg_conf,
@@ -56,6 +61,19 @@ pub fn benchmark_optimization(config: &Config, bench_config: &BenchmarkConfig) {
         let mut opt = NonConvexOpt::new(
             config.clone(),
             black_box(init_pop),
+            Kbf,
+            None::<KbfConstraints>,
+            bench_config.seed,
+        );
+        let _st = opt.run();
+    } else if matches!(
+        &config.alg_conf,
+        non_convex_opt::utils::config::AlgConf::NM(_)
+    ) {
+        let init_simplex = generate_initial_simplex(bench_config);
+        let mut opt = NonConvexOpt::new(
+            config.clone(),
+            black_box(init_simplex),
             Kbf,
             None::<KbfConstraints>,
             bench_config.seed,

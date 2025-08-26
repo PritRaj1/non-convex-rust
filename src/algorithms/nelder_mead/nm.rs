@@ -123,7 +123,11 @@ where
 
     fn get_sorted_indices(&self) -> Vec<usize> {
         let mut indices: Vec<usize> = (0..self.simplex.len()).collect();
-        indices.sort_by(|&i, &j| self.st.fitness[j].partial_cmp(&self.st.fitness[i]).unwrap());
+        indices.sort_by(|&i, &j| {
+            self.st.fitness[j]
+                .partial_cmp(&self.st.fitness[i])
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         indices
     }
 
