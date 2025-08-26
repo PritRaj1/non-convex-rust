@@ -1,83 +1,44 @@
 use criterion::{criterion_group, criterion_main, Criterion};
-use nalgebra::SMatrix;
-use rand::random;
-use std::hint::black_box;
+use std::sync::LazyLock;
 
-use non_convex_opt::utils::config::{AdamConf, AlgConf, Config, OptConf};
-use non_convex_opt::NonConvexOpt;
+use non_convex_opt::utils::config::Config;
 
 mod common;
-use common::fcns::{RosenbrockConstraints, RosenbrockFunction};
+use common::benchmark_utils::{benchmark_optimization, BenchmarkConfig};
 
-fn bench_adam_unconstrained(c: &mut Criterion) {
-    let config = Config {
-        opt_conf: OptConf {
-            max_iter: 10,
-            rtol: -1e8,
-            atol: -1e8,
-            rtol_max_iter_fraction: 1.0,
-            stagnation_window: 50,
-        },
-        alg_conf: AlgConf::Adam(AdamConf {
-            learning_rate: 0.05,
-            beta1: 0.9,
-            beta2: 0.999,
-            epsilon: 1e-8,
-            weight_decay: 0.0,
-            gradient_clip: 1.0,
-            amsgrad: false,
-        }),
-    };
+static ADAM_CONFIG_JSON: &str = r#"
+{
+    "opt_conf": {
+        "max_iter": 50,
+        "rtol": "0.0",
+        "atol": "0.0",
+        "rtol_max_iter_fraction": 1.0
+    },
+    "alg_conf": {
+        "Adam": {
+            "learning_rate": 0.1,
+            "beta1": 0.9,
+            "beta2": 0.999,
+            "epsilon": 1e-8,
+            "weight_decay": 0.0,
+            "gradient_clip": 0.0,
+            "amsgrad": false
+        }
+    }
+}"#;
 
-    c.bench_function("adam_unconstrained", |b| {
+static ADAM_CONFIG: LazyLock<Config> =
+    LazyLock::new(|| serde_json::from_str(ADAM_CONFIG_JSON).unwrap());
+
+fn bench_adam(c: &mut Criterion) {
+    let bench_config = BenchmarkConfig::default();
+
+    c.bench_function("adam", |b| {
         b.iter(|| {
-            let init_pop = SMatrix::<f64, 1, 2>::from_fn(|_, _| random::<f64>() * 10.0);
-            let mut opt = NonConvexOpt::new(
-                config.clone(),
-                black_box(init_pop),
-                RosenbrockFunction,
-                None::<RosenbrockConstraints>,
-                42,
-            );
-            let _st = opt.run();
+            benchmark_optimization(&ADAM_CONFIG, &bench_config);
         })
     });
 }
 
-fn bench_adam_constrained(c: &mut Criterion) {
-    let config = Config {
-        opt_conf: OptConf {
-            max_iter: 10,
-            rtol: -1e8,
-            atol: -1e8,
-            rtol_max_iter_fraction: 1.0,
-            stagnation_window: 50,
-        },
-        alg_conf: AlgConf::Adam(AdamConf {
-            learning_rate: 0.05,
-            beta1: 0.9,
-            beta2: 0.999,
-            epsilon: 1e-8,
-            weight_decay: 0.0,
-            gradient_clip: 1.0,
-            amsgrad: false,
-        }),
-    };
-
-    c.bench_function("adam_constrained", |b| {
-        b.iter(|| {
-            let init_pop = SMatrix::<f64, 1, 2>::from_fn(|_, _| random::<f64>() * 10.0);
-            let mut opt = NonConvexOpt::new(
-                config.clone(),
-                black_box(init_pop),
-                RosenbrockFunction,
-                Some(RosenbrockConstraints),
-                42,
-            );
-            let _st = opt.run();
-        })
-    });
-}
-
-criterion_group!(benches, bench_adam_unconstrained, bench_adam_constrained);
+criterion_group!(benches, bench_adam);
 criterion_main!(benches);

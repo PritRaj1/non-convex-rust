@@ -48,6 +48,57 @@ The library works with both statically-sized and dynamically-size vectors. For d
 ## Usage
 
 ```rust
+// Setup objective and constraints
+#[derive(Clone)]
+pub struct Kbf;
+
+impl ObjectiveFunction<f64, U2> for Kbf
+where
+    DefaultAllocator: Allocator<U2>,
+{
+    fn f(&self, x: &SVector<f64, 2>) -> f64 {
+        let sum_cos4: f64 = x.iter().map(|&xi| xi.cos().powi(4)).sum();
+        let prod_cos2: f64 = x.iter().map(|&xi| xi.cos().powi(2)).product();
+        let sum_ix2: f64 = x
+            .iter()
+            .enumerate()
+            .map(|(i, &xi)| (i as f64 + 1.0) * xi * xi)
+            .sum();
+
+        (sum_cos4 - 2.0 * prod_cos2).abs() / sum_ix2.sqrt()
+    }
+
+    // Some algorithms require gradients
+    fn gradient(&self, x: &SVector<f64, 2>) -> Option<SVector<f64, 2>> {
+    }
+
+    fn x_lower_bound(&self, _x: &SVector<f64, 2>) -> Option<SVector<f64, 2>> {
+        Some(SVector::from_vec(vec![0.0, 0.0]))
+    }
+
+    fn x_upper_bound(&self, _x: &SVector<f64, 2>) -> Option<SVector<f64, 2>> {
+        Some(SVector::from_vec(vec![10.0, 10.0]))
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct KbfConstraints;
+
+impl BooleanConstraintFunction<f64, U2> for KbfConstraints
+where
+    DefaultAllocator: Allocator<U2>,
+{
+    fn g(&self, x: &SVector<f64, 2>) -> bool {
+        let n = x.len();
+        let product: f64 = x.iter().product();
+        let sum: f64 = x.iter().sum();
+
+        x.iter().all(|&xi| (0.0..=10.0).contains(&xi))
+            && product > 0.75
+            && sum < (15.0 * n as f64) / 2.0
+    }
+}
+
 // Load config from file
 let config = Config::new(include_str!("config.json")).unwrap();
 
@@ -85,6 +136,8 @@ let config_json = r#"{
 }"#;
 
 let config = Config::new(config_json).unwrap();
+let obj_f = Kbf;
+let constraints = KbfConstraints;
 
 let mut opt = NonConvexOpt::new(
     config,
@@ -99,7 +152,7 @@ let mut opt = NonConvexOpt::new(
     config,
     init_x,
     obj_f,
-    None::<EmptyConstraints>,
+    None::<KbfConstraints>,
     42
 );
 

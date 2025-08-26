@@ -1,21 +1,17 @@
 use criterion::{criterion_group, criterion_main, Criterion};
-use nalgebra::SMatrix;
-use rand::random;
-use std::hint::black_box;
 use std::sync::LazyLock;
 
 use non_convex_opt::utils::config::Config;
-use non_convex_opt::NonConvexOpt;
 
 mod common;
-use common::fcns::{Kbf, KbfConstraints};
+use common::benchmark_utils::{benchmark_optimization, BenchmarkConfig};
 
-static CONFIG_JSON: &str = r#"
+static DE_CONFIG_JSON: &str = r#"
 {
     "opt_conf": {
-        "max_iter": 10,
-        "rtol": "1e-8",
-        "atol": "1e-8",
+        "max_iter": 50,
+        "rtol": "0.0",
+        "atol": "0.0",
         "rtol_max_iter_fraction": 1.0
     },
     "alg_conf": {
@@ -30,46 +26,28 @@ static CONFIG_JSON: &str = r#"
                     "f_min": 0.4,
                     "f_max": 0.9,
                     "cr_min": 0.1,
-                    "cr_max": 0.9
+                    "cr_max": 0.9,
+                    "use_jade": false,
+                    "memory_size": 5,
+                    "learning_rate": 0.1
                 }
             }
         }
     }
 }"#;
 
-static CONFIG: LazyLock<Config> = LazyLock::new(|| serde_json::from_str(CONFIG_JSON).unwrap());
+static DE_CONFIG: LazyLock<Config> =
+    LazyLock::new(|| serde_json::from_str(DE_CONFIG_JSON).unwrap());
 
-fn bench_de_unconstrained(c: &mut Criterion) {
-    c.bench_function("de_unconstrained", |b| {
+fn bench_de(c: &mut Criterion) {
+    let bench_config = BenchmarkConfig::default();
+
+    c.bench_function("de", |b| {
         b.iter(|| {
-            let init_pop = SMatrix::<f64, 100, 2>::from_fn(|_, _| random::<f64>() * 10.0);
-            let mut opt = NonConvexOpt::new(
-                CONFIG.clone(),
-                black_box(init_pop),
-                Kbf,
-                None::<KbfConstraints>,
-                42,
-            );
-            let _st = opt.run();
+            benchmark_optimization(&DE_CONFIG, &bench_config);
         })
     });
 }
 
-fn bench_de_constrained(c: &mut Criterion) {
-    c.bench_function("de_constrained", |b| {
-        b.iter(|| {
-            let init_pop = SMatrix::<f64, 100, 2>::from_fn(|_, _| random::<f64>() * 10.0);
-            let mut opt = NonConvexOpt::new(
-                CONFIG.clone(),
-                black_box(init_pop),
-                Kbf,
-                Some(KbfConstraints),
-                42,
-            );
-            let _st = opt.run();
-        })
-    });
-}
-
-criterion_group!(benches, bench_de_unconstrained, bench_de_constrained);
+criterion_group!(benches, bench_de);
 criterion_main!(benches);

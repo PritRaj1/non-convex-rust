@@ -71,6 +71,14 @@ where
         }
         sum
     }
+
+    fn gradient(&self, x: &OVector<f64, D>) -> Option<OVector<f64, D>> {
+        let mut grad = OVector::<f64, D>::zeros_generic(D::from_usize(x.len()), U1);
+        for i in 0..x.len() {
+            grad[i] = x[i].cos().powi(2) - x[i].sin().powi(2) + 0.2 * x[i];
+        }
+        Some(grad)
+    }
 }
 
 #[allow(dead_code)]

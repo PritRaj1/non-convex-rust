@@ -19,7 +19,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "opt_conf": {
             "max_iter": 50,
             "rtol": "1e-8",
-            "atol": "0",
+            "atol": "0.0",
             "rtol_max_iter_fraction": 1.0,
             "stagnation_window": 100
         },

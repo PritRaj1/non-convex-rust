@@ -1,89 +1,47 @@
 use criterion::{criterion_group, criterion_main, Criterion};
-use nalgebra::SMatrix;
-use rand::random;
-use std::hint::black_box;
+use std::sync::LazyLock;
 
-use non_convex_opt::utils::config::{AlgConf, Config, GRASPConf, OptConf};
-use non_convex_opt::NonConvexOpt;
+use non_convex_opt::utils::config::Config;
 
 mod common;
-use common::fcns::{Kbf, KbfConstraints};
+use common::benchmark_utils::{benchmark_optimization, BenchmarkConfig};
 
-fn bench_grasp_unconstrained(c: &mut Criterion) {
-    let config = Config {
-        opt_conf: OptConf {
-            max_iter: 10,
-            rtol: -1e8,
-            atol: -1e8,
-            rtol_max_iter_fraction: 1.0,
-            stagnation_window: 50,
-        },
-        alg_conf: AlgConf::GRASP(GRASPConf {
-            num_candidates: 100,
-            alpha: 0.5,
-            num_neighbors: 50,
-            step_size: 0.2,
-            perturbation_prob: 0.5,
-            max_local_iter: 100,
-            cache_bounds: true,
-            diversity_prob: 0.7,
-            restart_threshold: 15,
-            diversity_strength: 10.0,
-        }),
-    };
+static GRASP_CONFIG_JSON: &str = r#"
+{
+    "opt_conf": {
+        "max_iter": 50,
+        "rtol": "0.0",
+        "atol": "0.0",
+        "rtol_max_iter_fraction": 1.0
+    },
+    "alg_conf": {
+        "GRASP": {
+            "num_candidates": 100,
+            "alpha": 0.5,
+            "num_neighbors": 50,
+            "step_size": 0.2,
+            "perturbation_prob": 0.5,
+            "max_local_iter": 100,
+            "cache_bounds": true,
+            "diversity_prob": 0.7,
+            "restart_threshold": 100,
+            "diversity_strength": 10.0
+        }
+    }
+}"#;
 
-    c.bench_function("grasp_unconstrained", |b| {
+static GRASP_CONFIG: LazyLock<Config> =
+    LazyLock::new(|| serde_json::from_str(GRASP_CONFIG_JSON).unwrap());
+
+fn bench_grasp(c: &mut Criterion) {
+    let bench_config = BenchmarkConfig::default();
+
+    c.bench_function("grasp", |b| {
         b.iter(|| {
-            let init_pop = SMatrix::<f64, 1, 2>::from_fn(|_, _| random::<f64>() * 10.0);
-            let mut opt = NonConvexOpt::new(
-                config.clone(),
-                black_box(init_pop),
-                Kbf,
-                None::<KbfConstraints>,
-                42,
-            );
-            let _st = opt.run();
+            benchmark_optimization(&GRASP_CONFIG, &bench_config);
         })
     });
 }
 
-fn bench_grasp_constrained(c: &mut Criterion) {
-    let config = Config {
-        opt_conf: OptConf {
-            max_iter: 10,
-            rtol: -1e8,
-            atol: -1e8,
-            rtol_max_iter_fraction: 1.0,
-            stagnation_window: 50,
-        },
-        alg_conf: AlgConf::GRASP(GRASPConf {
-            num_candidates: 100,
-            alpha: 0.5,
-            num_neighbors: 50,
-            step_size: 0.2,
-            perturbation_prob: 0.5,
-            max_local_iter: 100,
-            cache_bounds: true,
-            diversity_prob: 0.7,
-            restart_threshold: 15,
-            diversity_strength: 10.0,
-        }),
-    };
-
-    c.bench_function("grasp_constrained", |b| {
-        b.iter(|| {
-            let init_pop = SMatrix::<f64, 1, 2>::from_fn(|_, _| random::<f64>() * 10.0);
-            let mut opt = NonConvexOpt::new(
-                config.clone(),
-                black_box(init_pop),
-                Kbf,
-                Some(KbfConstraints),
-                42,
-            );
-            let _st = opt.run();
-        })
-    });
-}
-
-criterion_group!(benches, bench_grasp_unconstrained, bench_grasp_constrained);
+criterion_group!(benches, bench_grasp);
 criterion_main!(benches);

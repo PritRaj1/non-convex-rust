@@ -62,3 +62,35 @@ harness = false
 [[bench]]
 name = "grasp_benchmarks"
 harness = false
+
+[[bench]]
+name = "sa_benchmarks"
+harness = false
+
+[[bench]]
+name = "de_benchmarks"
+harness = false
+
+[[bench]]
+name = "cmaes_benchmarks"
+harness = false
+
+[[bench]]
+name = "lbfgs_benchmarks"
+harness = false
+
+[[bench]]
+name = "mspo_benchmarks"
+harness = false
+
+[[bench]]
+name = "sga_benchmarks"
+harness = false
+
+[[bench]]
+name = "tpe_benchmarks"
+harness = false
+
+[[bench]]
+name = "cem_benchmarks"
+harness = false

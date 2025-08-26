@@ -1,27 +1,24 @@
 use criterion::{criterion_group, criterion_main, Criterion};
-use nalgebra::SMatrix;
-use rand::random;
-use std::hint::black_box;
 use std::sync::LazyLock;
 
 use non_convex_opt::utils::config::Config;
-use non_convex_opt::NonConvexOpt;
 
 mod common;
-use common::fcns::{Kbf, KbfConstraints};
+use common::benchmark_utils::{benchmark_optimization, BenchmarkConfig};
 
-static CONFIG_JSON: &str = r#"
+static PT_CONFIG_JSON: &str = r#"
 {
     "opt_conf": {
-        "max_iter": 10,
-        "rtol": "1e-8",
-        "atol": "1e-8",
-        "rtol_max_iter_fraction": 1.0
+        "max_iter": 50,
+        "rtol": "0.0",
+        "atol": "0.0",
+        "rtol_max_iter_fraction": 1.0,
+        "stagnation_window": 10
     },
     "alg_conf": {
         "PT": {
             "common": {
-                "num_replicas": 10,
+                "num_replicas": 5,
                 "power_law_init": 2.0,
                 "power_law_final": 0.5,
                 "power_law_cycles": 1,
@@ -31,44 +28,26 @@ static CONFIG_JSON: &str = r#"
             },
             "swap_conf": {
                 "Always": {}
+            },
+            "update_conf": {
+                "Auto": {}
             }
         }
     }
 }"#;
 
-static CONFIG: LazyLock<Config> = LazyLock::new(|| serde_json::from_str(CONFIG_JSON).unwrap());
+static PT_CONFIG: LazyLock<Config> =
+    LazyLock::new(|| serde_json::from_str(PT_CONFIG_JSON).unwrap());
 
-fn bench_pt_unconstrained(c: &mut Criterion) {
-    c.bench_function("pt_unconstrained", |b| {
+fn bench_pt(c: &mut Criterion) {
+    let bench_config = BenchmarkConfig::default();
+
+    c.bench_function("pt", |b| {
         b.iter(|| {
-            let init_pop = SMatrix::<f64, 100, 2>::from_fn(|_, _| random::<f64>() * 10.0);
-            let mut opt = NonConvexOpt::new(
-                CONFIG.clone(),
-                black_box(init_pop),
-                Kbf,
-                None::<KbfConstraints>,
-                42,
-            );
-            let _st = opt.run();
+            benchmark_optimization(&PT_CONFIG, &bench_config);
         })
     });
 }
 
-fn bench_pt_constrained(c: &mut Criterion) {
-    c.bench_function("pt_constrained", |b| {
-        b.iter(|| {
-            let init_pop = SMatrix::<f64, 100, 2>::from_fn(|_, _| random::<f64>() * 10.0);
-            let mut opt = NonConvexOpt::new(
-                CONFIG.clone(),
-                black_box(init_pop),
-                Kbf,
-                Some(KbfConstraints),
-                42,
-            );
-            let _st = opt.run();
-        })
-    });
-}
-
-criterion_group!(benches, bench_pt_unconstrained, bench_pt_constrained);
+criterion_group!(benches, bench_pt);
 criterion_main!(benches);
