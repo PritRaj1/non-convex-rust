@@ -2,7 +2,6 @@ pub mod adam_conf;
 pub mod cem_conf;
 pub mod cga_conf;
 pub mod cmaes_conf;
-pub mod cmcgs_conf;
 pub mod de_conf;
 pub mod grasp_conf;
 pub mod lbfgs_conf;

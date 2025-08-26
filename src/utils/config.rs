@@ -9,7 +9,6 @@ pub use crate::utils::alg_conf::{
     cem_conf::CEMConf,
     cga_conf::{CGAConf, CommonConf, CrossoverConf, MutationConf, SelectionConf},
     cmaes_conf::CMAESConf,
-    cmcgs_conf::CMCGSConf,
     de_conf::{DEConf, DEStrategy},
     grasp_conf::GRASPConf,
     lbfgs_conf::{
@@ -41,7 +40,6 @@ pub enum AlgConf {
     CMAES(CMAESConf),
     TPE(TPEConf),
     CEM(CEMConf),
-    CMCGS(CMCGSConf),
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]

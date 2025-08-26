@@ -1,7 +1,6 @@
 pub mod adam;
 pub mod cem;
 pub mod cma_es;
-pub mod cmcgs;
 pub mod continuous_genetic;
 pub mod differential_evolution;
 pub mod grasp;
