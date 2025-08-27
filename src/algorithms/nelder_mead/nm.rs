@@ -1,6 +1,7 @@
 use nalgebra::{allocator::Allocator, DefaultAllocator, Dim, OMatrix, OVector, U1};
 use rand::{rngs::StdRng, Rng, SeedableRng};
 use rayon::prelude::*;
+use std::cmp::Ordering::{Equal, Greater, Less};
 use std::collections::VecDeque;
 
 use crate::utils::alg_conf::nm_conf::RestartStrategy;
@@ -61,12 +62,14 @@ where
             simplex.iter().map(|vertex| opt_prob.evaluate(vertex)),
         );
 
+        // Find the best valid fitness value, handling NaN/Inf cases
         let best_idx = fitness_values
             .iter()
             .enumerate()
-            .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+            .filter(|(_, &fitness)| fitness.is_finite()) // Filter out NaN/Inf values
+            .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
             .map(|(idx, _)| idx)
-            .unwrap();
+            .unwrap_or(0); // Use first index as fallback if no valid fitness values
 
         let pop = OMatrix::<T, N, D>::from_iterator_generic(
             N::from_usize(n + 1),
@@ -124,9 +127,18 @@ where
     fn get_sorted_indices(&self) -> Vec<usize> {
         let mut indices: Vec<usize> = (0..self.simplex.len()).collect();
         indices.sort_by(|&i, &j| {
-            self.st.fitness[j]
-                .partial_cmp(&self.st.fitness[i])
-                .unwrap_or(std::cmp::Ordering::Equal)
+            let fitness_i = self.st.fitness[i];
+            let fitness_j = self.st.fitness[j];
+
+            if !fitness_i.is_finite() && !fitness_j.is_finite() {
+                Equal
+            } else if !fitness_i.is_finite() {
+                Less // NaN/Inf goes to the end
+            } else if !fitness_j.is_finite() {
+                Greater
+            } else {
+                fitness_j.partial_cmp(&fitness_i).unwrap_or(Equal)
+            }
         });
         indices
     }
@@ -207,10 +219,16 @@ where
         true
     }
 
-    // Negativ inf when infeasible
+    // Negative inf when infeasible, handle invalid fitness values
     fn evaluate_point(&self, point: &OVector<T, D>) -> T {
         if self.opt_prob.is_feasible(point) {
-            self.opt_prob.evaluate(point)
+            let fitness = self.opt_prob.evaluate(point);
+            // Ensure we return a valid finite value
+            if fitness.is_finite() {
+                fitness
+            } else {
+                T::neg_infinity() // Return negative infinity for invalid fitness
+            }
         } else {
             T::neg_infinity()
         }
@@ -222,27 +240,33 @@ where
     }
 
     fn update_best_solution(&mut self) {
+        // Find the best valid fitness value, handling NaN/Inf cases
         let best_idx = self
             .st
             .fitness
             .iter()
             .enumerate()
-            .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
-            .map(|(idx, _)| idx)
-            .unwrap();
+            .filter(|(_, &fitness)| fitness.is_finite()) // Filter out NaN/Inf values
+            .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+            .map(|(idx, _)| idx);
+
+        // If no valid fitness values found, use the first index as fallback
+        let best_idx = best_idx.unwrap_or(0);
 
         let old_best_f = self.st.best_f;
         self.st.best_x = self.simplex[best_idx].clone();
 
-        if self.st.fitness[best_idx] > self.st.best_f {
+        if self.st.fitness[best_idx].is_finite() && self.st.fitness[best_idx] > self.st.best_f {
             self.st.best_f = self.st.fitness[best_idx];
             self.st.best_x = self.simplex[best_idx].clone();
 
             let improvement = self.st.best_f - old_best_f;
-            self.improvement_history
-                .push_back(improvement.to_f64().unwrap_or(0.0));
-            if self.improvement_history.len() > self.conf.advanced.improvement_history_size {
-                self.improvement_history.pop_front();
+            if improvement.is_finite() {
+                self.improvement_history
+                    .push_back(improvement.to_f64().unwrap_or(0.0));
+                if self.improvement_history.len() > self.conf.advanced.improvement_history_size {
+                    self.improvement_history.pop_front();
+                }
             }
 
             self.stagnation_counter = 0;
