@@ -162,23 +162,6 @@ To see the differences between setting up unconstrained and constrained problems
 
 Example configs are provided in [tests/jsons/](tests/jsons). More information on each config can be found in the respective algorithm .md files, (links above).
 
-## Contributing
-
-1. Fork the repository
-2. Create a new branch: `git checkout -b my-feature`
-3. Make your changes
-4. Run tests: `cargo test`
-5. Run benchmarks: `cargo bench`    
-    - To view the results, run:
-    ```bash
-    open target/criterion/report/index.html  # on macOS
-    xdg-open target/criterion/report/index.html  # on Linux
-    start target/criterion/report/index.html  # on Windows
-    ```
-6. Add sources and more information to the respective algorithm .md file - so that others can learn and share too!
-7. Commit and push
-8. Open a Pull Request
-
 ## License
 
 This project is open-sourced under the [MIT License](LICENSE).
