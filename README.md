@@ -1,6 +1,12 @@
 # NonConvex-RUST
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
+<div align="center">
+
+<img src="examples/gifs/pt_kbf.gif" width="1000" alt="PT Example">
+
+</div>
+
 Continuous non-convex optimizers for constrained and unconstrained maximization problems. These algorithms were implemented as a side project, but they may be useful and have been open-sourced.
 
 Sources/links to more information in the respective algorithm .md files.
