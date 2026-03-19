@@ -1,4 +1,4 @@
-# NonConvex-RUST
+# non-convex-rust
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 <div align="center">
